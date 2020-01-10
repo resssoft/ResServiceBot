@@ -150,8 +150,24 @@ func main() {
 			if err := db.Write("command", commandValue, command); err != nil {
 				fmt.Println("add command error", err)
 			}
-			//result1 := firstWords(update.Message.Text, 1)
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added"+commandValue)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added "+commandValue)
+			bot.Send(msg)
+
+		case "/SaveCommandsList":
+			records, err := db.ReadAll("command")
+			if err != nil {
+				fmt.Println("Error", err)
+			}
+
+			commands := []string{}
+			for _, f := range records {
+				commandFound := TGCommand{}
+				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
+					fmt.Println("Error", err)
+				}
+				commands = append(commands, commandFound.Command)
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(commands, ", "))
 			bot.Send(msg)
 
 		case "/admin":
