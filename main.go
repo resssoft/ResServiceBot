@@ -47,7 +47,9 @@ type TgBot struct {
 }
 
 type SavedBlock struct {
-	Text string
+	Group string
+	User  string
+	Text  string
 }
 
 func splitCommand(command string, separate string) ([]string, string) {
@@ -198,9 +200,21 @@ func main() {
 				commands = append(commands, commandFound)
 				if commandFound.Command == commandName {
 					commandContain = true
-					log.Printf("FOUND command in DB!")
-					if err := db.Write("saved", commandName, SavedBlock{Text: commandValue}); err != nil {
+					itemCode := commandName +
+						"_" + strconv.FormatInt(update.Message.Chat.ID, 10) +
+						"_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+					if err := db.Write(
+						"saved",
+						itemCode,
+						SavedBlock{
+							Text:  commandValue,
+							Group: commandName,
+							User:  strconv.FormatInt(update.Message.Chat.ID, 10),
+						}); err != nil {
 						fmt.Println("add command error", err)
+					} else {
+						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Done")
+						bot.Send(msg)
 					}
 				}
 			}
