@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const appVersion = "2.0.0"
+
 type TGUser struct {
 	UserID  int
 	Login   string
@@ -30,6 +32,24 @@ type TGCommandPermissions struct {
 	ChantPermissions string
 }
 
+type Configuration struct {
+	Telegram TelegramConfig
+}
+
+type TelegramConfig struct {
+	Bot        TgBot
+	AdminId    string
+	AdminLogin string
+}
+
+type TgBot struct {
+	Token string
+}
+
+type SavedBlock struct {
+	Text string
+}
+
 func splitCommand(command string, separate string) ([]string, string) {
 	if command == "" {
 		return []string{}, ""
@@ -41,33 +61,28 @@ func splitCommand(command string, separate string) ([]string, string) {
 	return result, strings.Replace(command, result[0]+" ", "", -1)
 }
 
-func firstWords(value string, count int) string {
-	// Loop over all indexes in the string.
-	for i := range value {
-		// If we encounter a space, reduce the count.
-		if value[i] == ' ' {
-			count -= 1
-			// When no more words required, return a substring.
-			if count == 0 {
-				return value[0:i]
-			}
-		}
-	}
-	// Return the entire string.
-	return value
-}
-
 func main() {
-	adminId := 180564250
-	bot, err := tgbotapi.NewBotAPI("1051149437:AAE9eQ7DZyjXhVnWciitMgypY2fW-SinRDw")
+	fmt.Print("Load configuration... ")
+	configurationFile, _ := os.Open("configuration.json")
+	defer configurationFile.Close()
+	decoder := json.NewDecoder(configurationFile)
+	configuration := Configuration{}
+	err := decoder.Decode(&configuration)
+	if err != nil {
+		fmt.Println("load configuration error:", err)
+	}
+	fmt.Println(" telegram bot admin is " + configuration.Telegram.AdminLogin)
+
+	bot, err := tgbotapi.NewBotAPI(configuration.Telegram.Bot.Token)
 	if err != nil {
 		log.Panic(err)
 	}
 
+	//TODO: remove this block, duplicate DB - CONFIG - when use cache
 	log.Printf("Work with cache...")
 	c := cache.New(95*time.Hour, 100*time.Hour)
-	c.Set("admin", strconv.Itoa(adminId), cache.DefaultExpiration)
-	c.Set("adminLogin", "@Resager", cache.DefaultExpiration)
+	c.Set("admin", configuration.Telegram.AdminId, cache.DefaultExpiration)
+	c.Set("adminLogin", configuration.Telegram.AdminLogin, cache.DefaultExpiration)
 
 	log.Printf("Work with DB...")
 	dir, err := os.Getwd()
@@ -75,21 +90,27 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := scribble.New(dir, nil)
+	//TODO: remove this block, duplicate DB - CONFIG - when use db
+	// read admin info from DB or write it to db
+	db, err := scribble.New(dir+"data", nil)
 	if err != nil {
 		fmt.Println("Error", err)
 	}
 	existAdmin := TGUser{}
-	if err := db.Read("user", strconv.Itoa(adminId), &existAdmin); err != nil {
+	if err := db.Read("user", configuration.Telegram.AdminId, &existAdmin); err != nil {
 		fmt.Println("admin not found error", err)
-		admin := TGUser{
-			UserID:  adminId,
-			Login:   "",
-			IsAdmin: false,
-		}
-		log.Printf("admin ID from DB = [%s] ", admin.UserID)
-		if err := db.Write("user", strconv.Itoa(adminId), admin); err != nil {
-			fmt.Println("Error", err)
+		adminIdInt, err := strconv.Atoi(configuration.Telegram.AdminId)
+		if err != nil {
+			fmt.Println("error getting admin ID", err)
+		} else {
+			existAdmin = TGUser{
+				UserID:  adminIdInt,
+				Login:   "",
+				IsAdmin: false,
+			}
+			if err := db.Write("user", configuration.Telegram.AdminId, existAdmin); err != nil {
+				fmt.Println("Error", err)
+			}
 		}
 	}
 
@@ -110,10 +131,12 @@ func main() {
 		splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
 		commandName := splitedCommands[0]
 
+		//TODO: set permissions for default commands
 		switch commandName {
 		case "/start":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi")
 			bot.Send(msg)
+
 		case "/addSaveCommand":
 			command := TGCommand{
 				Command:     commandValue,
@@ -130,6 +153,7 @@ func main() {
 			//result1 := firstWords(update.Message.Text, 1)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added"+commandValue)
 			bot.Send(msg)
+
 		case "/admin":
 			adminLogin, found := c.Get("adminLogin")
 			if found {
@@ -137,6 +161,12 @@ func main() {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Admin is "+adminLogin.(string))
 				bot.Send(msg)
 			}
+
+		case "/version":
+		case "/версия":
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, appVersion)
+			bot.Send(msg)
+
 		default:
 			records, err := db.ReadAll("command")
 			if err != nil {
@@ -154,6 +184,9 @@ func main() {
 				if commandFound.Command == commandName {
 					commandContain = true
 					log.Printf("FOUND command in DB!")
+					if err := db.Write("saved", commandName, SavedBlock{Text: commandValue}); err != nil {
+						fmt.Println("add command error", err)
+					}
 				}
 			}
 
