@@ -117,6 +117,13 @@ func main() {
 	}
 
 	//bot.Debug = true
+	adminIdInt64, err := strconv.ParseInt(configuration.Telegram.AdminId, 10, 64)
+	if err != nil {
+		fmt.Println("error convert admin ID to int64", err)
+	} else {
+		msg := tgbotapi.NewMessage(adminIdInt64, "Bot Started")
+		bot.Send(msg)
+	}
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
