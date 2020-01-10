@@ -178,8 +178,7 @@ func main() {
 				bot.Send(msg)
 			}
 
-		case "/version":
-		case "/версия":
+		case "/version", "/appVersion", "/версия":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, appVersion)
 			bot.Send(msg)
 
