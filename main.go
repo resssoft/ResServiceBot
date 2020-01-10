@@ -187,13 +187,14 @@ func main() {
 
 			commands := []string{}
 			for _, f := range records {
-				commandFound := TGCommand{}
+				commandFound := SavedBlock{}
 				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
 					fmt.Println("Error", err)
 				}
 
-				//commandValue
-				commands = append(commands, commandFound.Command)
+				if commandFound.Group == commandValue && commandFound.User == strconv.FormatInt(update.Message.Chat.ID, 10) {
+					commands = append(commands, commandFound.Text)
+				}
 			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(commands, ", "))
 			bot.Send(msg)
