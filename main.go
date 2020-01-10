@@ -172,6 +172,25 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(commands, ", "))
 			bot.Send(msg)
 
+		case "/listOf":
+			records, err := db.ReadAll("saved")
+			if err != nil {
+				fmt.Println("Error", err)
+			}
+
+			commands := []string{}
+			for _, f := range records {
+				commandFound := TGCommand{}
+				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
+					fmt.Println("Error", err)
+				}
+
+				//commandValue
+				commands = append(commands, commandFound.Command)
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(commands, ", "))
+			bot.Send(msg)
+
 		case "/admin":
 			adminLogin, found := c.Get("adminLogin")
 			if found {
