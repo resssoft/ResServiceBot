@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.002"
+const appVersion = "2.0.003"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -27,13 +27,14 @@ type TGUser struct {
 
 type TGCommand struct {
 	Command     string
+	Description string
 	CommandType string
 	Permissions TGCommandPermissions
 }
 
 type TGCommandPermissions struct {
-	UserPermissions  string
-	ChantPermissions string
+	UserPermissions string
+	ChatPermissions string
 }
 
 type Configuration struct {
@@ -54,6 +55,108 @@ type SavedBlock struct {
 	Group string
 	User  string
 	Text  string
+}
+
+var commands = map[string]TGCommand{
+	"start": {
+		Command:     "/start",
+		Description: "Регистрация в сервисе",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"addSaveCommand": {
+		Command:     "/addSaveCommand",
+		Description: "Создать комманду сохранения коротких текстовых сообщений, чтобы потом ею сохранять текстовые строки. например. '/addSaveCommand whatToDo' и потом 'whatToDo вымыть посуду'",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "moder",
+			UserPermissions: "moder",
+		},
+	},
+	"addFeature": {
+		Command:     "/addFeature",
+		Description: "Создание описание фичи",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"getFeatures": {
+		Command:     "/getFeatures",
+		Description: "Список фич приложения",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"SaveCommandsList": {
+		Command:     "/SaveCommandsList",
+		Description: "Список комманд для сохранения текстовых строк",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"listOf": {
+		Command:     "/listOf",
+		Description: "(+ аргумент) Список сохраненных сообщений по указанной комманде",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"admin": {
+		Command:     "/admin",
+		Description: "Вывод логина админа",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"version": {
+		Command:     "/version",
+		Description: "Вывод версии",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"appVersion": {
+		Command:     "/appVersion",
+		Description: "синоним version",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"версия": {
+		Command:     "/версия",
+		Description: "синоним version",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"commands": {
+		Command:     "/commands",
+		Description: "Список комманд",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
 }
 
 func splitCommand(command string, separate string) ([]string, string) {
@@ -197,13 +300,22 @@ func main() {
 		case "/start":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi")
 			bot.Send(msg)
+
+		case "/commands":
+			commandsList := "Commands:\n"
+			for _, commandsItem := range commands {
+				commandsList += commandsItem.Command + " - " + commandsItem.Description + "\n"
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandsList)
+			bot.Send(msg)
+
 		case "/addSaveCommand":
 			command := TGCommand{
 				Command:     commandValue,
 				CommandType: "SaveCommand",
 				Permissions: TGCommandPermissions{
-					UserPermissions:  "",
-					ChantPermissions: "",
+					UserPermissions: "",
+					ChatPermissions: "",
 				},
 			}
 
@@ -267,7 +379,7 @@ func main() {
 					commands = append(commands, commandFound.Text)
 				}
 			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandValue+":\n"+strings.Join(commands, "\n"))
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandValue+":\n-"+strings.Join(commands, "\n-"))
 			bot.Send(msg)
 
 		case "/admin":
