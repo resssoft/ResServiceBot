@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.004"
+const appVersion = "2.0.005"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
