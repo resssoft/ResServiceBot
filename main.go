@@ -9,13 +9,14 @@ import (
 	"github.com/patrickmn/go-cache"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.003"
+const appVersion = "2.0.004"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -157,6 +158,15 @@ var commands = map[string]TGCommand{
 			UserPermissions: "all",
 		},
 	},
+	"rebuild": {
+		Command:     "/rebuild",
+		Description: "rebuild",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "admin",
+			UserPermissions: "admin",
+		},
+	},
 }
 
 func splitCommand(command string, separate string) ([]string, string) {
@@ -194,6 +204,21 @@ func writeLines(lines []string, path string) error {
 	return w.Flush()
 }
 
+func checkPermission(command string, userId int) (error, bool) {
+	typeOfCommand := commands[command].Permissions.UserPermissions
+	switch typeOfCommand {
+	case "all":
+		return nil, true
+	case "admin":
+		if userId == existAdmin.UserID {
+			return nil, true
+		} else {
+			return nil, false
+		}
+	}
+	return nil, true
+}
+
 func readLines(path string, resultLimit int) (error, string) {
 	result := ""
 	file, err := os.OpenFile(path, os.O_RDONLY, 0666)
@@ -217,6 +242,8 @@ func readLines(path string, resultLimit int) (error, string) {
 	}
 	return nil, ""
 }
+
+var existAdmin = TGUser{}
 
 func main() {
 	fmt.Print("Load configuration... ")
@@ -253,7 +280,6 @@ func main() {
 	if err != nil {
 		fmt.Println("Error", err)
 	}
-	existAdmin := TGUser{}
 	if err := db.Read("user", configuration.Telegram.AdminId, &existAdmin); err != nil {
 		fmt.Println("admin not found error", err)
 		adminIdInt, err := strconv.Atoi(configuration.Telegram.AdminId)
@@ -300,6 +326,26 @@ func main() {
 		case "/start":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi")
 			bot.Send(msg)
+
+		case "/rebuild":
+			err, permission := checkPermission("rebuild", update.Message.From.ID)
+			if err != nil {
+				log.Printf("Failed permissions: %v", err)
+			}
+			if permission {
+				dir, err := os.Getwd()
+				if err != nil {
+					log.Printf("Failed to get dir: %v", err)
+				}
+				cmd := exec.Command("/bin/sh", dir+"/rebuild.sh")
+				if err := cmd.Start(); err != nil {
+					log.Printf("Failed to start cmd: %v", err)
+				}
+
+				log.Println("Exit by command...")
+
+				os.Exit(3)
+			}
 
 		case "/commands":
 			commandsList := "Commands:\n"
