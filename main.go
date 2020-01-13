@@ -196,7 +196,7 @@ func main() {
 					commands = append(commands, commandFound.Text)
 				}
 			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(commands, ", "))
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandValue+":\n"+strings.Join(commands, "\n"))
 			bot.Send(msg)
 
 		case "/admin":
