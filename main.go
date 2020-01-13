@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/Syfaro/telegram-bot-api"
@@ -13,7 +14,8 @@ import (
 	"time"
 )
 
-const appVersion = "2.0.0"
+const appVersion = "2.0.001"
+const doneMessage = "Done"
 
 type TGUser struct {
 	UserID  int
@@ -61,6 +63,30 @@ func splitCommand(command string, separate string) ([]string, string) {
 	}
 	result := strings.Split(command, separate)
 	return result, strings.Replace(command, result[0]+" ", "", -1)
+}
+
+func writeLines(lines []string, path string) error {
+
+	// overwrite file if it exists
+	file, err := os.OpenFile("./file.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	// new writer w/ default 4096 buffer size
+	w := bufio.NewWriter(file)
+
+	for _, line := range lines {
+		_, err := w.WriteString(line + "\n")
+		if err != nil {
+			return err
+		}
+	}
+
+	// flush outstanding data
+	return w.Flush()
 }
 
 func main() {
@@ -145,7 +171,6 @@ func main() {
 		case "/start":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi")
 			bot.Send(msg)
-
 		case "/addSaveCommand":
 			command := TGCommand{
 				Command:     commandValue,
@@ -160,6 +185,17 @@ func main() {
 				fmt.Println("add command error", err)
 			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added "+commandValue)
+			bot.Send(msg)
+
+		case "/addFeature":
+			currentTime := time.Now().Format(time.RFC3339)
+			formattedMessage := currentTime + "[" + appVersion + "]: " + commandValue
+			err := writeLines([]string{formattedMessage}, "./features.txt")
+			if err != nil {
+				fmt.Println("write command error", err)
+			}
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, doneMessage)
 			bot.Send(msg)
 
 		case "/SaveCommandsList":
