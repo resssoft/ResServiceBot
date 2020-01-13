@@ -12,10 +12,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
-const appVersion = "2.0.001"
+const appVersion = "2.0.002"
 const doneMessage = "Done"
+const telegramSingleMessageLengthLimit = 4096
 
 type TGUser struct {
 	UserID  int
@@ -68,7 +70,7 @@ func splitCommand(command string, separate string) ([]string, string) {
 func writeLines(lines []string, path string) error {
 
 	// overwrite file if it exists
-	file, err := os.OpenFile("./file.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
 	}
@@ -87,6 +89,30 @@ func writeLines(lines []string, path string) error {
 
 	// flush outstanding data
 	return w.Flush()
+}
+
+func readLines(path string, resultLimit int) (error, string) {
+	result := ""
+	file, err := os.OpenFile(path, os.O_RDONLY, 0666)
+	if err != nil {
+		return err, ""
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	stringLen := 0
+	for scanner.Scan() {
+		result += scanner.Text() + "\n"
+		fmt.Println(result)
+		stringLen = utf8.RuneCountInString(result)
+		if stringLen > resultLimit {
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err, ""
+	}
+	return nil, ""
 }
 
 func main() {
@@ -196,6 +222,15 @@ func main() {
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, doneMessage)
+			bot.Send(msg)
+
+		case "/getFeatures":
+			err, messages := readLines("./features.txt", telegramSingleMessageLengthLimit)
+			if err != nil {
+				fmt.Println("write command error", err)
+			}
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, messages)
 			bot.Send(msg)
 
 		case "/SaveCommandsList":
