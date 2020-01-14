@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.006"
+const appVersion = "2.0.007d"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -337,7 +337,7 @@ func main() {
 	if err != nil {
 		fmt.Println("error convert admin ID to int64", err)
 	} else {
-		msg := tgbotapi.NewMessage(adminIdInt64, "Bot Started")
+		msg := tgbotapi.NewMessage(adminIdInt64, "Bot Started with version "+appVersion)
 		bot.Send(msg)
 	}
 
@@ -476,6 +476,7 @@ func main() {
 			bot.Send(msg)
 
 		case commands["addCheckItem"].Command:
+			debugMessage := ""
 			checkItemText := ""
 			checkListGroup := splitedCommands[1]
 			isPublic := false
@@ -486,14 +487,18 @@ func main() {
 				break
 			}
 			checkItemText = strings.Replace(commandValue, checkListGroup+" ", "", -1)
+			debugMessage += " [" + checkItemText + "] "
 			if splitedCommands[2] == "=1" || splitedCommands[2] == "isPublic" {
 				isPublic = true
 				checkItemText = strings.Replace(commandValue, splitedCommands[2]+" ", "", -1)
+				debugMessage += " isPublic "
 			}
 			if splitedCommands[3] == "=1" || splitedCommands[3] == "isCheck" {
 				checkItemText = strings.Replace(commandValue, splitedCommands[3]+" ", "", -1)
 				checkListStatus = true
+				debugMessage += " checkListStatus "
 			}
+			debugMessage += " [" + checkItemText + "] "
 
 			checkListItem := CheckList{
 				Group:  checkListGroup,
@@ -506,7 +511,7 @@ func main() {
 			if err := db.Write("checkList", checkListGroup, checkListItem); err != nil {
 				fmt.Println("add command error", err)
 			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added to "+checkListGroup)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
 			bot.Send(msg)
 
 		case commands["updateCheckItem"].Command:
