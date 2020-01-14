@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.007d"
+const appVersion = "2.0.008d"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -508,7 +508,11 @@ func main() {
 				Text:   checkItemText,
 			}
 
-			if err := db.Write("checkList", checkListGroup, checkListItem); err != nil {
+			itemCode := checkListGroup +
+				"_" + strconv.FormatInt(update.Message.Chat.ID, 10) +
+				"_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+
+			if err := db.Write("checkList", itemCode, checkListItem); err != nil {
 				fmt.Println("add command error", err)
 			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
@@ -522,7 +526,7 @@ func main() {
 				break
 			}
 
-			records, err := db.ReadAll("сheckList")
+			records, err := db.ReadAll("checkList")
 			if err != nil {
 				fmt.Println("db read error", err)
 			}
@@ -555,7 +559,7 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
 			bot.Send(msg)
 
-		case commands["сheckList"].Command:
+		case commands["checkList"].Command:
 			checkListGroup := splitedCommands[1]
 			if checkListGroup == "" {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
@@ -572,11 +576,14 @@ func main() {
 			checkListStatusUnCheck := "○"
 			checkListFull := checkListGroup + ":\n"
 			for _, f := range records {
+				checkListFull += "."
 				commandFound := CheckList{}
 				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
 					fmt.Println("Error", err)
 				}
 
+				checkListFull += "[" + commandFound.Group + " == " + checkListGroup + "] "
+				checkListFull += "[" + strconv.FormatInt(commandFound.ChatID, 10) + " == " + strconv.FormatInt(update.Message.Chat.ID, 10) + "] "
 				if commandFound.Group == checkListGroup && commandFound.ChatID == update.Message.Chat.ID {
 					if commandFound.Status == true {
 						checkListFull += checkListStatusCheck
