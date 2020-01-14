@@ -1,1 +1,1 @@
-sleep 5 && git pull && killall ResServiceBot && go build && ./ResServiceBot
+sleep 5 && git pull && if pgrep ResServiceBot; then killall ResServiceBot; fi && go build && ./ResServiceBot
