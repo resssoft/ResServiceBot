@@ -559,7 +559,7 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
 			bot.Send(msg)
 
-		case commands["checkList"].Command:
+		case commands["сheckList"].Command:
 			checkListGroup := splitedCommands[1]
 			if checkListGroup == "" {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
