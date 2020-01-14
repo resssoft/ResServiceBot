@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.005"
+const appVersion = "2.0.006"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -58,7 +58,42 @@ type SavedBlock struct {
 	Text  string
 }
 
+type CheckList struct {
+	Group  string
+	ChatID int64
+	Text   string
+	Status bool
+	Public bool
+}
+
 var commands = map[string]TGCommand{
+	"addCheckItem": {
+		Command:     "/addCheckItem",
+		Description: "(параметры - имя чеклиста, =1 - если публичный, =1 если уже установлен) - создание элемента чеклиста в указанную группу",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"updateCheckItem": {
+		Command:     "/updateCheckItem",
+		Description: "(параметр - имя чеклиста, =1 или =0 для статуса, полный текст элемента для обновления) - вывод указанной группы чеклиста",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"сheckList": {
+		Command:     "/сheckList",
+		Description: "(параметр - имя чеклиста) - вывод указанной группы чеклиста",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
 	"start": {
 		Command:     "/start",
 		Description: "Регистрация в сервисе",
@@ -438,6 +473,115 @@ func main() {
 
 		case "/version", "/appVersion", "/версия":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, appVersion)
+			bot.Send(msg)
+
+		case commands["addCheckItem"].Command:
+			checkItemText := ""
+			checkListGroup := splitedCommands[1]
+			isPublic := false
+			checkListStatus := false
+			if checkListGroup == "" {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
+				bot.Send(msg)
+				break
+			}
+			checkItemText = strings.Replace(commandValue, checkListGroup+" ", "", -1)
+			if splitedCommands[2] == "=1" || splitedCommands[2] == "isPublic" {
+				isPublic = true
+				checkItemText = strings.Replace(commandValue, splitedCommands[2]+" ", "", -1)
+			}
+			if splitedCommands[3] == "=1" || splitedCommands[3] == "isCheck" {
+				checkItemText = strings.Replace(commandValue, splitedCommands[3]+" ", "", -1)
+				checkListStatus = true
+			}
+
+			checkListItem := CheckList{
+				Group:  checkListGroup,
+				ChatID: update.Message.Chat.ID,
+				Status: checkListStatus,
+				Public: isPublic,
+				Text:   checkItemText,
+			}
+
+			if err := db.Write("checkList", checkListGroup, checkListItem); err != nil {
+				fmt.Println("add command error", err)
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added to "+checkListGroup)
+			bot.Send(msg)
+
+		case commands["updateCheckItem"].Command:
+			checkListGroup := splitedCommands[1]
+			if checkListGroup == "" {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
+				bot.Send(msg)
+				break
+			}
+
+			records, err := db.ReadAll("сheckList")
+			if err != nil {
+				fmt.Println("db read error", err)
+			}
+
+			newStatus := false
+			if splitedCommands[1] == "=1" {
+				newStatus = true
+			}
+
+			checkItemText := strings.Replace(commandValue, splitedCommands[1]+" ", "", -1)
+			updatedItems := 0
+
+			for _, f := range records {
+				commandFound := CheckList{}
+				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
+					fmt.Println("Error", err)
+				}
+
+				if commandFound.Group == checkListGroup && commandFound.ChatID == update.Message.Chat.ID {
+					if commandFound.Text == checkItemText {
+						commandFound.Status = newStatus
+						if err := db.Write("checkList", checkListGroup, commandFound); err != nil {
+							fmt.Println("add command error", err)
+						} else {
+							updatedItems++
+						}
+					}
+				}
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
+			bot.Send(msg)
+
+		case commands["сheckList"].Command:
+			checkListGroup := splitedCommands[1]
+			if checkListGroup == "" {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
+				bot.Send(msg)
+				break
+			}
+
+			records, err := db.ReadAll("сheckList")
+			if err != nil {
+				fmt.Println("db read error", err)
+			}
+
+			checkListStatusCheck := "✓"
+			checkListStatusUnCheck := "○"
+			checkListFull := checkListGroup + ":\n"
+			for _, f := range records {
+				commandFound := CheckList{}
+				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
+					fmt.Println("Error", err)
+				}
+
+				if commandFound.Group == checkListGroup && commandFound.ChatID == update.Message.Chat.ID {
+					if commandFound.Status == true {
+						checkListFull += checkListStatusCheck
+					} else {
+						checkListFull += checkListStatusUnCheck
+					}
+					checkListFull += " " + commandFound.Text + "\n"
+				}
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, checkListFull)
 			bot.Send(msg)
 
 		default:
