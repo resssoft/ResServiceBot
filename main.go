@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009d"
+const appVersion = "2.0.009dg1"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -213,10 +213,10 @@ var commands = map[string]TGCommand{
 	},
 }
 
-var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Lovely", "lovelyGame"),
-		tgbotapi.NewInlineKeyboardButtonURL("Rules", "http://1173.ru/games/lovely/rules"),
+		tgbotapi.NewInlineKeyboardButtonData("🧡 Lovely game start", "lovelyGame"),
+		tgbotapi.NewInlineKeyboardButtonURL("Rules", "http://1073.ru/games/lovely/rules/"),
 	),
 )
 
@@ -366,15 +366,36 @@ func main() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			fmt.Print(update)
+			fmt.Print(update.CallbackQuery)
+			fmt.Print(update.CallbackQuery.Message)
 			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
-			bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data))
+			//lovelyGame
+			switch update.CallbackQuery.Data {
+			case "lovelyGame":
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Games list")
+				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData("Join to Lovely game start (0)", "lovelyGameJoin"),
+					),
+				)
+				bot.Send(msg)
+
+			case "lovelyGameJoin":
+				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data))
+			default:
+				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data))
+			}
+
 		}
 		if update.Message == nil && update.InlineQuery != nil {
 			continue
 		}
 		//fmt.Println(update.Message.Text)
 		splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
+		commandsCount := len(splitedCommands)
+		if commandsCount == 0 {
+			continue
+		}
 		commandName := splitedCommands[0]
 
 		//TODO: set permissions for default commands
@@ -440,7 +461,7 @@ func main() {
 
 		case "/games":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Games list")
-			msg.ReplyMarkup = numericKeyboard
+			msg.ReplyMarkup = gamesListKeyboard
 			bot.Send(msg)
 
 		case "/getFeatures":
