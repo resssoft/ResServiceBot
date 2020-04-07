@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg1"
+const appVersion = "2.0.009dg2"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -372,7 +372,7 @@ func main() {
 			//lovelyGame
 			switch update.CallbackQuery.Data {
 			case "lovelyGame":
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Games list")
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Games list")
 				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
 						tgbotapi.NewInlineKeyboardButtonData("Join to Lovely game start (0)", "lovelyGameJoin"),
