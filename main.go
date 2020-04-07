@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg3"
+const appVersion = "2.0.009dg5"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -213,12 +213,46 @@ var commands = map[string]TGCommand{
 	},
 }
 
+type ChatUserCount struct {
+	ChatId      int64
+	ChatName    string
+	ContentType string
+	UserCount   int
+}
+
+var ChatUserCountList = make([]ChatUserCount, 1)
+
 var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("🧡 Lovely game start", "lovelyGame"),
+		tgbotapi.NewInlineKeyboardButtonData("🧡 Lovely game", "lovelyGame"),
 		tgbotapi.NewInlineKeyboardButtonURL("Rules", "http://1073.ru/games/lovely/rules/"),
 	),
 )
+
+func getChannelUserCount(contentType string, chatId int64) int {
+	for _, item := range ChatUserCountList {
+		if item.ChatId == chatId && item.ContentType == contentType {
+			return item.UserCount
+		}
+	}
+	return 0
+}
+
+func IncreaseChannelUserCount(contentType string, chatId int64, chatName string) {
+	founded := false
+	for _, item := range ChatUserCountList {
+		if item.ChatId == chatId && item.ContentType == contentType {
+			item.UserCount = item.UserCount + 1
+			founded = true
+		}
+	}
+	if !founded {
+		ChatUserCountList = append(
+			ChatUserCountList,
+			ChatUserCount{chatId, chatName, contentType, 1},
+		)
+	}
+}
 
 func splitCommand(command string, separate string) ([]string, string) {
 	if command == "" {
@@ -366,29 +400,62 @@ func main() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			fmt.Print(update.CallbackQuery)
-			fmt.Print(update.CallbackQuery.Message)
+			fmt.Printf("CallbackQuery %+v\n", update.CallbackQuery)
 			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
-			//lovelyGame
-			switch update.CallbackQuery.Data {
+			splitedCallbackQuery, clearCallbackQuery := splitCommand(update.Message.Text, " ")
+			commandsCount := len(splitedCallbackQuery)
+			callbackQueryMessageChatID := 0
+			if commandsCount == 0 {
+				continue
+			}
+			callbackQueryMessageChatID, _ = strconv.Atoi(splitedCallbackQuery[0])
+
+			switch clearCallbackQuery {
 			case "lovelyGame":
-				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Games list")
-				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-					tgbotapi.NewInlineKeyboardRow(
-						tgbotapi.NewInlineKeyboardButtonData("Join to Lovely game start (0)", "lovelyGameJoin"),
+				messageID := strconv.Itoa(update.CallbackQuery.Message.MessageID)
+				buttonText := "Join to Lovely game start (" +
+					strconv.Itoa(getChannelUserCount(
+						"lovelyGame",
+						update.CallbackQuery.Message.Chat.ID)) + ")"
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "-")
+				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+					update.CallbackQuery.Message.Chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					tgbotapi.NewInlineKeyboardMarkup(
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
+						),
 					),
 				)
 				bot.Send(msg)
-
 			case "lovelyGameJoin":
-				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data))
+				IncreaseChannelUserCount(
+					"lovelyGame",
+					update.CallbackQuery.Message.Chat.ID,
+					update.CallbackQuery.Message.Chat.Title)
+				messageID := strconv.Itoa(callbackQueryMessageChatID)
+				buttonText := "Join to Lovely game (" +
+					strconv.Itoa(getChannelUserCount(
+						"lovelyGame",
+						update.CallbackQuery.Message.Chat.ID)) + ")"
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "-")
+				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+					update.CallbackQuery.Message.Chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					tgbotapi.NewInlineKeyboardMarkup(
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
+							tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameJoin"),
+						),
+					),
+				)
+				bot.Send(msg)
 			default:
-				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data))
+				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Data: "+update.CallbackQuery.Data))
 			}
 
 		}
-		fmt.Print("inline query")
-		fmt.Print(update.InlineQuery)
+		fmt.Printf("inline query %+v\n", update.InlineQuery)
 		if update.Message == nil || (update.Message == nil && update.InlineQuery != nil) {
 			continue
 		}
