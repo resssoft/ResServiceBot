@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.008d"
+const appVersion = "2.0.009d"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -202,7 +202,23 @@ var commands = map[string]TGCommand{
 			UserPermissions: "admin",
 		},
 	},
+	"games": {
+		Command:     "/games",
+		Description: "games list",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
 }
+
+var numericKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+	tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("Lovely", "lovelyGame"),
+		tgbotapi.NewInlineKeyboardButtonURL("Rules", "http://1173.ru/games/lovely/rules"),
+	),
+)
 
 func splitCommand(command string, separate string) ([]string, string) {
 	if command == "" {
@@ -349,6 +365,11 @@ func main() {
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
+		if update.CallbackQuery != nil {
+			fmt.Print(update)
+			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
+			bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data))
+		}
 		if update.Message == nil && update.InlineQuery != nil {
 			continue
 		}
@@ -415,6 +436,11 @@ func main() {
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, doneMessage)
+			bot.Send(msg)
+
+		case "/games":
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Games list")
+			msg.ReplyMarkup = numericKeyboard
 			bot.Send(msg)
 
 		case "/getFeatures":
