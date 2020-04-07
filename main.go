@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg53"
+const appVersion = "2.0.009dg54"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -422,13 +422,9 @@ func main() {
 						"lovelyGame",
 						update.CallbackQuery.Message.Chat.ID)) + ")"
 				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "-")
-				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
-					update.CallbackQuery.Message.Chat.ID,
-					update.CallbackQuery.Message.MessageID,
-					tgbotapi.NewInlineKeyboardMarkup(
-						tgbotapi.NewInlineKeyboardRow(
-							tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
-						),
+				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
 					),
 				)
 				bot.Send(msg)
@@ -442,17 +438,15 @@ func main() {
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
 						update.CallbackQuery.Message.Chat.ID)) + ")"
-				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "-")
-				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
-					update.CallbackQuery.Message.Chat.ID,
-					update.CallbackQuery.Message.MessageID,
-					tgbotapi.NewInlineKeyboardMarkup(
-						tgbotapi.NewInlineKeyboardRow(
-							tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
-							tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameJoin"),
-						),
+				//msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "-")
+				msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, callbackQueryMessageChatID, " ")
+				keyboardMarkup := tgbotapi.NewInlineKeyboardMarkup(
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
+						tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameJoin"),
 					),
 				)
+				msg.ReplyMarkup = &keyboardMarkup
 				bot.Send(msg)
 			default:
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Data: "+update.CallbackQuery.Data))
