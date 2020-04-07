@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg54"
+const appVersion = "2.0.009dg55"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -262,7 +262,7 @@ func splitCommand(command string, separate string) ([]string, string) {
 		separate = " "
 	}
 	result := strings.Split(command, separate)
-	return result, strings.Replace(command, result[0]+" ", "", -1)
+	return result, strings.Replace(command, result[0]+separate, "", -1)
 }
 
 func writeLines(lines []string, path string) error {
@@ -443,11 +443,13 @@ func main() {
 				keyboardMarkup := tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
 						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
-						tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameJoin"),
+						tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameStart"),
 					),
 				)
 				msg.ReplyMarkup = &keyboardMarkup
 				bot.Send(msg)
+			case "lovelyGameStart":
+				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Start lovely Game"))
 			default:
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Data: "+update.CallbackQuery.Data))
 			}
