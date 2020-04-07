@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg57"
+const appVersion = "2.0.009dg58"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -421,7 +421,7 @@ func main() {
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
 						update.CallbackQuery.Message.Chat.ID)) + ")"
-				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "-")
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Please, join to game:")
 				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
 						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
@@ -440,8 +440,7 @@ func main() {
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
 						update.CallbackQuery.Message.Chat.ID)) + ")"
-				//msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "-")
-				msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, " ")
+				msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "After team complete, click to end joins")
 				keyboardMarkup := tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
 						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
@@ -460,6 +459,7 @@ func main() {
 				).ReplyMarkup
 				msg.ReplyMarkup = &keyboardMarkup
 				lastMessage, _ := bot.Send(msg)
+				fmt.Printf("NEW text %+v\n", buttonText)
 				fmt.Printf("NEW msg %+v\n", msg)
 				fmt.Printf("NEW lastMessage %+v\n", lastMessage)
 
