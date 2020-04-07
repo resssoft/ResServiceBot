@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.010dg59"
+const appVersion = "2.0.011dg59"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -98,7 +98,16 @@ var commands = map[string]TGCommand{
 	},
 	"start": {
 		Command:     "/start",
-		Description: "Регистрация в сервисе",
+		Description: "Service registration, only private",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"myInfo": {
+		Command:     "/myInfo",
+		Description: "Write GT user info",
 		CommandType: "tg",
 		Permissions: TGCommandPermissions{
 			ChatPermissions: "all",
@@ -571,12 +580,24 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String())
 			bot.Send(msg)
 		case "/myInfo":
-			userInfo := "ID: " + strconv.Itoa(update.Message.From.ID) + "\n" +
+			userInfo := "--== UserInfo==-- \n" +
+				"ID: " + strconv.Itoa(update.Message.From.ID) + "\n" +
 				"IsBot: " + strconv.FormatBool(update.Message.From.IsBot) + "\n" +
 				"UserName: " + update.Message.From.UserName + "\n" +
 				"FirstName: " + update.Message.From.FirstName + "\n" +
 				"LastName: " + update.Message.From.LastName + "\n" +
-				"LanguageCode: " + update.Message.From.LanguageCode + "\n"
+				"LanguageCode: " + update.Message.From.LanguageCode + "\n" +
+				"--==ChatInfo==-- \n" +
+				"ID" + strconv.FormatInt(update.Message.Chat.ID, 10) + "\n" +
+				"FirstName" + update.Message.Chat.FirstName + "\n" +
+				"LastName" + update.Message.Chat.LastName + "\n" +
+				"UserName" + update.Message.Chat.UserName + "\n" +
+				"Title" + update.Message.Chat.Title + "\n" +
+				"Description" + update.Message.Chat.Description + "\n" +
+				"InviteLink" + update.Message.Chat.InviteLink + "\n" +
+				"Type" + update.Message.Chat.Type + "\n" +
+				"config SuperGroupUsername" + update.Message.Chat.ChatConfig().SuperGroupUsername + "\n" +
+				"config ChatID" + strconv.FormatInt(update.Message.Chat.ChatConfig().ChatID, 10) + "\n"
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, userInfo)
 			bot.Send(msg)
 
