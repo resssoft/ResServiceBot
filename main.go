@@ -16,13 +16,15 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg58"
+const appVersion = "2.0.010dg59"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
 type TGUser struct {
 	UserID  int
+	ChatId  int64
 	Login   string
+	Name    string
 	IsAdmin bool
 }
 
@@ -97,6 +99,15 @@ var commands = map[string]TGCommand{
 	"start": {
 		Command:     "/start",
 		Description: "Регистрация в сервисе",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "all",
+			UserPermissions: "all",
+		},
+	},
+	"getUserList": {
+		Command:     "/getUserList",
+		Description: "-",
 		CommandType: "tg",
 		Permissions: TGCommandPermissions{
 			ChatPermissions: "all",
@@ -220,7 +231,15 @@ type ChatUserCount struct {
 	UserCount   int
 }
 
+type ChatUser struct {
+	ChatId      int64
+	ChatName    string
+	ContentType string
+	User        TGUser
+}
+
 var ChatUserCountList = make([]ChatUserCount, 1)
+var ChatUserList = make([]ChatUser, 1)
 
 var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
@@ -230,26 +249,48 @@ var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 )
 
 func getChannelUserCount(contentType string, chatId int64) int {
-	for _, item := range ChatUserCountList {
+	userCount := 0
+	for _, item := range ChatUserList {
 		if item.ChatId == chatId && item.ContentType == contentType {
-			return item.UserCount
+			userCount++
 		}
 	}
-	return 0
+	return userCount
 }
 
-func IncreaseChannelUserCount(contentType string, chatId int64, chatName string) {
-	founded := false
-	for _, item := range ChatUserCountList {
+func getChannelUsers(contentType string, chatId int64) string {
+	users := ""
+	for _, item := range ChatUserList {
 		if item.ChatId == chatId && item.ContentType == contentType {
-			item.UserCount = item.UserCount + 1
-			founded = true
+			users += item.User.Name + ", "
 		}
 	}
-	if !founded {
-		ChatUserCountList = append(
-			ChatUserCountList,
-			ChatUserCount{chatId, chatName, contentType, 1},
+	return users
+}
+
+func SaveUserToChannelList(contentType string, chatId int64, chatName string, userId int, userName string) {
+	isNewUser := true
+	for _, item := range ChatUserList {
+		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
+			isNewUser = false
+		}
+	}
+	_, isAdmin := checkPermission("admin", userId)
+	if isNewUser {
+		ChatUserList = append(
+			ChatUserList,
+			ChatUser{
+				ChatId:      chatId,
+				ChatName:    chatName,
+				ContentType: contentType,
+				User: TGUser{
+					UserID:  userId,
+					ChatId:  0,
+					Name:    userName,
+					Login:   userName,
+					IsAdmin: isAdmin,
+				},
+			},
 		)
 	}
 }
@@ -373,7 +414,9 @@ func main() {
 		} else {
 			existAdmin = TGUser{
 				UserID:  adminIdInt,
+				ChatId:  0,
 				Login:   "",
+				Name:    "",
 				IsAdmin: false,
 			}
 			if err := db.Write("user", configuration.Telegram.AdminId, existAdmin); err != nil {
@@ -400,10 +443,13 @@ func main() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
+
+			//debug
 			fmt.Printf("update.CallbackQuery %+v\n", update.CallbackQuery)
 			fmt.Printf("update.CallbackQuery.Message %+v\n", update.CallbackQuery.Message)
 			fmt.Printf("update.CallbackQuery.Message.Chat %+v\n", update.CallbackQuery.Message.Chat)
-			fmt.Printf("update.CallbackQuery.From %+v\n", update.CallbackQuery.From)
+			fmt.Printf("update.CallbackQuery.From %+v %+v\n", update.CallbackQuery.From.ID, update.CallbackQuery.From.UserName)
+
 			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
 			splitedCallbackQuery, clearCallbackQuery := splitCommand(update.CallbackQuery.Data, "#")
 			commandsCount := len(splitedCallbackQuery)
@@ -416,12 +462,21 @@ func main() {
 			fmt.Printf("clearCallbackQuery %+v\n", clearCallbackQuery)
 			switch clearCallbackQuery {
 			case "lovelyGame":
+				//debug
+				userInfo := "lovelyGame \n ID: " + strconv.Itoa(update.CallbackQuery.Message.From.ID) + "\n" +
+					"IsBot: " + strconv.FormatBool(update.CallbackQuery.Message.From.IsBot) + "\n" +
+					"UserName: " + update.CallbackQuery.Message.From.UserName + "\n" +
+					"FirstName: " + update.CallbackQuery.Message.From.FirstName + "\n" +
+					"LastName: " + update.CallbackQuery.Message.From.LastName + "\n" +
+					"LanguageCode: " + update.CallbackQuery.Message.From.LanguageCode + "\n"
+				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, userInfo))
+
 				messageID := strconv.Itoa(update.CallbackQuery.Message.MessageID)
-				buttonText := "Join to Lovely game start (" +
+				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
 						update.CallbackQuery.Message.Chat.ID)) + ")"
-				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Please, join to game:")
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Please, join to game.")
 				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
 						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
@@ -431,16 +486,28 @@ func main() {
 				fmt.Printf("msg %+v\n", msg)
 				fmt.Printf("lastMessage %+v\n", lastMessage)
 			case "lovelyGameJoin":
-				IncreaseChannelUserCount(
+				//debug
+				userInfo := "lovelyGameJoin \n ID: " + strconv.Itoa(update.CallbackQuery.Message.From.ID) + "\n" +
+					"IsBot: " + strconv.FormatBool(update.CallbackQuery.Message.From.IsBot) + "\n" +
+					"UserName: " + update.CallbackQuery.Message.From.UserName + "\n" +
+					"FirstName: " + update.CallbackQuery.Message.From.FirstName + "\n" +
+					"LastName: " + update.CallbackQuery.Message.From.LastName + "\n" +
+					"LanguageCode: " + update.CallbackQuery.Message.From.LanguageCode + "\n"
+				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, userInfo))
+
+				SaveUserToChannelList(
 					"lovelyGame",
 					update.CallbackQuery.Message.Chat.ID,
-					update.CallbackQuery.Message.Chat.Title)
+					update.CallbackQuery.Message.Chat.Title,
+					update.CallbackQuery.From.ID,
+					update.CallbackQuery.From.UserName,
+				)
 				messageID := strconv.Itoa(callbackQueryMessageChatID)
-				buttonText := "Join to Lovely game (" +
+				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
 						update.CallbackQuery.Message.Chat.ID)) + ")"
-				msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "After team complete, click to end joins")
+				msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "Please, join to game. After team complete, click to end joins")
 				keyboardMarkup := tgbotapi.NewInlineKeyboardMarkup(
 					tgbotapi.NewInlineKeyboardRow(
 						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
@@ -459,12 +526,16 @@ func main() {
 				).ReplyMarkup
 				msg.ReplyMarkup = &keyboardMarkup
 				lastMessage, _ := bot.Send(msg)
+
+				fmt.Printf("ChatUserCountList %+v\n", ChatUserCountList)
 				fmt.Printf("NEW text %+v\n", buttonText)
 				fmt.Printf("NEW msg %+v\n", msg)
 				fmt.Printf("NEW lastMessage %+v\n", lastMessage)
 
 			case "lovelyGameStart":
-				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Start lovely Game"))
+				messageText := "Start lovely Game with: " +
+					getChannelUsers("lovelyGame", update.CallbackQuery.Message.Chat.ID)
+				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, messageText))
 			default:
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Data: "+update.CallbackQuery.Data))
 			}
@@ -485,8 +556,55 @@ func main() {
 		//TODO: set permissions for default commands
 		switch commandName {
 		case "/start":
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi")
+			_, isAdmin := checkPermission("admin", update.Message.From.ID)
+			user := TGUser{
+				UserID:  update.Message.From.ID,
+				ChatId:  update.Message.Chat.ID,
+				Login:   update.Message.From.UserName,
+				Name:    update.Message.From.String(),
+				IsAdmin: isAdmin,
+			}
+			if err := db.Write("user", strconv.Itoa(update.Message.From.ID), user); err != nil {
+				fmt.Println("add command error", err)
+			}
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String())
 			bot.Send(msg)
+		case "/myInfo":
+			userInfo := "ID: " + strconv.Itoa(update.Message.From.ID) + "\n" +
+				"IsBot: " + strconv.FormatBool(update.Message.From.IsBot) + "\n" +
+				"UserName: " + update.Message.From.UserName + "\n" +
+				"FirstName: " + update.Message.From.FirstName + "\n" +
+				"LastName: " + update.Message.From.LastName + "\n" +
+				"LanguageCode: " + update.Message.From.LanguageCode + "\n"
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, userInfo)
+			bot.Send(msg)
+
+		case "/getUserList":
+			err, permission := checkPermission("rebuild", update.Message.From.ID)
+			if err != nil {
+				log.Printf("Failed permissions: %v", err)
+			}
+			if permission {
+				records, err := db.ReadAll("user")
+				if err != nil {
+					fmt.Println("Error", err)
+				}
+
+				userList := []string{}
+				for _, f := range records {
+					userFound := TGUser{}
+					if err := json.Unmarshal([]byte(f), &userFound); err != nil {
+						fmt.Println("Error", err)
+					}
+					userList = append(userList, "["+strconv.Itoa(userFound.UserID)+"] "+userFound.Name)
+				}
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(userList, ", "))
+				bot.Send(msg)
+			} else {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Permission denied")
+				bot.Send(msg)
+			}
 
 		case "/rebuild":
 			err, permission := checkPermission("rebuild", update.Message.From.ID)
@@ -506,6 +624,9 @@ func main() {
 				log.Println("Exit by command...")
 
 				os.Exit(3)
+			} else {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Permission denied")
+				bot.Send(msg)
 			}
 
 		case "/commands":
