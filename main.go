@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg51"
+const appVersion = "2.0.009dg52"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -402,7 +402,7 @@ func main() {
 		if update.CallbackQuery != nil {
 			fmt.Printf("CallbackQuery %+v\n", update.CallbackQuery)
 			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
-			splitedCallbackQuery, clearCallbackQuery := splitCommand(update.CallbackQuery.Message.Text, " ")
+			splitedCallbackQuery, clearCallbackQuery := splitCommand(update.CallbackQuery.Message.Text, "#")
 			commandsCount := len(splitedCallbackQuery)
 			callbackQueryMessageChatID := 0
 			if commandsCount == 0 {
@@ -410,6 +410,7 @@ func main() {
 			}
 			callbackQueryMessageChatID, _ = strconv.Atoi(splitedCallbackQuery[0])
 
+			fmt.Printf("clearCallbackQuery %+v\n", clearCallbackQuery)
 			switch clearCallbackQuery {
 			case "lovelyGame":
 				messageID := strconv.Itoa(update.CallbackQuery.Message.MessageID)
