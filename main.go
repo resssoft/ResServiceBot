@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.011dg59"
+const appVersion = "2.0.012dg59"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -580,26 +580,34 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String())
 			bot.Send(msg)
 		case "/myInfo":
+			from := update.Message.From
+			chat := update.Message.Chat
+
+			chatMember, _ := bot.GetChatMember(tgbotapi.ChatConfigWithUser{
+				ChatID:             chat.ID,
+				SuperGroupUsername: "",
+				UserID:             from.ID,
+			})
+
 			userInfo := "--== UserInfo==-- \n" +
-				"ID: " + strconv.Itoa(update.Message.From.ID) + "\n" +
-				"IsBot: " + strconv.FormatBool(update.Message.From.IsBot) + "\n" +
-				"UserName: " + update.Message.From.UserName + "\n" +
-				"FirstName: " + update.Message.From.FirstName + "\n" +
-				"LastName: " + update.Message.From.LastName + "\n" +
-				"LanguageCode: " + update.Message.From.LanguageCode + "\n" +
+				"ID: " + strconv.Itoa(from.ID) + "\n" +
+				"UserName: " + from.UserName + "\n" +
+				"FirstName: " + from.FirstName + "\n" +
+				"LastName: " + from.LastName + "\n" +
+				"LanguageCode: " + from.LanguageCode + "\n" +
 				"--==ChatInfo==-- \n" +
-				"ID" + strconv.FormatInt(update.Message.Chat.ID, 10) + "\n" +
-				"FirstName" + update.Message.Chat.FirstName + "\n" +
-				"LastName" + update.Message.Chat.LastName + "\n" +
-				"UserName" + update.Message.Chat.UserName + "\n" +
-				"Title" + update.Message.Chat.Title + "\n" +
-				"Description" + update.Message.Chat.Description + "\n" +
-				"InviteLink" + update.Message.Chat.InviteLink + "\n" +
-				"Type" + update.Message.Chat.Type + "\n" +
-				"config SuperGroupUsername" + update.Message.Chat.ChatConfig().SuperGroupUsername + "\n" +
-				"config ChatID" + strconv.FormatInt(update.Message.Chat.ChatConfig().ChatID, 10) + "\n"
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, userInfo)
+				"ID: " + strconv.FormatInt(chat.ID, 10) + "\n" +
+				"Title: " + chat.Title + "\n" +
+				"Type: " + chat.Type + "\n" +
+				"--==MemberInfo==-- \n" +
+				"Status: " + chatMember.Status + "\n" +
+				"ID: " + strconv.Itoa(chatMember.User.ID) + "\n" +
+				"UserName: " + chatMember.User.UserName + "\n" +
+				"FirstName: " + chatMember.User.FirstName + "\n" +
+				"LastName: " + chatMember.User.LastName + "\n"
+			msg := tgbotapi.NewMessage(chat.ID, userInfo)
 			bot.Send(msg)
+			//chat.ID,"",update.Message.From.ID
 
 		case "/getUserList":
 			err, permission := checkPermission("rebuild", update.Message.From.ID)
