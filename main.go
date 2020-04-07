@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg56"
+const appVersion = "2.0.009dg57"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -427,7 +427,9 @@ func main() {
 						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
 					),
 				)
-				bot.Send(msg)
+				lastMessage, _ := bot.Send(msg)
+				fmt.Printf("msg %+v\n", msg)
+				fmt.Printf("lastMessage %+v\n", lastMessage)
 			case "lovelyGameJoin":
 				IncreaseChannelUserCount(
 					"lovelyGame",
@@ -446,8 +448,21 @@ func main() {
 						tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameStart"),
 					),
 				)
+				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+					update.CallbackQuery.Message.Chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					tgbotapi.NewInlineKeyboardMarkup(
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
+							tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameJoin"),
+						),
+					),
+				).ReplyMarkup
 				msg.ReplyMarkup = &keyboardMarkup
-				bot.Send(msg)
+				lastMessage, _ := bot.Send(msg)
+				fmt.Printf("NEW msg %+v\n", msg)
+				fmt.Printf("NEW lastMessage %+v\n", lastMessage)
+
 			case "lovelyGameStart":
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Start lovely Game"))
 			default:
