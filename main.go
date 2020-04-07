@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.009dg2"
+const appVersion = "2.0.009dg3"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -387,7 +387,9 @@ func main() {
 			}
 
 		}
-		if update.Message == nil && update.InlineQuery != nil {
+		fmt.Print("inline query")
+		fmt.Print(update.InlineQuery)
+		if update.Message == nil || (update.Message == nil && update.InlineQuery != nil) {
 			continue
 		}
 		//fmt.Println(update.Message.Text)
