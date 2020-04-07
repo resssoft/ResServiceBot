@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.012dg59"
+const appVersion = "2.0.012dg60"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -277,7 +277,8 @@ func getChannelUsers(contentType string, chatId int64) string {
 	return users
 }
 
-func SaveUserToChannelList(contentType string, chatId int64, chatName string, userId int, userName string) {
+func SaveUserToChannelList(contentType string, chatId int64, chatName string, userId int, userName string) bool {
+	isRegistered := false
 	isNewUser := true
 	for _, item := range ChatUserList {
 		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
@@ -302,6 +303,7 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 			},
 		)
 	}
+	return isRegistered
 }
 
 func splitCommand(command string, separate string) ([]string, string) {
@@ -452,12 +454,12 @@ func main() {
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-
+			from := update.CallbackQuery.From
 			//debug
 			fmt.Printf("update.CallbackQuery %+v\n", update.CallbackQuery)
 			fmt.Printf("update.CallbackQuery.Message %+v\n", update.CallbackQuery.Message)
 			fmt.Printf("update.CallbackQuery.Message.Chat %+v\n", update.CallbackQuery.Message.Chat)
-			fmt.Printf("update.CallbackQuery.From %+v %+v\n", update.CallbackQuery.From.ID, update.CallbackQuery.From.UserName)
+			fmt.Printf("update.CallbackQuery.From %+v %+v\n", from.ID, from.UserName)
 
 			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
 			splitedCallbackQuery, clearCallbackQuery := splitCommand(update.CallbackQuery.Data, "#")
@@ -472,12 +474,11 @@ func main() {
 			switch clearCallbackQuery {
 			case "lovelyGame":
 				//debug
-				userInfo := "lovelyGame \n ID: " + strconv.Itoa(update.CallbackQuery.Message.From.ID) + "\n" +
-					"IsBot: " + strconv.FormatBool(update.CallbackQuery.Message.From.IsBot) + "\n" +
-					"UserName: " + update.CallbackQuery.Message.From.UserName + "\n" +
-					"FirstName: " + update.CallbackQuery.Message.From.FirstName + "\n" +
-					"LastName: " + update.CallbackQuery.Message.From.LastName + "\n" +
-					"LanguageCode: " + update.CallbackQuery.Message.From.LanguageCode + "\n"
+				userInfo := "lovelyGame \n ID: " + strconv.Itoa(from.ID) + "\n" +
+					"UserName: " + from.UserName + "\n" +
+					"FirstName: " + from.FirstName + "\n" +
+					"LastName: " + from.LastName + "\n" +
+					"LanguageCode: " + from.LanguageCode + "\n"
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, userInfo))
 
 				messageID := strconv.Itoa(update.CallbackQuery.Message.MessageID)
@@ -496,20 +497,20 @@ func main() {
 				fmt.Printf("lastMessage %+v\n", lastMessage)
 			case "lovelyGameJoin":
 				//debug
-				userInfo := "lovelyGameJoin \n ID: " + strconv.Itoa(update.CallbackQuery.Message.From.ID) + "\n" +
-					"IsBot: " + strconv.FormatBool(update.CallbackQuery.Message.From.IsBot) + "\n" +
-					"UserName: " + update.CallbackQuery.Message.From.UserName + "\n" +
-					"FirstName: " + update.CallbackQuery.Message.From.FirstName + "\n" +
-					"LastName: " + update.CallbackQuery.Message.From.LastName + "\n" +
-					"LanguageCode: " + update.CallbackQuery.Message.From.LanguageCode + "\n"
+				userInfo := "lovelyGameJoin \n ID: " + strconv.Itoa(from.ID) + "\n" +
+					"IsBot: " + strconv.FormatBool(from.IsBot) + "\n" +
+					"UserName: " + from.UserName + "\n" +
+					"FirstName: " + from.FirstName + "\n" +
+					"LastName: " + from.LastName + "\n" +
+					"LanguageCode: " + from.LanguageCode + "\n"
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, userInfo))
 
 				SaveUserToChannelList(
 					"lovelyGame",
 					update.CallbackQuery.Message.Chat.ID,
 					update.CallbackQuery.Message.Chat.Title,
-					update.CallbackQuery.From.ID,
-					update.CallbackQuery.From.UserName,
+					from.ID,
+					from.String(),
 				)
 				messageID := strconv.Itoa(callbackQueryMessageChatID)
 				buttonText := "Join (" +
