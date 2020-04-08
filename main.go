@@ -304,11 +304,14 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 		)
 	}
 	// check - bot can write to user
+	records, _ := DB.ReadAll("user")
 	var existUser = TGUser{}
-	if err := DB.Read("user", strconv.Itoa(userId), &existUser); err != nil {
+	err := DB.Read("user", strconv.Itoa(userId), &existUser)
+	if err != nil {
 		fmt.Println("admin not found error", err)
 		if err != nil {
 			fmt.Println("error getting admin ID", err)
+			fmt.Println("error getting admin ID", records)
 		} else {
 			fmt.Println("create user?")
 		}
