@@ -431,7 +431,7 @@ func main() {
 
 	//TODO: remove this block, duplicate DB - CONFIG - when use db
 	// read admin info from DB or write it to db
-	DB, err := scribble.New(dir+"/data", nil)
+	DB, err = scribble.New(dir+"/data", nil)
 	if err != nil {
 		fmt.Println("Error", err)
 	}
