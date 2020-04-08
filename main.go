@@ -514,12 +514,6 @@ func main() {
 						"lovelyGame",
 						update.CallbackQuery.Message.Chat.ID)) + ")"
 				msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "Please, join to game. After team complete, click to end joins")
-				keyboardMarkup := tgbotapi.NewInlineKeyboardMarkup(
-					tgbotapi.NewInlineKeyboardRow(
-						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
-						tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameStart"),
-					),
-				)
 				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 					update.CallbackQuery.Message.Chat.ID,
 					update.CallbackQuery.Message.MessageID,
@@ -530,7 +524,6 @@ func main() {
 						),
 					),
 				).ReplyMarkup
-				msg.ReplyMarkup = &keyboardMarkup
 				lastMessage, _ := bot.Send(msg)
 
 				fmt.Printf("ChatUserCountList %+v\n", ChatUserCountList)
