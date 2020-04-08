@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.013dg61"
+const appVersion = "2.0.013dg63"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -304,18 +304,9 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 		)
 	}
 	// check - bot can write to user
-	records, _ := DB.ReadAll("user")
 	var existUser = TGUser{}
 	err := DB.Read("user", strconv.Itoa(userId), &existUser)
-	if err != nil {
-		fmt.Println("admin not found error", err)
-		if err != nil {
-			fmt.Println("error getting admin ID", err)
-			fmt.Println("error getting admin ID", records)
-		} else {
-			fmt.Println("create user?")
-		}
-	} else {
+	if err == nil {
 		if existUser.ChatId != 0 {
 			isRegistered = true
 		}
@@ -491,14 +482,6 @@ func main() {
 			fmt.Printf("clearCallbackQuery %+v\n", clearCallbackQuery)
 			switch clearCallbackQuery {
 			case "lovelyGame":
-				//debug
-				userInfo := "lovelyGame \n ID: " + strconv.Itoa(from.ID) + "\n" +
-					"UserName: " + from.UserName + "\n" +
-					"FirstName: " + from.FirstName + "\n" +
-					"LastName: " + from.LastName + "\n" +
-					"LanguageCode: " + from.LanguageCode + "\n"
-				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, userInfo))
-
 				messageID := strconv.Itoa(update.CallbackQuery.Message.MessageID)
 				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
@@ -513,16 +496,8 @@ func main() {
 				lastMessage, _ := bot.Send(msg)
 				fmt.Printf("msg %+v\n", msg)
 				fmt.Printf("lastMessage %+v\n", lastMessage)
-			case "lovelyGameJoin":
-				//debug
-				userInfo := "lovelyGameJoin \n ID: " + strconv.Itoa(from.ID) + "\n" +
-					"IsBot: " + strconv.FormatBool(from.IsBot) + "\n" +
-					"UserName: " + from.UserName + "\n" +
-					"FirstName: " + from.FirstName + "\n" +
-					"LastName: " + from.LastName + "\n" +
-					"LanguageCode: " + from.LanguageCode + "\n"
-				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, userInfo))
 
+			case "lovelyGameJoin":
 				isRegisteredUser := SaveUserToChannelList(
 					"lovelyGame",
 					update.CallbackQuery.Message.Chat.ID,
