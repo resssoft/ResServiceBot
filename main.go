@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg66"
+const appVersion = "2.0.014dg67"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -288,6 +288,16 @@ func getChannelUsers(contentType string, chatId int64) string {
 	return users
 }
 
+func removeChannelUsers(contentType string, chatId int64) {
+	var ChatUserListNew = make([]ChatUser, 1)
+	for _, item := range ChatUserList {
+		if !(item.ChatId == chatId && item.ContentType == contentType) {
+			ChatUserListNew = append(ChatUserListNew, item)
+		}
+	}
+	ChatUserList = ChatUserListNew
+}
+
 func getChannelUsersList(contentType string, chatId int64) []ChatUser {
 	var userList []ChatUser
 	for _, item := range ChatUserList {
@@ -307,16 +317,25 @@ func getChannelUser(contentType string, chatId int64, userId int) (ChatUser, err
 	return ChatUser{}, errors.New("user not found")
 }
 
-func sendRoleToUser(bot *tgbotapi.BotAPI, user ChatUser, chatID int64, chatUsers []ChatUser) {
-
-	fmt.Printf("GO random user %+v\n", user.User.Name)
+func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64) {
+	chatUsers := getChannelUsersList("lovelyGame", chatID)
+	randSource := rand.NewSource(time.Now().Unix())
+	random := rand.New(randSource)
+	user := chatUsers[random.Intn(len(chatUsers))]
+	fmt.Printf("random user chatUsers %+v\n", chatUsers)
 	time.Sleep(10 * time.Second)
+	fmt.Printf("GO random user %+v\n", user.User.Name)
 	var rows []KeyBoardRowTG
 	for _, chatUser := range chatUsers {
-		rows = append(rows, KBButs(KeyBoardButtonTG{
+		buttons := KBButs(KeyBoardButtonTG{
 			Text: chatUser.User.Name,
 			Data: strconv.Itoa(chatUser.User.UserID) + "|" + strconv.FormatInt(chatID, 10) + "#lovelyGamePlayerChoice",
-		}))
+		})
+		rows = append(rows, buttons)
+		fmt.Printf("ROW STEP User %+v\n", chatUser.User.Name)
+		fmt.Printf("ROW STEP buttons %+v\n", buttons)
+		fmt.Printf("ROW STEP buttons %+v\n", rows)
+		fmt.Printf("\n\n")
 	}
 
 	msg := tgbotapi.NewMessage(int64(user.User.UserID), "Please, choice:")
@@ -580,11 +599,8 @@ func main() {
 			fmt.Printf("clearCallbackQuery %+v\n", clearCallbackQuery)
 			switch clearCallbackQuery {
 			case "lovelyGame":
-				buttonText := "Join (" +
-					strconv.Itoa(getChannelUserCount(
-						"lovelyGame",
-						chat.ID)) + ")"
-
+				removeChannelUsers("lovelyGame", chat.ID)
+				buttonText := "Join (" + strconv.Itoa(getChannelUserCount("lovelyGame", chat.ID)) + ")"
 				msg := tgbotapi.NewEditMessageText(
 					chat.ID,
 					messageID,
@@ -634,13 +650,8 @@ func main() {
 					messageText = "Start lovely Game with: \n" +
 						getChannelUsers("lovelyGame", chat.ID)
 
-					chatUsers := getChannelUsersList("lovelyGame", chat.ID)
-					randSource := rand.NewSource(time.Now().Unix())
-					random := rand.New(randSource) // initialize local pseudorandom generator
-					randomUser := chatUsers[random.Intn(len(chatUsers))]
-					go sendRoleToUser(bot, randomUser, chat.ID, chatUsers)
+					go sendRoleToUser(bot, chat.ID)
 					fmt.Printf("random user chat %+v\n", chat.ID)
-					fmt.Printf("random user chatUsers %+v\n", chatUsers)
 				}
 				bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
 
