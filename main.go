@@ -308,6 +308,8 @@ func getChannelUser(contentType string, chatId int64, userId int) (ChatUser, err
 }
 
 func sendRoleToUser(bot *tgbotapi.BotAPI, user ChatUser, chatID int64, chatUsers []ChatUser) {
+
+	fmt.Printf("GO random user %+v\n", user.User.Name)
 	time.Sleep(10 * time.Second)
 	var rows []KeyBoardRowTG
 	for _, chatUser := range chatUsers {
@@ -637,6 +639,8 @@ func main() {
 					random := rand.New(randSource) // initialize local pseudorandom generator
 					randomUser := chatUsers[random.Intn(len(chatUsers))]
 					go sendRoleToUser(bot, randomUser, chat.ID, chatUsers)
+					fmt.Printf("random user chat %+v\n", chat.ID)
+					fmt.Printf("random user chatUsers %+v\n", chatUsers)
 				}
 				bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
 
