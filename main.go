@@ -8,6 +8,7 @@ import (
 	"github.com/nanobox-io/golang-scribble"
 	"github.com/patrickmn/go-cache"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg63"
+const appVersion = "2.0.014dg64"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -246,13 +247,6 @@ var commands = map[string]TGCommand{
 	},
 }
 
-type ChatUserCount struct {
-	ChatId      int64
-	ChatName    string
-	ContentType string
-	UserCount   int
-}
-
 type ChatUser struct {
 	ChatId      int64
 	ChatName    string
@@ -260,7 +254,6 @@ type ChatUser struct {
 	User        TGUser
 }
 
-var ChatUserCountList = make([]ChatUserCount, 1)
 var ChatUserList = make([]ChatUser, 1)
 
 var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
@@ -282,12 +275,41 @@ func getChannelUserCount(contentType string, chatId int64) int {
 
 func getChannelUsers(contentType string, chatId int64) string {
 	users := ""
+	var userList []string
 	for _, item := range ChatUserList {
 		if item.ChatId == chatId && item.ContentType == contentType {
-			users += item.User.Name + ", "
+			userList = append(userList, item.User.Name)
 		}
 	}
+	if len(userList) > 0 {
+		users = strings.Join(userList, "\n")
+	}
 	return users
+}
+
+func getChannelUsersList(contentType string, chatId int64) []ChatUser {
+	var userList []ChatUser
+	for _, item := range ChatUserList {
+		if item.ChatId == chatId && item.ContentType == contentType {
+			userList = append(userList, item)
+		}
+	}
+	return userList
+}
+
+func sendRoleToUser(bot *tgbotapi.BotAPI, user ChatUser, chatID int64, chatUsers []ChatUser) {
+	time.Sleep(10 * time.Second)
+	var rows []KeyBoardRowTG
+	for _, chatUser := range chatUsers {
+		rows = append(rows, KBButs(KeyBoardButtonTG{
+			Text: chatUser.User.Name,
+			Data: strconv.Itoa(chatUser.User.UserID) + "|" + strconv.FormatInt(chatID, 10) + "#lovelyGamePlayerChoice",
+		}))
+	}
+
+	msg := tgbotapi.NewMessage(user.User.ChatId, "Please, choice:")
+	msg.ReplyMarkup = getTGButtons(KeyBoardTG{rows})
+	bot.Send(msg)
 }
 
 func SaveUserToChannelList(contentType string, chatId int64, chatName string, userId int, userName string) bool {
@@ -555,8 +577,16 @@ func main() {
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
 						chat.ID)) + ")"
-				msg := tgbotapi.NewMessage(chat.ID, "Please, join to game.")
-				msg.ReplyMarkup = getSimpleTGButton(buttonText, messageID+"#lovelyGameJoin")
+
+				msg := tgbotapi.NewEditMessageText(
+					chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					"Please, join to game.")
+				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+					chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					getSimpleTGButton(buttonText, messageID+"#lovelyGameJoin"),
+				).ReplyMarkup
 				bot.Send(msg)
 
 			case "lovelyGameJoin":
@@ -595,8 +625,14 @@ func main() {
 				if unregisteredUsers != "" {
 					messageText = "Cant start, unregistered users: " + unregisteredUsers
 				} else {
-					messageText = "Start lovely Game with: " +
+					messageText = "Start lovely Game with: \n" +
 						getChannelUsers("lovelyGame", chat.ID)
+
+					chatUsers := getChannelUsersList("lovelyGame", chat.ID)
+					randSource := rand.NewSource(time.Now().Unix())
+					random := rand.New(randSource) // initialize local pseudorandom generator
+					randomUser := chatUsers[random.Intn(len(chatUsers))]
+					go sendRoleToUser(bot, randomUser, chat.ID, chatUsers)
 				}
 				bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
 			default:
