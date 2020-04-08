@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg68"
+const appVersion = "2.0.014dg69"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -379,11 +379,7 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 func SetUserRoleToChannelList(contentType string, chatId int64, userId int, userRole string) {
 	for itemIndex, item := range ChatUserList {
 		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
-			if ChatUserList[itemIndex].CustomRole != "" {
-				ChatUserList[itemIndex].CustomRole += " " + userRole
-			} else {
-				ChatUserList[itemIndex].CustomRole = userRole
-			}
+			ChatUserList[itemIndex].CustomRole = userRole
 		}
 	}
 }
@@ -703,7 +699,11 @@ func main() {
 						mainChatID := customDataItems[1]
 						mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
-						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "User choice: "+chatUser.User.Name))
+						messageText := "Vote choice: " + chatUser.User.Name
+						if chatUser.CustomRole == "killer" {
+							messageText += " and game the end. It is killer!"
+						}
+						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, messageText))
 						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
 					}
 				}
@@ -717,7 +717,7 @@ func main() {
 						mainChatID := customDataItems[1]
 						mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
-						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "User choice: "+chatUser.User.Name))
+						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "Hidden choice: "+chatUser.User.Name))
 						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
 					}
 				}
