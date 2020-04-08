@@ -334,12 +334,13 @@ func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64) {
 		rows = append(rows, buttons)
 		fmt.Printf("ROW STEP User %+v\n", chatUser.User.Name)
 		fmt.Printf("ROW STEP buttons %+v\n", buttons)
-		fmt.Printf("ROW STEP buttons %+v\n", rows)
+		fmt.Printf("ROW STEP rows %+v\n", rows)
 		fmt.Printf("\n\n")
 	}
 
 	msg := tgbotapi.NewMessage(int64(user.User.UserID), "Please, choice:")
 	msg.ReplyMarkup = getTGButtons(KeyBoardTG{rows})
+	fmt.Printf("getTGButtons %+v\n", KeyBoardTG{rows})
 	bot.Send(msg)
 }
 
