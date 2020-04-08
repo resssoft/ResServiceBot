@@ -645,10 +645,10 @@ func main() {
 					customDataItems, _ := splitCommand(splitedCallbackQuery[0], "|")
 					customDataItemsCount := len(customDataItems)
 					if customDataItemsCount > 1 {
-						choicedUserID := customDataItems[0]
+						choicedUserID, _ := strconv.Atoi(customDataItems[0])
 						mainChatID := customDataItems[1]
 						mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
-						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, strconv.Atoi(choicedUserID))
+						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
 						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "User choice: "+chatUser.User.Name))
 					}
 				}
