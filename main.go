@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg67"
+const appVersion = "2.0.014dg68"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -252,6 +252,7 @@ type ChatUser struct {
 	ChatId      int64
 	ChatName    string
 	ContentType string
+	CustomRole  string
 	User        TGUser
 }
 
@@ -298,10 +299,17 @@ func removeChannelUsers(contentType string, chatId int64) {
 	ChatUserList = ChatUserListNew
 }
 
-func getChannelUsersList(contentType string, chatId int64) []ChatUser {
+func getChannelUsersList(contentType string, chatId int64, excludeActiveRole bool) []ChatUser {
 	var userList []ChatUser
 	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType {
+		var userIncluded = true
+		if item.CustomRole == "dead" {
+			userIncluded = false
+		}
+		if excludeActiveRole && item.CustomRole == "killer" {
+			userIncluded = false
+		}
+		if item.ChatId == chatId && item.ContentType == contentType && userIncluded {
 			userList = append(userList, item)
 		}
 	}
@@ -317,30 +325,25 @@ func getChannelUser(contentType string, chatId int64, userId int) (ChatUser, err
 	return ChatUser{}, errors.New("user not found")
 }
 
-func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64) {
-	chatUsers := getChannelUsersList("lovelyGame", chatID)
-	randSource := rand.NewSource(time.Now().Unix())
-	random := rand.New(randSource)
-	user := chatUsers[random.Intn(len(chatUsers))]
-	fmt.Printf("random user chatUsers %+v\n", chatUsers)
-	time.Sleep(10 * time.Second)
-	fmt.Printf("GO random user %+v\n", user.User.Name)
+func getUsersButtons(chatUsers []ChatUser, chatID int64, code string) tgbotapi.InlineKeyboardMarkup {
 	var rows []KeyBoardRowTG
 	for _, chatUser := range chatUsers {
-		buttons := KBButs(KeyBoardButtonTG{
+		rows = append(rows, KBButs(KeyBoardButtonTG{
 			Text: chatUser.User.Name,
-			Data: strconv.Itoa(chatUser.User.UserID) + "|" + strconv.FormatInt(chatID, 10) + "#lovelyGamePlayerChoice",
-		})
-		rows = append(rows, buttons)
-		fmt.Printf("ROW STEP User %+v\n", chatUser.User.Name)
-		fmt.Printf("ROW STEP buttons %+v\n", buttons)
-		fmt.Printf("ROW STEP rows %+v\n", rows)
-		fmt.Printf("\n\n")
+			Data: strconv.Itoa(chatUser.User.UserID) + "|" + strconv.FormatInt(chatID, 10) + "#" + code,
+		}))
 	}
+	return getTGButtons(KeyBoardTG{rows})
+}
 
+func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64) {
+	chatUsers := getChannelUsersList("lovelyGame", chatID, true)
+	random := rand.New(rand.NewSource(time.Now().Unix()))
+	user := chatUsers[random.Intn(len(chatUsers))]
+	SetUserRoleToChannelList("lovelyGame", chatID, user.User.UserID, "killer")
+	time.Sleep(5 * time.Second)
 	msg := tgbotapi.NewMessage(int64(user.User.UserID), "Please, choice:")
-	msg.ReplyMarkup = getTGButtons(KeyBoardTG{rows})
-	fmt.Printf("getTGButtons %+v\n", KeyBoardTG{rows})
+	msg.ReplyMarkup = getUsersButtons(chatUsers, chatID, "lovelyGamePlayerChoice")
 	bot.Send(msg)
 }
 
@@ -359,6 +362,7 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 				ChatId:      chatId,
 				ChatName:    chatName,
 				ContentType: contentType,
+				CustomRole:  "",
 				User: TGUser{
 					UserID:  userId,
 					ChatId:  0,
@@ -370,6 +374,18 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 		)
 	}
 	return checkUserRegister(userId)
+}
+
+func SetUserRoleToChannelList(contentType string, chatId int64, userId int, userRole string) {
+	for itemIndex, item := range ChatUserList {
+		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
+			if ChatUserList[itemIndex].CustomRole != "" {
+				ChatUserList[itemIndex].CustomRole += " " + userRole
+			} else {
+				ChatUserList[itemIndex].CustomRole = userRole
+			}
+		}
+	}
 }
 
 func checkUserRegister(userId int) bool {
@@ -503,6 +519,7 @@ func getTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
 			row = append(row, tgbotapi.NewInlineKeyboardButtonData(button.Text, button.Data))
 		}
 		rows = append(rows, row)
+		row = nil
 	}
 	return tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: rows,
@@ -609,7 +626,7 @@ func main() {
 				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 					chat.ID,
 					messageID,
-					getSimpleTGButton(buttonText, "#lovelyGameJoin"),
+					getSimpleTGButton(buttonText, "lovelyGameJoin"),
 				).ReplyMarkup
 				bot.Send(msg)
 
@@ -636,8 +653,8 @@ func main() {
 					chat.ID,
 					messageID,
 					getTGButtons(KBRows(KBButs(
-						KeyBoardButtonTG{buttonText, "#lovelyGameJoin"},
-						KeyBoardButtonTG{"End joins and start", "#lovelyGameStart"},
+						KeyBoardButtonTG{buttonText, "lovelyGameJoin"},
+						KeyBoardButtonTG{"End joins and start", "lovelyGameStart"},
 					))),
 				).ReplyMarkup
 				bot.Send(msg)
@@ -647,14 +664,49 @@ func main() {
 				unregisteredUsers := unregisteredChannelUsers("lovelyGame", chat.ID)
 				if unregisteredUsers != "" {
 					messageText = "Cant start, unregistered users: " + unregisteredUsers
+					bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
 				} else {
 					messageText = "Start lovely Game with: \n" +
 						getChannelUsers("lovelyGame", chat.ID)
-
 					go sendRoleToUser(bot, chat.ID)
-					fmt.Printf("random user chat %+v\n", chat.ID)
+					msg := tgbotapi.NewEditMessageText(
+						chat.ID,
+						messageID,
+						messageText)
+					msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+						chat.ID,
+						messageID,
+						getSimpleTGButton("Start voting", "lovelyGameoVoting"),
+					).ReplyMarkup
+					bot.Send(msg)
 				}
-				bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
+
+			case "lovelyGameoVoting":
+				activeChatUsers := getChannelUsersList("lovelyGame", chat.ID, false)
+				msg := tgbotapi.NewEditMessageText(
+					chat.ID,
+					messageID,
+					"Voice!")
+				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+					chat.ID,
+					messageID,
+					getUsersButtons(activeChatUsers, chat.ID, "lovelyGamePlayerVoteChoice"),
+				).ReplyMarkup
+				bot.Send(msg)
+
+			case "lovelyGamePlayerVoteChoice":
+				if commandsCount > 1 {
+					customDataItems, _ := splitCommand(splitedCallbackQuery[0], "|")
+					customDataItemsCount := len(customDataItems)
+					if customDataItemsCount > 1 {
+						choicedUserID, _ := strconv.Atoi(customDataItems[0])
+						mainChatID := customDataItems[1]
+						mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
+						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
+						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "User choice: "+chatUser.User.Name))
+						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
+					}
+				}
 
 			case "lovelyGamePlayerChoice":
 				if commandsCount > 1 {
@@ -666,6 +718,7 @@ func main() {
 						mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
 						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "User choice: "+chatUser.User.Name))
+						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
 					}
 				}
 
