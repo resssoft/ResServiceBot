@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg69"
+const appVersion = "2.0.014dg70"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -702,6 +702,9 @@ func main() {
 						messageText := "Vote choice: " + chatUser.User.Name
 						if chatUser.CustomRole == "killer" {
 							messageText += " and game the end. It is killer!"
+							//TODO: remove buttons after end
+							//TODO: check minimal users
+							//TODO: voteCount and list of votes users
 						}
 						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, messageText))
 						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
@@ -718,6 +721,18 @@ func main() {
 						mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
 						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "Hidden choice: "+chatUser.User.Name))
+
+						msg := tgbotapi.NewEditMessageText(
+							chat.ID,
+							messageID,
+							"Your choice: "+chatUser.User.Name)
+						msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+							chat.ID,
+							messageID,
+							tgbotapi.InlineKeyboardMarkup{},
+						).ReplyMarkup
+						bot.Send(msg)
+
 						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
 					}
 				}
@@ -876,6 +891,7 @@ func main() {
 			bot.Send(msg)
 
 		case "/getFeatures":
+			//TODO: why it doesnt work
 			err, messages := readLines("./features.txt", telegramSingleMessageLengthLimit)
 			if err != nil {
 				fmt.Println("write command error", err)
