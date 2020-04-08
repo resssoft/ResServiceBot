@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.012dg60"
+const appVersion = "2.0.013dg61"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -303,6 +303,20 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 			},
 		)
 	}
+	// check - bot can write to user
+	var existUser = TGUser{}
+	if err := DB.Read("user", strconv.Itoa(userId), &existUser); err != nil {
+		fmt.Println("admin not found error", err)
+		if err != nil {
+			fmt.Println("error getting admin ID", err)
+		} else {
+			fmt.Println("create user?")
+		}
+	} else {
+		if existUser.ChatId != 0 {
+			isRegistered = true
+		}
+	}
 	return isRegistered
 }
 
@@ -381,6 +395,7 @@ func readLines(path string, resultLimit int) (error, string) {
 }
 
 var existAdmin = TGUser{}
+var DB *scribble.Driver
 
 func main() {
 	fmt.Print("Load configuration... ")
@@ -413,11 +428,11 @@ func main() {
 
 	//TODO: remove this block, duplicate DB - CONFIG - when use db
 	// read admin info from DB or write it to db
-	db, err := scribble.New(dir+"/data", nil)
+	DB, err := scribble.New(dir+"/data", nil)
 	if err != nil {
 		fmt.Println("Error", err)
 	}
-	if err := db.Read("user", configuration.Telegram.AdminId, &existAdmin); err != nil {
+	if err := DB.Read("user", configuration.Telegram.AdminId, &existAdmin); err != nil {
 		fmt.Println("admin not found error", err)
 		adminIdInt, err := strconv.Atoi(configuration.Telegram.AdminId)
 		if err != nil {
@@ -430,7 +445,7 @@ func main() {
 				Name:    "",
 				IsAdmin: false,
 			}
-			if err := db.Write("user", configuration.Telegram.AdminId, existAdmin); err != nil {
+			if err := DB.Write("user", configuration.Telegram.AdminId, existAdmin); err != nil {
 				fmt.Println("Error", err)
 			}
 		}
@@ -505,13 +520,16 @@ func main() {
 					"LanguageCode: " + from.LanguageCode + "\n"
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, userInfo))
 
-				SaveUserToChannelList(
+				isRegisteredUser := SaveUserToChannelList(
 					"lovelyGame",
 					update.CallbackQuery.Message.Chat.ID,
 					update.CallbackQuery.Message.Chat.Title,
 					from.ID,
 					from.String(),
 				)
+				if !isRegisteredUser {
+					bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, from.String()+", write me to private for register"))
+				}
 				messageID := strconv.Itoa(callbackQueryMessageChatID)
 				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
@@ -574,11 +592,11 @@ func main() {
 				Name:    update.Message.From.String(),
 				IsAdmin: isAdmin,
 			}
-			if err := db.Write("user", strconv.Itoa(update.Message.From.ID), user); err != nil {
+			if err := DB.Write("user", strconv.Itoa(update.Message.From.ID), user); err != nil {
 				fmt.Println("add command error", err)
 			}
 
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String())
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String()+", you are registered!")
 			bot.Send(msg)
 		case "/myInfo":
 			from := update.Message.From
@@ -616,7 +634,7 @@ func main() {
 				log.Printf("Failed permissions: %v", err)
 			}
 			if permission {
-				records, err := db.ReadAll("user")
+				records, err := DB.ReadAll("user")
 				if err != nil {
 					fmt.Println("Error", err)
 				}
@@ -677,7 +695,7 @@ func main() {
 				},
 			}
 
-			if err := db.Write("command", commandValue, command); err != nil {
+			if err := DB.Write("command", commandValue, command); err != nil {
 				fmt.Println("add command error", err)
 			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added "+commandValue)
@@ -709,7 +727,7 @@ func main() {
 			bot.Send(msg)
 
 		case "/SaveCommandsList":
-			records, err := db.ReadAll("command")
+			records, err := DB.ReadAll("command")
 			if err != nil {
 				fmt.Println("Error", err)
 			}
@@ -726,7 +744,7 @@ func main() {
 			bot.Send(msg)
 
 		case "/listOf":
-			records, err := db.ReadAll("saved")
+			records, err := DB.ReadAll("saved")
 			if err != nil {
 				fmt.Println("Error", err)
 			}
@@ -794,7 +812,7 @@ func main() {
 				"_" + strconv.FormatInt(update.Message.Chat.ID, 10) +
 				"_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 
-			if err := db.Write("checkList", itemCode, checkListItem); err != nil {
+			if err := DB.Write("checkList", itemCode, checkListItem); err != nil {
 				fmt.Println("add command error", err)
 			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
@@ -808,7 +826,7 @@ func main() {
 				break
 			}
 
-			records, err := db.ReadAll("checkList")
+			records, err := DB.ReadAll("checkList")
 			if err != nil {
 				fmt.Println("db read error", err)
 			}
@@ -830,7 +848,7 @@ func main() {
 				if commandFound.Group == checkListGroup && commandFound.ChatID == update.Message.Chat.ID {
 					if commandFound.Text == checkItemText {
 						commandFound.Status = newStatus
-						if err := db.Write("checkList", checkListGroup, commandFound); err != nil {
+						if err := DB.Write("checkList", checkListGroup, commandFound); err != nil {
 							fmt.Println("add command error", err)
 						} else {
 							updatedItems++
@@ -849,7 +867,7 @@ func main() {
 				break
 			}
 
-			records, err := db.ReadAll("сheckList")
+			records, err := DB.ReadAll("сheckList")
 			if err != nil {
 				fmt.Println("db read error", err)
 			}
@@ -879,7 +897,7 @@ func main() {
 			bot.Send(msg)
 
 		default:
-			records, err := db.ReadAll("command")
+			records, err := DB.ReadAll("command")
 			if err != nil {
 				fmt.Println("Error", err)
 			}
@@ -897,7 +915,7 @@ func main() {
 					itemCode := commandName +
 						"_" + strconv.FormatInt(update.Message.Chat.ID, 10) +
 						"_" + strconv.FormatInt(time.Now().UnixNano(), 10)
-					if err := db.Write(
+					if err := DB.Write(
 						"saved",
 						itemCode,
 						SavedBlock{
