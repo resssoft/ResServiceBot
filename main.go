@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Syfaro/telegram-bot-api"
 	"github.com/nanobox-io/golang-scribble"
@@ -17,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg64"
+const appVersion = "2.0.014dg65"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -297,6 +298,15 @@ func getChannelUsersList(contentType string, chatId int64) []ChatUser {
 	return userList
 }
 
+func getChannelUser(contentType string, chatId int64, userId int) (ChatUser, error) {
+	for _, item := range ChatUserList {
+		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
+			return item, nil
+		}
+	}
+	return ChatUser{}, errors.New("user not found")
+}
+
 func sendRoleToUser(bot *tgbotapi.BotAPI, user ChatUser, chatID int64, chatUsers []ChatUser) {
 	time.Sleep(10 * time.Second)
 	var rows []KeyBoardRowTG
@@ -554,6 +564,7 @@ func main() {
 		if update.CallbackQuery != nil {
 			from := update.CallbackQuery.From
 			chat := update.CallbackQuery.Message.Chat
+			messageID := update.CallbackQuery.Message.MessageID
 			//debug
 			fmt.Printf("update.CallbackQuery %+v\n", update.CallbackQuery)
 			fmt.Printf("update.CallbackQuery.Message %+v\n", update.CallbackQuery.Message)
@@ -563,16 +574,10 @@ func main() {
 			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
 			splitedCallbackQuery, clearCallbackQuery := splitCommand(update.CallbackQuery.Data, "#")
 			commandsCount := len(splitedCallbackQuery)
-			callbackQueryMessageChatID := 0
-			if commandsCount == 0 {
-				continue
-			}
-			callbackQueryMessageChatID, _ = strconv.Atoi(splitedCallbackQuery[0])
 
 			fmt.Printf("clearCallbackQuery %+v\n", clearCallbackQuery)
 			switch clearCallbackQuery {
 			case "lovelyGame":
-				messageID := strconv.Itoa(update.CallbackQuery.Message.MessageID)
 				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
@@ -580,12 +585,12 @@ func main() {
 
 				msg := tgbotapi.NewEditMessageText(
 					chat.ID,
-					update.CallbackQuery.Message.MessageID,
+					messageID,
 					"Please, join to game.")
 				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 					chat.ID,
-					update.CallbackQuery.Message.MessageID,
-					getSimpleTGButton(buttonText, messageID+"#lovelyGameJoin"),
+					messageID,
+					getSimpleTGButton(buttonText, "#lovelyGameJoin"),
 				).ReplyMarkup
 				bot.Send(msg)
 
@@ -600,21 +605,20 @@ func main() {
 				if !isRegisteredUser {
 					bot.Send(tgbotapi.NewMessage(chat.ID, from.String()+", write me to private for register"))
 				}
-				messageID := strconv.Itoa(callbackQueryMessageChatID)
 				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
 						chat.ID)) + ")"
 				msg := tgbotapi.NewEditMessageText(
 					chat.ID,
-					update.CallbackQuery.Message.MessageID,
+					messageID,
 					"Please, join to game. After team complete, click to end joins")
 				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 					chat.ID,
-					update.CallbackQuery.Message.MessageID,
+					messageID,
 					getTGButtons(KBRows(KBButs(
-						KeyBoardButtonTG{buttonText, messageID + "#lovelyGameJoin"},
-						KeyBoardButtonTG{"End joins and start", messageID + "#lovelyGameJoin"},
+						KeyBoardButtonTG{buttonText, "#lovelyGameJoin"},
+						KeyBoardButtonTG{"End joins and start", "#lovelyGameStart"},
 					))),
 				).ReplyMarkup
 				bot.Send(msg)
@@ -635,6 +639,20 @@ func main() {
 					go sendRoleToUser(bot, randomUser, chat.ID, chatUsers)
 				}
 				bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
+
+			case "lovelyGamePlayerChoice":
+				if commandsCount > 1 {
+					customDataItems, _ := splitCommand(splitedCallbackQuery[0], "|")
+					customDataItemsCount := len(customDataItems)
+					if customDataItemsCount > 1 {
+						choicedUserID := customDataItems[0]
+						mainChatID := customDataItems[1]
+						mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
+						chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, strconv.Atoi(choicedUserID))
+						bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "User choice: "+chatUser.User.Name))
+					}
+				}
+
 			default:
 				bot.Send(tgbotapi.NewMessage(chat.ID, "Data: "+update.CallbackQuery.Data))
 			}
