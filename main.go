@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg70"
+const appVersion = "2.0.014dg71"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -344,7 +344,9 @@ func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64) {
 	time.Sleep(5 * time.Second)
 	msg := tgbotapi.NewMessage(int64(user.User.UserID), "Please, choice:")
 	msg.ReplyMarkup = getUsersButtons(chatUsers, chatID, "lovelyGamePlayerChoice")
-	bot.Send(msg)
+	messageID, _ := bot.Send(msg)
+
+	fmt.Printf("messageID %+v\n", messageID)
 }
 
 func SaveUserToChannelList(contentType string, chatId int64, chatName string, userId int, userName string) bool {
@@ -726,13 +728,10 @@ func main() {
 							chat.ID,
 							messageID,
 							"Your choice: "+chatUser.User.Name)
-						msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
-							chat.ID,
-							messageID,
-							tgbotapi.InlineKeyboardMarkup{},
-						).ReplyMarkup
 						bot.Send(msg)
 
+						fmt.Printf("Private chat %+v\n", chat.ID)
+						fmt.Printf("messageID edit %+v\n", messageID)
 						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
 					}
 				}
