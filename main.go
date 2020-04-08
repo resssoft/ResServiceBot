@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.013dg63"
+const appVersion = "2.0.014dg63"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -52,6 +52,19 @@ type TelegramConfig struct {
 
 type TgBot struct {
 	Token string
+}
+
+type KeyBoardTG struct {
+	Rows []KeyBoardRowTG
+}
+
+type KeyBoardRowTG struct {
+	Buttons []KeyBoardButtonTG
+}
+
+type KeyBoardButtonTG struct {
+	Text string
+	Data string
 }
 
 type SavedBlock struct {
@@ -278,7 +291,6 @@ func getChannelUsers(contentType string, chatId int64) string {
 }
 
 func SaveUserToChannelList(contentType string, chatId int64, chatName string, userId int, userName string) bool {
-	isRegistered := false
 	isNewUser := true
 	for _, item := range ChatUserList {
 		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
@@ -303,7 +315,12 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 			},
 		)
 	}
+	return checkUserRegister(userId)
+}
+
+func checkUserRegister(userId int) bool {
 	// check - bot can write to user
+	isRegistered := false
 	var existUser = TGUser{}
 	err := DB.Read("user", strconv.Itoa(userId), &existUser)
 	if err == nil {
@@ -312,6 +329,22 @@ func SaveUserToChannelList(contentType string, chatId int64, chatName string, us
 		}
 	}
 	return isRegistered
+}
+
+func unregisteredChannelUsers(contentType string, chatId int64) string {
+	users := ""
+	var userList []string
+	for _, item := range ChatUserList {
+		if item.ChatId == chatId && item.ContentType == contentType {
+			if !checkUserRegister(item.User.UserID) {
+				userList = append(userList, item.User.Name)
+			}
+		}
+	}
+	if len(userList) > 0 {
+		users = strings.Join(userList, "\n")
+	}
+	return users
 }
 
 func splitCommand(command string, separate string) ([]string, string) {
@@ -386,6 +419,40 @@ func readLines(path string, resultLimit int) (error, string) {
 		return err, ""
 	}
 	return nil, ""
+}
+
+func KBRows(KBrows ...KeyBoardRowTG) KeyBoardTG {
+	var rows []KeyBoardRowTG
+	rows = append(rows, KBrows...)
+	return KeyBoardTG{rows}
+}
+
+func KBButs(KBrows ...KeyBoardButtonTG) KeyBoardRowTG {
+	var rows []KeyBoardButtonTG
+	rows = append(rows, KBrows...)
+	return KeyBoardRowTG{rows}
+}
+
+func getSimpleTGButton(text, data string) tgbotapi.InlineKeyboardMarkup {
+	return tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(text, data),
+		),
+	)
+}
+
+func getTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
+	var row []tgbotapi.InlineKeyboardButton
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, rowsData := range params.Rows {
+		for _, button := range rowsData.Buttons {
+			row = append(row, tgbotapi.NewInlineKeyboardButtonData(button.Text, button.Data))
+		}
+		rows = append(rows, row)
+	}
+	return tgbotapi.InlineKeyboardMarkup{
+		InlineKeyboard: rows,
+	}
 }
 
 var existAdmin = TGUser{}
@@ -464,10 +531,11 @@ func main() {
 	for update := range updates {
 		if update.CallbackQuery != nil {
 			from := update.CallbackQuery.From
+			chat := update.CallbackQuery.Message.Chat
 			//debug
 			fmt.Printf("update.CallbackQuery %+v\n", update.CallbackQuery)
 			fmt.Printf("update.CallbackQuery.Message %+v\n", update.CallbackQuery.Message)
-			fmt.Printf("update.CallbackQuery.Message.Chat %+v\n", update.CallbackQuery.Message.Chat)
+			fmt.Printf("update.CallbackQuery.Message.Chat %+v\n", chat)
 			fmt.Printf("update.CallbackQuery.From %+v %+v\n", from.ID, from.UserName)
 
 			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
@@ -486,60 +554,56 @@ func main() {
 				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
-						update.CallbackQuery.Message.Chat.ID)) + ")"
-				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Please, join to game.")
-				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-					tgbotapi.NewInlineKeyboardRow(
-						tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
-					),
-				)
-				lastMessage, _ := bot.Send(msg)
-				fmt.Printf("msg %+v\n", msg)
-				fmt.Printf("lastMessage %+v\n", lastMessage)
+						chat.ID)) + ")"
+				msg := tgbotapi.NewMessage(chat.ID, "Please, join to game.")
+				msg.ReplyMarkup = getSimpleTGButton(buttonText, messageID+"#lovelyGameJoin")
+				bot.Send(msg)
 
 			case "lovelyGameJoin":
 				isRegisteredUser := SaveUserToChannelList(
 					"lovelyGame",
-					update.CallbackQuery.Message.Chat.ID,
-					update.CallbackQuery.Message.Chat.Title,
+					chat.ID,
+					chat.Title,
 					from.ID,
 					from.String(),
 				)
 				if !isRegisteredUser {
-					bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, from.String()+", write me to private for register"))
+					bot.Send(tgbotapi.NewMessage(chat.ID, from.String()+", write me to private for register"))
 				}
 				messageID := strconv.Itoa(callbackQueryMessageChatID)
 				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
 						"lovelyGame",
-						update.CallbackQuery.Message.Chat.ID)) + ")"
-				msg := tgbotapi.NewEditMessageText(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, "Please, join to game. After team complete, click to end joins")
-				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
-					update.CallbackQuery.Message.Chat.ID,
+						chat.ID)) + ")"
+				msg := tgbotapi.NewEditMessageText(
+					chat.ID,
 					update.CallbackQuery.Message.MessageID,
-					tgbotapi.NewInlineKeyboardMarkup(
-						tgbotapi.NewInlineKeyboardRow(
-							tgbotapi.NewInlineKeyboardButtonData(buttonText, messageID+"#lovelyGameJoin"),
-							tgbotapi.NewInlineKeyboardButtonData("End joins and start", messageID+"#lovelyGameJoin"),
-						),
-					),
+					"Please, join to game. After team complete, click to end joins")
+				msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+					chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					getTGButtons(KBRows(KBButs(
+						KeyBoardButtonTG{buttonText, messageID + "#lovelyGameJoin"},
+						KeyBoardButtonTG{"End joins and start", messageID + "#lovelyGameJoin"},
+					))),
 				).ReplyMarkup
-				lastMessage, _ := bot.Send(msg)
-
-				fmt.Printf("ChatUserCountList %+v\n", ChatUserCountList)
-				fmt.Printf("NEW text %+v\n", buttonText)
-				fmt.Printf("NEW msg %+v\n", msg)
-				fmt.Printf("NEW lastMessage %+v\n", lastMessage)
+				bot.Send(msg)
 
 			case "lovelyGameStart":
-				messageText := "Start lovely Game with: " +
-					getChannelUsers("lovelyGame", update.CallbackQuery.Message.Chat.ID)
-				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, messageText))
+				messageText := ""
+				unregisteredUsers := unregisteredChannelUsers("lovelyGame", chat.ID)
+				if unregisteredUsers != "" {
+					messageText = "Cant start, unregistered users: " + unregisteredUsers
+				} else {
+					messageText = "Start lovely Game with: " +
+						getChannelUsers("lovelyGame", chat.ID)
+				}
+				bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
 			default:
-				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Data: "+update.CallbackQuery.Data))
+				bot.Send(tgbotapi.NewMessage(chat.ID, "Data: "+update.CallbackQuery.Data))
 			}
 
-		}
+		} //update.CallbackQuery != nil
 		fmt.Printf("inline query %+v\n", update.InlineQuery)
 		if update.Message == nil || (update.Message == nil && update.InlineQuery != nil) {
 			continue
@@ -618,7 +682,7 @@ func main() {
 					}
 					userList = append(userList, "["+strconv.Itoa(userFound.UserID)+"] "+userFound.Name)
 				}
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(userList, ", "))
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(userList, "\n"))
 				bot.Send(msg)
 			} else {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Permission denied")
