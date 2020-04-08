@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg65"
+const appVersion = "2.0.014dg66"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -319,7 +319,7 @@ func sendRoleToUser(bot *tgbotapi.BotAPI, user ChatUser, chatID int64, chatUsers
 		}))
 	}
 
-	msg := tgbotapi.NewMessage(user.User.ChatId, "Please, choice:")
+	msg := tgbotapi.NewMessage(int64(user.User.UserID), "Please, choice:")
 	msg.ReplyMarkup = getTGButtons(KeyBoardTG{rows})
 	bot.Send(msg)
 }
