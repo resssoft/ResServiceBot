@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg82"
+const appVersion = "2.0.014dg83"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -767,7 +767,7 @@ func main() {
 				}
 
 			case "lovelyGameVoting":
-				setZeroCountsChannelUsersList(contentType, chatID)
+				setZeroCountsChannelUsersList(contentType, chat.ID)
 				bot.Send(getUsersVoteMessageConfig(contentType, chat.ID, "Start voting"))
 
 			case "lovelyGamePlayerVoteChoice":
