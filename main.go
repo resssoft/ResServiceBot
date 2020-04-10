@@ -345,12 +345,27 @@ func setZeroCountsChannelUsersList(contentType string, chatId int64) {
 }
 
 func getUsersVoteMessageConfig(contentType string, chatID int64, messageText string) tgbotapi.MessageConfig {
-	setZeroCountsChannelUsersList(contentType, chatID)
 	activeChatUsers := getChannelUsersList(contentType, chatID, false)
+	buttons := getUsersButtons(activeChatUsers, chatID, "lovelyGamePlayerVoteChoice")
 	msg := tgbotapi.NewMessage(
 		chatID,
 		"Voting")
-	msg.ReplyMarkup = getUsersButtons(activeChatUsers, chatID, "lovelyGamePlayerVoteChoice")
+	msg.ReplyMarkup = buttons
+	return msg
+}
+
+func updateUsersVoteMessageConfig(contentType string, chatID int64, messageText string, messageID int) tgbotapi.EditMessageTextConfig {
+	activeChatUsers := getChannelUsersList(contentType, chatID, false)
+	buttons := getUsersButtons(activeChatUsers, chatID, "lovelyGamePlayerVoteChoice")
+	msg := tgbotapi.NewEditMessageText(
+		chatID,
+		messageID,
+		messageText)
+	msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+		chatID,
+		messageID,
+		buttons,
+	).ReplyMarkup
 	return msg
 }
 
@@ -409,11 +424,11 @@ func getUsersButtons(chatUsers []ChatUser, chatID int64, code string) tgbotapi.I
 	return getTGButtons(KeyBoardTG{rows})
 }
 
-func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64) {
-	chatUsers := getChannelUsersList("lovelyGame", chatID, true)
+func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64, contentType string) {
+	chatUsers := getChannelUsersList(contentType, chatID, true)
 	random := rand.New(rand.NewSource(time.Now().Unix()))
 	user := chatUsers[random.Intn(len(chatUsers))]
-	SetUserRoleToChannelList("lovelyGame", chatID, user.User.UserID, "killer")
+	SetUserRoleToChannelList(contentType, chatID, user.User.UserID, "killer")
 	time.Sleep(5 * time.Second)
 	msg := tgbotapi.NewMessage(int64(user.User.UserID), "Please, choice:")
 	msg.ReplyMarkup = getUsersButtons(chatUsers, chatID, "lovelyGamePlayerChoice")
@@ -677,6 +692,7 @@ func main() {
 			fromName := update.CallbackQuery.From.String()
 			chat := update.CallbackQuery.Message.Chat
 			messageID := update.CallbackQuery.Message.MessageID
+			contentType := "lovelyGame"
 			//debug
 			fmt.Printf("update.CallbackQuery %+v\n", update.CallbackQuery)
 			fmt.Printf("update.CallbackQuery.Message %+v\n", update.CallbackQuery.Message)
@@ -690,8 +706,8 @@ func main() {
 			fmt.Printf("clearCallbackQuery %+v\n", clearCallbackQuery)
 			switch clearCallbackQuery {
 			case "lovelyGame":
-				removeChannelUsers("lovelyGame", chat.ID)
-				buttonText := "Join (" + strconv.Itoa(getChannelUserCount("lovelyGame", chat.ID)) + ")"
+				removeChannelUsers(contentType, chat.ID)
+				buttonText := "Join (" + strconv.Itoa(getChannelUserCount(contentType, chat.ID)) + ")"
 				msg := tgbotapi.NewEditMessageText(
 					chat.ID,
 					messageID,
@@ -705,7 +721,7 @@ func main() {
 
 			case "lovelyGameJoin":
 				isRegisteredUser := SaveUserToChannelList(
-					"lovelyGame",
+					contentType,
 					chat.ID,
 					chat.Title,
 					from.ID,
@@ -716,7 +732,7 @@ func main() {
 				}
 				buttonText := "Join (" +
 					strconv.Itoa(getChannelUserCount(
-						"lovelyGame",
+						contentType,
 						chat.ID)) + ")"
 				msg := tgbotapi.NewEditMessageText(
 					chat.ID,
@@ -734,15 +750,15 @@ func main() {
 
 			case "lovelyGameStart":
 				messageText := ""
-				unregisteredUsers := unregisteredChannelUsers("lovelyGame", chat.ID)
+				unregisteredUsers := unregisteredChannelUsers(contentType, chat.ID)
 				if unregisteredUsers != "" {
 					messageText = "I can`t start, unregistered users: " + unregisteredUsers
 					bot.Send(tgbotapi.NewMessage(chat.ID, messageText))
 				} else {
 					messageText = "Start lovely Game with: \n" +
-						getChannelUsers("lovelyGame", chat.ID) +
+						getChannelUsers(contentType, chat.ID) +
 						"\n Wait for the killer to choose a player..."
-					go sendRoleToUser(bot, chat.ID)
+					go sendRoleToUser(bot, chat.ID, contentType)
 					msg := tgbotapi.NewEditMessageText(
 						chat.ID,
 						messageID,
@@ -751,7 +767,8 @@ func main() {
 				}
 
 			case "lovelyGameVoting":
-				bot.Send(getUsersVoteMessageConfig("lovelyGame", chat.ID, "Start voting"))
+				setZeroCountsChannelUsersList(contentType, chatID)
+				bot.Send(getUsersVoteMessageConfig(contentType, chat.ID, "Start voting"))
 
 			case "lovelyGamePlayerVoteChoice":
 				messageText := ""
@@ -765,21 +782,21 @@ func main() {
 				choicedUserID, _ := strconv.Atoi(customDataItems[0])
 				mainChatID := customDataItems[1]
 				mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
-				chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
-				incCountsChannelUsersList("lovelyGame", mainChatIDInt64, choicedUserID)
-				voteSum := getCountsChannelUsersList("lovelyGame", mainChatIDInt64)
-				usersCount := getChannelUserCount("lovelyGame", mainChatIDInt64)
+				chatUser, _ := getChannelUser(contentType, mainChatIDInt64, choicedUserID)
+				incCountsChannelUsersList(contentType, mainChatIDInt64, choicedUserID)
+				voteSum := getCountsChannelUsersList(contentType, mainChatIDInt64)
+				usersCount := getChannelUserCount(contentType, mainChatIDInt64)
 				if voteSum == usersCount {
-					votedUser, voteUsersCount, votedUsers := getChannelUserMaxVoted("lovelyGame", mainChatIDInt64)
+					votedUser, voteUsersCount, votedUsers := getChannelUserMaxVoted(contentType, mainChatIDInt64)
 					if 1 == voteUsersCount {
-						SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
+						SetUserRoleToChannelList(contentType, mainChatIDInt64, choicedUserID, "dead")
 						if votedUser.CustomRole == "killer" {
 							messageText = "Killer is dead and game of ending"
 						} else if usersCount <= 2 { //TODO: check minimal users to 3
 							messageText = "Game of ending"
 						} else {
 							messageText = "Wait for the killer to choose a player..."
-							go sendRoleToUser(bot, chat.ID)
+							go sendRoleToUser(bot, chat.ID, contentType)
 						}
 						msg := tgbotapi.NewEditMessageText(
 							chat.ID,
@@ -787,7 +804,7 @@ func main() {
 							messageText)
 						bot.Send(msg)
 						// vote again
-						//bot.Send(getUsersVoteMessageConfig("lovelyGame", chat.ID, "Voting"))
+						//bot.Send(getUsersVoteMessageConfig(contentType, chat.ID, "Voting"))
 
 					} else {
 						messageText += "Multiple voting: "
@@ -811,6 +828,7 @@ func main() {
 				} else {
 					messageText = fromName + " voted for: " + chatUser.User.Name
 					bot.Send(tgbotapi.NewMessage(mainChatIDInt64, messageText))
+					bot.Send(updateUsersVoteMessageConfig(contentType, mainChatIDInt64, "Voting", messageID))
 				}
 
 			case "lovelyGameVotingAll":
@@ -826,9 +844,9 @@ func main() {
 					choicedUserID, _ := strconv.Atoi(customDataItems[0])
 					mainChatID := customDataItems[1]
 					mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
-					chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
+					chatUser, _ := getChannelUser(contentType, mainChatIDInt64, choicedUserID)
 					bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "Killer choice: "+chatUser.User.Name))
-					bot.Send(getUsersVoteMessageConfig("lovelyGame", mainChatIDInt64, "Start voting"))
+					bot.Send(getUsersVoteMessageConfig(contentType, mainChatIDInt64, "Voting"))
 
 					msg := tgbotapi.NewEditMessageText(
 						chat.ID,
@@ -838,7 +856,7 @@ func main() {
 
 					fmt.Printf("Private chat %+v\n", chat.ID)
 					fmt.Printf("messageID edit %+v\n", messageID)
-					SetUserRoleToChannelList("lovelyGame", mainChatIDInt64, choicedUserID, "dead")
+					SetUserRoleToChannelList(contentType, mainChatIDInt64, choicedUserID, "dead")
 				}
 
 			default:
