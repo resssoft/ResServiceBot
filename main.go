@@ -281,7 +281,9 @@ func getChannelUserMaxVoted(contentType string, chatId int64) (ChatUser, int, []
 	maxVotedUser := ChatUser{}
 	var maxVotedUsers []ChatUser
 	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType && item.CustomRole != "dead" {
+		if item.ChatId == chatId &&
+			item.ContentType == contentType &&
+			item.CustomRole != "dead" {
 			if item.VoteCount > maxVote {
 				maxVote = item.VoteCount
 				maxVotedUser = item
@@ -296,7 +298,10 @@ func getChannelUserMaxVoted(contentType string, chatId int64) (ChatUser, int, []
 	// get more players with max voteCount
 	maxVoteCount := 1
 	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType && item.CustomRole != "dead" {
+		if item.ChatId == chatId &&
+			item.ContentType == contentType &&
+			item.CustomRole != "dead" &&
+			item.User.UserID != maxVotedUser.User.UserID {
 			if item.VoteCount == maxVote {
 				maxVotedUser = item
 				maxVoteCount++
