@@ -828,7 +828,7 @@ func main() {
 					mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 					chatUser, _ := getChannelUser("lovelyGame", mainChatIDInt64, choicedUserID)
 					bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "Killer choice: "+chatUser.User.Name))
-					bot.Send(getUsersVoteMessageConfig("lovelyGame", chat.ID, "Start voting"))
+					bot.Send(getUsersVoteMessageConfig("lovelyGame", mainChatIDInt64, "Start voting"))
 
 					msg := tgbotapi.NewEditMessageText(
 						chat.ID,
