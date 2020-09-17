@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg83"
+const appVersion = "2.0.014dg84"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 
@@ -786,6 +786,8 @@ func main() {
 				incCountsChannelUsersList(contentType, mainChatIDInt64, choicedUserID)
 				voteSum := getCountsChannelUsersList(contentType, mainChatIDInt64)
 				usersCount := getChannelUserCount(contentType, mainChatIDInt64)
+				messageText = fromName + " voted for: " + chatUser.User.Name
+				bot.Send(tgbotapi.NewMessage(mainChatIDInt64, messageText))
 				if voteSum == usersCount {
 					votedUser, voteUsersCount, votedUsers := getChannelUserMaxVoted(contentType, mainChatIDInt64)
 					if 1 == voteUsersCount {
@@ -793,7 +795,7 @@ func main() {
 						if votedUser.CustomRole == "killer" {
 							messageText = "Killer is dead and game of ending"
 						} else if usersCount <= 2 { //TODO: check minimal users to 3
-							messageText = "Game of ending"
+							messageText = "Game of ending. Killer won"
 						} else {
 							messageText = "Wait for the killer to choose a player..."
 							go sendRoleToUser(bot, chat.ID, contentType)
@@ -807,7 +809,7 @@ func main() {
 						//bot.Send(getUsersVoteMessageConfig(contentType, chat.ID, "Voting"))
 
 					} else {
-						messageText += "Multiple voting: "
+						messageText = "Multiple voting: "
 						for _, votedUsersItem := range votedUsers {
 							messageText += "\n" + votedUsersItem.User.Name
 						}
@@ -826,8 +828,6 @@ func main() {
 						bot.Send(msg)
 					}
 				} else {
-					messageText = fromName + " voted for: " + chatUser.User.Name
-					bot.Send(tgbotapi.NewMessage(mainChatIDInt64, messageText))
 					bot.Send(updateUsersVoteMessageConfig(contentType, mainChatIDInt64, "Voting", messageID))
 				}
 
@@ -846,6 +846,7 @@ func main() {
 					mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 					chatUser, _ := getChannelUser(contentType, mainChatIDInt64, choicedUserID)
 					bot.Send(tgbotapi.NewMessage(mainChatIDInt64, "Killer choice: "+chatUser.User.Name))
+					SetUserRoleToChannelList(contentType, mainChatIDInt64, choicedUserID, "dead")
 					bot.Send(getUsersVoteMessageConfig(contentType, mainChatIDInt64, "Voting"))
 
 					msg := tgbotapi.NewEditMessageText(
@@ -856,7 +857,6 @@ func main() {
 
 					fmt.Printf("Private chat %+v\n", chat.ID)
 					fmt.Printf("messageID edit %+v\n", messageID)
-					SetUserRoleToChannelList(contentType, mainChatIDInt64, choicedUserID, "dead")
 				}
 
 			default:
