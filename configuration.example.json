@@ -1,0 +1,10 @@
+{
+  "HWCSURL": "https://localhost:8080/",
+  "Telegram": {
+    "Bot": {
+      "Token": ""
+    },
+    "AdminId": "123",
+    "AdminLogin": "@User",
+  }
+}
