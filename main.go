@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg85"
+const appVersion = "2.0.014dg86"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 const HWCSURLEvent = "go"
@@ -263,6 +263,15 @@ var commands = map[string]TGCommand{
 	"rebuild": {
 		Command:     "/rebuild",
 		Description: "rebuild",
+		CommandType: "tg",
+		Permissions: TGCommandPermissions{
+			ChatPermissions: "admin",
+			UserPermissions: "admin",
+		},
+	},
+	"homeweb": {
+		Command:     "/homeweb",
+		Description: "get image link from cam1",
 		CommandType: "tg",
 		Permissions: TGCommandPermissions{
 			ChatPermissions: "admin",
