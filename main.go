@@ -8,8 +8,10 @@ import (
 	"github.com/Syfaro/telegram-bot-api"
 	"github.com/nanobox-io/golang-scribble"
 	"github.com/patrickmn/go-cache"
+	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -18,9 +20,38 @@ import (
 	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg84"
+const appVersion = "2.0.014dg85"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
+const HWCSURLEvent = "go"
+const HWCSURLImage = "result/"
+
+var HWCSURL = ""
+
+type homeWebCamServiceURLImageData struct {
+	Result string `json:"result,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+func getHomeWebCamImage() (string, error) {
+	HWCSData := homeWebCamServiceURLImageData{}
+	resp, err := http.Get(HWCSURL + HWCSURLEvent)
+	if err != nil {
+		log.Printf("Status: %v Error: %v \n", err.Error())
+	}
+	defer resp.Body.Close()
+	jsonData, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Read body error: %v \n", err.Error())
+		return "", err
+	}
+
+	if err = json.Unmarshal(jsonData, &HWCSData); err != nil {
+		log.Printf("Unmarshal error: %s \n", err.Error())
+		return "", err
+	}
+	return HWCSURL + HWCSURLImage + HWCSData.Result, nil
+}
 
 type TGUser struct {
 	UserID  int
@@ -43,6 +74,7 @@ type TGCommandPermissions struct {
 }
 
 type Configuration struct {
+	HWCSURL  string
 	Telegram TelegramConfig
 }
 
@@ -638,6 +670,8 @@ func main() {
 	c := cache.New(95*time.Hour, 100*time.Hour)
 	c.Set("admin", configuration.Telegram.AdminId, cache.DefaultExpiration)
 	c.Set("adminLogin", configuration.Telegram.AdminLogin, cache.DefaultExpiration)
+	HWCSURL = configuration.HWCSURL
+	log.Printf("Admin is ..." + configuration.Telegram.AdminLogin)
 
 	log.Printf("Work with DB...")
 	dir, err := os.Getwd()
@@ -1069,6 +1103,11 @@ func main() {
 
 		case "/version", "/appVersion", "/версия":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, appVersion)
+			bot.Send(msg)
+
+		case "/homeweb":
+			homeWebImageURL, _ := getHomeWebCamImage()
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, homeWebImageURL)
 			bot.Send(msg)
 
 		case commands["addCheckItem"].Command:
