@@ -1,0 +1,13 @@
+loglevel: debug
+
+server:
+  url: :8099
+telegram:
+  token: 999999:AAGFSFQEFGQRWGWRGQWEGHQRGWFEWFE
+  admin: 99999
+  adminlogin: login
+  chat: -100153799999
+db:
+  mongoDb:
+    url: mongodb://root:test@127.0.0.1:27017/ExampleBot
+    dbname: ExampleBot

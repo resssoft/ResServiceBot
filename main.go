@@ -1,664 +1,43 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/Syfaro/telegram-bot-api"
-	"github.com/nanobox-io/golang-scribble"
-	"github.com/patrickmn/go-cache"
-	"io/ioutil"
+	"fun-coice/config"
+	"fun-coice/pkg/appStat"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/hako/durafmt"
+	scribble "github.com/nanobox-io/golang-scribble"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
+	qrcode "github.com/skip2/go-qrcode"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
-const appVersion = "2.0.014dg86"
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
 const HWCSURLEvent = "go"
 const HWCSURLImage = "result/"
+const dbDateFormatMonth = "2006-01-02"
 
 var HWCSURL = ""
 
-type homeWebCamServiceURLImageData struct {
-	Result string `json:"result,omitempty"`
-	Error  string `json:"error,omitempty"`
-}
-
-func getHomeWebCamImage() (string, error) {
-	HWCSData := homeWebCamServiceURLImageData{}
-	resp, err := http.Get(HWCSURL + HWCSURLEvent)
-	if err != nil {
-		log.Printf("Status: %v Error: %v \n", err.Error())
-	}
-	defer resp.Body.Close()
-	jsonData, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Read body error: %v \n", err.Error())
-		return "", err
-	}
-
-	if err = json.Unmarshal(jsonData, &HWCSData); err != nil {
-		log.Printf("Unmarshal error: %s \n", err.Error())
-		return "", err
-	}
-	return HWCSURL + HWCSURLImage + HWCSData.Result, nil
-}
-
-type TGUser struct {
-	UserID  int
-	ChatId  int64
-	Login   string
-	Name    string
-	IsAdmin bool
-}
-
-type TGCommand struct {
-	Command     string
-	Description string
-	CommandType string
-	Permissions TGCommandPermissions
-}
-
-type TGCommandPermissions struct {
-	UserPermissions string
-	ChatPermissions string
-}
-
-type Configuration struct {
-	HWCSURL  string
-	Telegram TelegramConfig
-}
-
-type TelegramConfig struct {
-	Bot        TgBot
-	AdminId    string
-	AdminLogin string
-}
-
-type TgBot struct {
-	Token string
-}
-
-type KeyBoardTG struct {
-	Rows []KeyBoardRowTG
-}
-
-type KeyBoardRowTG struct {
-	Buttons []KeyBoardButtonTG
-}
-
-type KeyBoardButtonTG struct {
-	Text string
-	Data string
-}
-
-type SavedBlock struct {
-	Group string
-	User  string
-	Text  string
-}
-
-type CheckList struct {
-	Group  string
-	ChatID int64
-	Text   string
-	Status bool
-	Public bool
-}
-
-var commands = map[string]TGCommand{
-	"addCheckItem": {
-		Command:     "/addCheckItem",
-		Description: "(параметры - имя чеклиста, =1 - если публичный, =1 если уже установлен) - создание элемента чеклиста в указанную группу",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"updateCheckItem": {
-		Command:     "/updateCheckItem",
-		Description: "(параметр - имя чеклиста, =1 или =0 для статуса, полный текст элемента для обновления) - вывод указанной группы чеклиста",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"сheckList": {
-		Command:     "/сheckList",
-		Description: "(параметр - имя чеклиста) - вывод указанной группы чеклиста",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"start": {
-		Command:     "/start",
-		Description: "Service registration, only private",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"myInfo": {
-		Command:     "/myInfo",
-		Description: "Write GT user info",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"getUserList": {
-		Command:     "/getUserList",
-		Description: "-",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"addSaveCommand": {
-		Command:     "/addSaveCommand",
-		Description: "Создать комманду сохранения коротких текстовых сообщений, чтобы потом ею сохранять текстовые строки. например. '/addSaveCommand whatToDo' и потом 'whatToDo вымыть посуду'",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "moder",
-			UserPermissions: "moder",
-		},
-	},
-	"addFeature": {
-		Command:     "/addFeature",
-		Description: "Создание описание фичи",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"getFeatures": {
-		Command:     "/getFeatures",
-		Description: "Список фич приложения",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"SaveCommandsList": {
-		Command:     "/SaveCommandsList",
-		Description: "Список комманд для сохранения текстовых строк",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"listOf": {
-		Command:     "/listOf",
-		Description: "(+ аргумент) Список сохраненных сообщений по указанной комманде",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"admin": {
-		Command:     "/admin",
-		Description: "Вывод логина админа",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"version": {
-		Command:     "/version",
-		Description: "Вывод версии",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"appVersion": {
-		Command:     "/appVersion",
-		Description: "синоним version",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"версия": {
-		Command:     "/версия",
-		Description: "синоним version",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"commands": {
-		Command:     "/commands",
-		Description: "Список комманд",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-	"rebuild": {
-		Command:     "/rebuild",
-		Description: "rebuild",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "admin",
-			UserPermissions: "admin",
-		},
-	},
-	"homeweb": {
-		Command:     "/homeweb",
-		Description: "get image link from cam1",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "admin",
-			UserPermissions: "admin",
-		},
-	},
-	"games": {
-		Command:     "/games",
-		Description: "games list",
-		CommandType: "tg",
-		Permissions: TGCommandPermissions{
-			ChatPermissions: "all",
-			UserPermissions: "all",
-		},
-	},
-}
-
-type ChatUser struct {
-	ChatId      int64
-	ChatName    string
-	ContentType string
-	CustomRole  string
-	VoteCount   int
-	User        TGUser
-}
-
 var ChatUserList = make([]ChatUser, 1)
 
-var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("🧡 Lovely game", "lovelyGame"),
-		tgbotapi.NewInlineKeyboardButtonURL("Rules", "http://1073.ru/games/lovely/rules/"),
-	),
-)
-
-func getChannelUserCount(contentType string, chatId int64) int {
-	userCount := 0
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType && item.CustomRole != "dead" {
-			userCount++
-		}
-	}
-	return userCount
-}
-
-func getChannelUserMaxVoted(contentType string, chatId int64) (ChatUser, int, []ChatUser) {
-	maxVote := 0
-	maxVotedUser := ChatUser{}
-	var maxVotedUsers []ChatUser
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId &&
-			item.ContentType == contentType &&
-			item.CustomRole != "dead" {
-			if item.VoteCount > maxVote {
-				maxVote = item.VoteCount
-				maxVotedUser = item
-			}
-		}
-	}
-	if maxVote == 0 {
-		return ChatUser{}, 0, make([]ChatUser, 0)
-	} else {
-		maxVotedUsers = append(maxVotedUsers, maxVotedUser)
-	}
-	// get more players with max voteCount
-	maxVoteCount := 1
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId &&
-			item.ContentType == contentType &&
-			item.CustomRole != "dead" &&
-			item.User.UserID != maxVotedUser.User.UserID {
-			if item.VoteCount == maxVote {
-				maxVotedUser = item
-				maxVoteCount++
-				maxVotedUsers = append(maxVotedUsers, maxVotedUser)
-			}
-		}
-	}
-	return maxVotedUser, maxVoteCount, maxVotedUsers
-}
-
-func getChannelUsers(contentType string, chatId int64) string {
-	users := ""
-	var userList []string
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType {
-			userList = append(userList, item.User.Name)
-		}
-	}
-	if len(userList) > 0 {
-		users = strings.Join(userList, "\n")
-	}
-	return users
-}
-
-func removeChannelUsers(contentType string, chatId int64) {
-	var ChatUserListNew = make([]ChatUser, 1)
-	for _, item := range ChatUserList {
-		if !(item.ChatId == chatId && item.ContentType == contentType) {
-			ChatUserListNew = append(ChatUserListNew, item)
-		}
-	}
-	ChatUserList = ChatUserListNew
-}
-
-func setZeroCountsChannelUsersList(contentType string, chatId int64) {
-	for itemIndex, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType {
-			ChatUserList[itemIndex].VoteCount = 0
-		}
-	}
-}
-
-func getUsersVoteMessageConfig(contentType string, chatID int64, messageText string) tgbotapi.MessageConfig {
-	activeChatUsers := getChannelUsersList(contentType, chatID, false)
-	buttons := getUsersButtons(activeChatUsers, chatID, "lovelyGamePlayerVoteChoice")
-	msg := tgbotapi.NewMessage(
-		chatID,
-		"Voting")
-	msg.ReplyMarkup = buttons
-	return msg
-}
-
-func updateUsersVoteMessageConfig(contentType string, chatID int64, messageText string, messageID int) tgbotapi.EditMessageTextConfig {
-	activeChatUsers := getChannelUsersList(contentType, chatID, false)
-	buttons := getUsersButtons(activeChatUsers, chatID, "lovelyGamePlayerVoteChoice")
-	msg := tgbotapi.NewEditMessageText(
-		chatID,
-		messageID,
-		messageText)
-	msg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
-		chatID,
-		messageID,
-		buttons,
-	).ReplyMarkup
-	return msg
-}
-
-func incCountsChannelUsersList(contentType string, chatId int64, userId int) {
-	for itemIndex, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
-			ChatUserList[itemIndex].VoteCount += 1
-		}
-	}
-}
-
-func getCountsChannelUsersList(contentType string, chatId int64) int {
-	sum := 0
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType {
-			sum += item.VoteCount
-		}
-	}
-	return sum
-}
-
-func getChannelUsersList(contentType string, chatId int64, excludeActiveRole bool) []ChatUser {
-	var userList []ChatUser
-	for _, item := range ChatUserList {
-		var userIncluded = true
-		if item.CustomRole == "dead" {
-			userIncluded = false
-		}
-		if excludeActiveRole && item.CustomRole == "killer" {
-			userIncluded = false
-		}
-		if item.ChatId == chatId && item.ContentType == contentType && userIncluded {
-			userList = append(userList, item)
-		}
-	}
-	return userList
-}
-
-func getChannelUser(contentType string, chatId int64, userId int) (ChatUser, error) {
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
-			return item, nil
-		}
-	}
-	return ChatUser{}, errors.New("user not found")
-}
-
-func getUsersButtons(chatUsers []ChatUser, chatID int64, code string) tgbotapi.InlineKeyboardMarkup {
-	var rows []KeyBoardRowTG
-	for _, chatUser := range chatUsers {
-		rows = append(rows, KBButs(KeyBoardButtonTG{
-			Text: chatUser.User.Name + " (" + strconv.Itoa(chatUser.VoteCount) + ")",
-			Data: strconv.Itoa(chatUser.User.UserID) + "|" + strconv.FormatInt(chatID, 10) + "#" + code,
-		}))
-	}
-	return getTGButtons(KeyBoardTG{rows})
-}
-
-func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64, contentType string) {
-	chatUsers := getChannelUsersList(contentType, chatID, true)
-	random := rand.New(rand.NewSource(time.Now().Unix()))
-	user := chatUsers[random.Intn(len(chatUsers))]
-	SetUserRoleToChannelList(contentType, chatID, user.User.UserID, "killer")
-	time.Sleep(5 * time.Second)
-	msg := tgbotapi.NewMessage(int64(user.User.UserID), "Please, choice:")
-	msg.ReplyMarkup = getUsersButtons(chatUsers, chatID, "lovelyGamePlayerChoice")
-	messageID, _ := bot.Send(msg)
-
-	fmt.Printf("messageID %+v\n", messageID)
-}
-
-func SaveUserToChannelList(contentType string, chatId int64, chatName string, userId int, userName string) bool {
-	isNewUser := true
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
-			isNewUser = false
-		}
-	}
-	_, isAdmin := checkPermission("admin", userId)
-	if isNewUser {
-		ChatUserList = append(
-			ChatUserList,
-			ChatUser{
-				ChatId:      chatId,
-				ChatName:    chatName,
-				ContentType: contentType,
-				CustomRole:  "",
-				VoteCount:   0,
-				User: TGUser{
-					UserID:  userId,
-					ChatId:  0,
-					Name:    userName,
-					Login:   userName,
-					IsAdmin: isAdmin,
-				},
-			},
-		)
-	}
-	return checkUserRegister(userId)
-}
-
-func SetUserRoleToChannelList(contentType string, chatId int64, userId int, userRole string) {
-	for itemIndex, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType && item.User.UserID == userId {
-			ChatUserList[itemIndex].CustomRole = userRole
-		}
-	}
-}
-
-func checkUserRegister(userId int) bool {
-	// check - bot can write to user
-	isRegistered := false
-	var existUser = TGUser{}
-	err := DB.Read("user", strconv.Itoa(userId), &existUser)
-	if err == nil {
-		if existUser.ChatId != 0 {
-			isRegistered = true
-		}
-	}
-	return isRegistered
-}
-
-func unregisteredChannelUsers(contentType string, chatId int64) string {
-	users := ""
-	var userList []string
-	for _, item := range ChatUserList {
-		if item.ChatId == chatId && item.ContentType == contentType {
-			if !checkUserRegister(item.User.UserID) {
-				userList = append(userList, item.User.Name)
-			}
-		}
-	}
-	if len(userList) > 0 {
-		users = strings.Join(userList, "\n")
-	}
-	return users
-}
-
-func splitCommand(command string, separate string) ([]string, string) {
-	if command == "" {
-		return []string{}, ""
-	}
-	if separate == "" {
-		separate = " "
-	}
-	result := strings.Split(command, separate)
-	return result, strings.Replace(command, result[0]+separate, "", -1)
-}
-
-func writeLines(lines []string, path string) error {
-
-	// overwrite file if it exists
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	// new writer w/ default 4096 buffer size
-	w := bufio.NewWriter(file)
-
-	for _, line := range lines {
-		_, err := w.WriteString(line + "\n")
-		if err != nil {
-			return err
-		}
-	}
-
-	// flush outstanding data
-	return w.Flush()
-}
-
-func checkPermission(command string, userId int) (error, bool) {
-	typeOfCommand := commands[command].Permissions.UserPermissions
-	switch typeOfCommand {
-	case "all":
-		return nil, true
-	case "admin":
-		if userId == existAdmin.UserID {
-			return nil, true
-		} else {
-			return nil, false
-		}
-	}
-	return nil, true
-}
-
-func readLines(path string, resultLimit int) (error, string) {
-	result := ""
-	file, err := os.OpenFile(path, os.O_RDONLY, 0666)
-	if err != nil {
-		return err, ""
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	stringLen := 0
-	for scanner.Scan() {
-		result += scanner.Text() + "\n"
-		fmt.Println(result)
-		stringLen = utf8.RuneCountInString(result)
-		if stringLen > resultLimit {
-			break
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return err, ""
-	}
-	return nil, ""
-}
-
-func KBRows(KBrows ...KeyBoardRowTG) KeyBoardTG {
-	var rows []KeyBoardRowTG
-	rows = append(rows, KBrows...)
-	return KeyBoardTG{rows}
-}
-
-func KBButs(KBrows ...KeyBoardButtonTG) KeyBoardRowTG {
-	var rows []KeyBoardButtonTG
-	rows = append(rows, KBrows...)
-	return KeyBoardRowTG{rows}
-}
-
-func getSimpleTGButton(text, data string) tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(text, data),
-		),
-	)
-}
-
-func getTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
-	var row []tgbotapi.InlineKeyboardButton
-	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, rowsData := range params.Rows {
-		for _, button := range rowsData.Buttons {
-			row = append(row, tgbotapi.NewInlineKeyboardButtonData(button.Text, button.Data))
-		}
-		rows = append(rows, row)
-		row = nil
-	}
-	return tgbotapi.InlineKeyboardMarkup{
-		InlineKeyboard: rows,
-	}
-}
-
-var existAdmin = TGUser{}
-var DB *scribble.Driver
-
 func main() {
+	zlog.Level(zerolog.DebugLevel)
 	fmt.Print("Load configuration... ")
+	config.Configure()
 	configurationFile, _ := os.Open("configuration.json")
 	defer configurationFile.Close()
 	decoder := json.NewDecoder(configurationFile)
@@ -667,67 +46,56 @@ func main() {
 	if err != nil {
 		fmt.Println("load configuration error:", err)
 	}
-	fmt.Println(" telegram bot admin is " + configuration.Telegram.AdminLogin)
+	configureConverter(config.Str("plugins.apilayer.token"))
 
-	bot, err := tgbotapi.NewBotAPI(configuration.Telegram.Bot.Token)
+	fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
+	fmt.Println(fmt.Sprintf("Telegram[%s]", config.TelegramToken()))
+	fmt.Println(fmt.Sprintf("Admin[%v]", config.TelegramAdminId()))
+
+	bot, err := tgbotapi.NewBotAPI(config.TelegramToken())
 	if err != nil {
 		log.Panic(err)
 	}
-
-	//TODO: remove this block, duplicate DB - CONFIG - when use cache
-	log.Printf("Work with cache...")
-	c := cache.New(95*time.Hour, 100*time.Hour)
-	c.Set("admin", configuration.Telegram.AdminId, cache.DefaultExpiration)
-	c.Set("adminLogin", configuration.Telegram.AdminLogin, cache.DefaultExpiration)
-	HWCSURL = configuration.HWCSURL
-	log.Printf("Admin is ..." + configuration.Telegram.AdminLogin)
-
+	botName := bot.Self.UserName
+	log.Printf("Admin is ..." + config.TelegramAdminLogin())
 	log.Printf("Work with DB...")
-	dir, err := os.Getwd()
+	appPath, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//TODO: remove this block, duplicate DB - CONFIG - when use db
 	// read admin info from DB or write it to db
-	DB, err = scribble.New(dir+"/data", nil)
+	DB, err = scribble.New(appPath+"/data", nil)
 	if err != nil {
 		fmt.Println("Error", err)
 	}
-	if err := DB.Read("user", configuration.Telegram.AdminId, &existAdmin); err != nil {
+	if err := DB.Read("user", strconv.FormatInt(int64(config.TelegramAdminId()), 10), &existAdmin); err != nil {
 		fmt.Println("admin not found error", err)
-		adminIdInt, err := strconv.Atoi(configuration.Telegram.AdminId)
-		if err != nil {
-			fmt.Println("error getting admin ID", err)
-		} else {
-			existAdmin = TGUser{
-				UserID:  adminIdInt,
-				ChatId:  0,
-				Login:   "",
-				Name:    "",
-				IsAdmin: false,
-			}
-			if err := DB.Write("user", configuration.Telegram.AdminId, existAdmin); err != nil {
-				fmt.Println("Error", err)
-			}
+		existAdmin = TGUser{
+			UserID:  config.TelegramAdminId(),
+			ChatId:  0,
+			Login:   "",
+			Name:    "",
+			IsAdmin: false,
+		}
+		if err := DB.Write("user", strconv.FormatInt(int64(config.TelegramAdminId()), 10), existAdmin); err != nil {
+			fmt.Println("Error", err)
 		}
 	}
 
+	initFunCommand()
+
 	//bot.Debug = true
-	adminIdInt64, err := strconv.ParseInt(configuration.Telegram.AdminId, 10, 64)
-	if err != nil {
-		fmt.Println("error convert admin ID to int64", err)
-	} else {
-		msg := tgbotapi.NewMessage(adminIdInt64, "Bot Started with version "+appVersion)
-		bot.Send(msg)
-	}
+	msg := tgbotapi.NewMessage(config.TelegramAdminId(), "Bot Started with version "+appStat.Version)
+	bot.Send(msg)
+	bot.GetMyCommands()
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 10
 
-	updates, err := bot.GetUpdatesChan(u)
+	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
@@ -742,10 +110,13 @@ func main() {
 			fmt.Printf("update.CallbackQuery.Message.Chat %+v\n", chat)
 			fmt.Printf("update.CallbackQuery.From %+v %+v\n", from.ID, from.UserName)
 
-			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
+			//TODO: FIX MIGRATE FROM v4 to v5
+			//bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data))
 			splitedCallbackQuery, clearCallbackQuery := splitCommand(update.CallbackQuery.Data, "#")
 			commandsCount := len(splitedCallbackQuery)
 
+			zlog.Info().Interface("update", update).Send()
+			zlog.Info().Interface("chat", chat).Send()
 			fmt.Printf("clearCallbackQuery %+v\n", clearCallbackQuery)
 			switch clearCallbackQuery {
 			case "lovelyGame":
@@ -822,7 +193,7 @@ func main() {
 				customDataItemsCount := len(customDataItems)
 				if customDataItemsCount <= 1 {
 				}
-				choicedUserID, _ := strconv.Atoi(customDataItems[0])
+				choicedUserID, _ := strconv.ParseInt(customDataItems[0], 10, 64)
 				mainChatID := customDataItems[1]
 				mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 				chatUser, _ := getChannelUser(contentType, mainChatIDInt64, choicedUserID)
@@ -884,7 +255,7 @@ func main() {
 				customDataItems, _ := splitCommand(splitedCallbackQuery[0], "|")
 				customDataItemsCount := len(customDataItems)
 				if customDataItemsCount > 1 {
-					choicedUserID, _ := strconv.Atoi(customDataItems[0])
+					choicedUserID, _ := strconv.ParseInt(customDataItems[0], 10, 64)
 					mainChatID := customDataItems[1]
 					mainChatIDInt64, _ := strconv.ParseInt(mainChatID, 10, 64)
 					chatUser, _ := getChannelUser(contentType, mainChatIDInt64, choicedUserID)
@@ -907,9 +278,55 @@ func main() {
 			}
 
 		} //update.CallbackQuery != nil
-		fmt.Printf("inline query %+v\n", update.InlineQuery)
+
+		zlog.Info().Any("msg", update.Message).Any("InlineQuery", update.InlineQuery).Send()
+
 		if update.Message == nil || (update.Message == nil && update.InlineQuery != nil) {
+			zlog.Info().Any("update", update).Send()
 			continue
+		}
+
+		if update.Message.Photo != nil {
+			fileId := ""
+			for _, photoItem := range update.Message.Photo {
+				fileId = photoItem.FileID
+			}
+			//response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
+			response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
+			if err != nil {
+				log.Println("download TG photo error")
+				continue
+			}
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(response.Body)
+			result := buf.String()
+			//log.Println("tg fileInfo unparsed")
+			fileInfo := TgFileInfo{}
+			err = json.Unmarshal([]byte(result), &fileInfo)
+			if err != nil {
+				log.Println("Decode fileInfo err")
+				continue
+			}
+			fileUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s",
+				config.TelegramToken(), fileInfo.Result.FilePath)
+
+			response, err = http.Get(fileUrl)
+			if err != nil {
+				log.Println("download TG import file error")
+				continue
+			}
+			buf = new(bytes.Buffer)
+			buf.ReadFrom(response.Body)
+
+			newImage, err := getMagic(buf.Bytes())
+			tgNewfile := tgbotapi.FileBytes{
+				Name:  "photo.jpg",
+				Bytes: newImage,
+			}
+			var message tgbotapi.Chattable
+			message = tgbotapi.NewPhoto(update.Message.Chat.ID, tgNewfile)
+			bot.Send(message)
+
 		}
 		//fmt.Println(update.Message.Text)
 		splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
@@ -918,50 +335,98 @@ func main() {
 			continue
 		}
 		commandName := splitedCommands[0]
+		//fmt.Println("splitedCommands", splitedCommands)
+
+		for _, command := range commands {
+			if !command.isImplemented(commandName, botName) {
+				continue
+			}
+			if !command.Permission(update.Message) {
+				continue
+			}
+			if command.Handler != nil {
+				botMsg, prepared := command.Handler(update.Message, commandName, commandValue, splitedCommands)
+				if prepared {
+					_, err = bot.Send(botMsg)
+					if err != nil {
+						fmt.Println(err.Error())
+					}
+				}
+			}
+		}
+
+		if commandData, exist := isFunCommand(commandName); exist {
+			s1 := rand.NewSource(time.Now().UnixNano())
+			r1 := rand.New(s1)
+			time.Sleep(time.Millisecond * time.Duration(r1.Int63n(600)))
+			r2 := rand.New(s1)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandData.List1[r1.Intn(len(commandData.List1))]+" "+commandData.List2[r2.Intn(len(commandData.List2))])
+			msg.ReplyToMessageID = update.Message.MessageID
+			bot.Send(msg)
+		} else {
+			//fmt.Println("NOT isFunCommand")
+		}
 
 		//TODO: set permissions for default commands
 		switch commandName {
 		case "/start":
 			_, isAdmin := checkPermission("admin", update.Message.From.ID)
 			user := TGUser{
-				UserID:  update.Message.From.ID,
+				UserID:  int64(update.Message.From.ID),
 				ChatId:  update.Message.Chat.ID,
 				Login:   update.Message.From.UserName,
 				Name:    update.Message.From.String(),
 				IsAdmin: isAdmin,
 			}
-			if err := DB.Write("user", strconv.Itoa(update.Message.From.ID), user); err != nil {
+			if err := DB.Write("user", strconv.FormatInt(update.Message.From.ID, 10), user); err != nil {
 				fmt.Println("add command error", err)
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String()+", you are registered!")
 			bot.Send(msg)
-		case "/myInfo":
+
+		case "/addfan":
+			fmt.Println(splitedCommands)
+			text := ""
+			if len(splitedCommands) != 4 {
+				text = "format: /addfan newcommandname list1_item1,list1_item2 list2_item1,list2_item2"
+				text += "\nExample: cats cute,funny,fluffy Molly,Charlie,Oscar"
+				text += "\n no more than 3 spase in the string"
+			} else {
+				text = addFunCommand(splitedCommands[1], splitedCommands[2], splitedCommands[3])
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
+			bot.Send(msg)
+
+		case "/member":
 			from := update.Message.From
 			chat := update.Message.Chat
 
-			chatMember, _ := bot.GetChatMember(tgbotapi.ChatConfigWithUser{
+			chatConfigWithUser := tgbotapi.ChatConfigWithUser{
 				ChatID:             chat.ID,
 				SuperGroupUsername: "",
 				UserID:             from.ID,
-			})
+			}
 
-			userInfo := "--== UserInfo==-- \n" +
-				"ID: " + strconv.Itoa(from.ID) + "\n" +
-				"UserName: " + from.UserName + "\n" +
-				"FirstName: " + from.FirstName + "\n" +
-				"LastName: " + from.LastName + "\n" +
-				"LanguageCode: " + from.LanguageCode + "\n" +
-				"--==ChatInfo==-- \n" +
-				"ID: " + strconv.FormatInt(chat.ID, 10) + "\n" +
-				"Title: " + chat.Title + "\n" +
-				"Type: " + chat.Type + "\n" +
-				"--==MemberInfo==-- \n" +
-				"Status: " + chatMember.Status + "\n" +
-				"ID: " + strconv.Itoa(chatMember.User.ID) + "\n" +
-				"UserName: " + chatMember.User.UserName + "\n" +
-				"FirstName: " + chatMember.User.FirstName + "\n" +
-				"LastName: " + chatMember.User.LastName + "\n"
+			chatMember, _ := bot.GetChatMember(tgbotapi.GetChatMemberConfig{chatConfigWithUser})
+
+			userInfo := fmt.Sprintf(
+				"--== UserInfo==--\n"+
+					"ID: %v\nUserName: %s\nFirstName: %s\nLastName: %s\nLanguageCode: %s"+
+					"\n--==ChatInfo==--\n"+
+					"ID: %v\nTitle: %s\nType: %s"+
+					"\n--== MemberInfo==--\n"+
+					"Status: %s",
+				from.ID,
+				from.UserName,
+				from.FirstName,
+				from.LastName,
+				from.LanguageCode,
+				chat.ID,
+				chat.Title,
+				chat.Type,
+				chatMember.Status,
+			)
 			msg := tgbotapi.NewMessage(chat.ID, userInfo)
 			bot.Send(msg)
 			//chat.ID,"",update.Message.From.ID
@@ -983,7 +448,7 @@ func main() {
 					if err := json.Unmarshal([]byte(f), &userFound); err != nil {
 						fmt.Println("Error", err)
 					}
-					userList = append(userList, "["+strconv.Itoa(userFound.UserID)+"] "+userFound.Name)
+					userList = append(userList, "["+strconv.FormatInt(config.TelegramAdminId(), 10)+"] "+userFound.Name)
 				}
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(userList, "\n"))
 				bot.Send(msg)
@@ -1041,7 +506,7 @@ func main() {
 
 		case "/addFeature":
 			currentTime := time.Now().Format(time.RFC3339)
-			formattedMessage := currentTime + "[" + appVersion + "]: " + commandValue
+			formattedMessage := currentTime + "[" + appStat.Version + "]: " + commandValue
 			err := writeLines([]string{formattedMessage}, "./features.txt")
 			if err != nil {
 				fmt.Println("write command error", err)
@@ -1063,6 +528,108 @@ func main() {
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, messages)
+			bot.Send(msg)
+
+		case "/catrandom", "/catrandom@FunChoiceBot":
+			s1 := rand.NewSource(time.Now().UnixNano())
+			r1 := rand.New(s1)
+			time.Sleep(time.Millisecond * time.Duration(r1.Int63n(600)))
+			r2 := rand.New(s1)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, catNameSet1[r1.Intn(10)]+" "+catNameSet2[r2.Intn(10)])
+			msg.ReplyToMessageID = update.Message.MessageID
+			bot.Send(msg)
+
+		case "/putinSpeech", "/putinSpeech@FunChoiceBot":
+			s1 := rand.NewSource(time.Now().UnixNano())
+			r1 := rand.New(s1)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, putinSpeech[r1.Intn(12)])
+			msg.ReplyToMessageID = update.Message.MessageID
+			bot.Send(msg)
+
+		case "/calc", "/calc@FunChoiceBot":
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(commandValue))
+			msg.ReplyToMessageID = update.Message.MessageID
+			bot.Send(msg)
+
+		case "calc", "калк", "сколько будет":
+			if update.Message.Chat.Type != "private" {
+				continue
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(commandValue))
+			msg.ReplyToMessageID = update.Message.MessageID
+			bot.Send(msg)
+
+		case "/fiat", "/fiat@FunChoiceBot":
+			convertFrom := "AMD"
+			convertTo1 := "RUB"
+			convertTo2 := "USD"
+			if len(splitedCommands) > 2 {
+				switch splitedCommands[2] {
+				case "a", "amd", "am", "ам", "амд", "дпам", "драм", "др":
+					convertFrom = "AMD"
+					convertTo1 = "RUB"
+					convertTo2 = "USD"
+				case "r", "ru", "rub", "rur", "ру", "р", "руб", "рублей":
+					convertFrom = "RUB"
+					convertTo1 = "AMD"
+					convertTo2 = "USD"
+				case "s", "us", "usd", "$", "дол", "до", "доларов", "долларов":
+					convertFrom = "USD"
+					convertTo1 = "AMD"
+					convertTo2 = "RUB"
+				}
+			}
+			_, err = strconv.Atoi(splitedCommands[1])
+			msgText := "-"
+			if err != nil {
+				msgText = "digit err"
+			} else {
+				msgText = fmt.Sprintf("Convert result from %s %s = \n%s %s \n%s %s \n[%s]",
+					splitedCommands[1], convertFrom,
+					fiat(convertFrom, convertTo1, splitedCommands[1]), convertTo1,
+					fiat(convertFrom, convertTo2, splitedCommands[1]), convertTo2,
+					time.Now().Format(dbDateFormatMonth))
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, msgText)
+			msg.ReplyToMessageID = update.Message.MessageID
+			bot.Send(msg)
+
+		case "fiat", "convert", "конверт", "кон", "из", "from":
+			if update.Message.Chat.Type != "private" {
+				continue
+			}
+			convertFrom := "AMD"
+			convertTo1 := "RUB"
+			convertTo2 := "USD"
+			if len(splitedCommands) > 2 {
+				switch splitedCommands[2] {
+				case "a", "amd", "am", "ам", "амд", "дпам", "драм", "др":
+					convertFrom = "AMD"
+					convertTo1 = "RUB"
+					convertTo2 = "USD"
+				case "r", "ru", "rub", "rur", "ру", "р", "руб", "рублей":
+					convertFrom = "RUB"
+					convertTo1 = "AMD"
+					convertTo2 = "USD"
+				case "s", "us", "usd", "$", "дол", "до", "доларов", "долларов":
+					convertFrom = "USD"
+					convertTo1 = "AMD"
+					convertTo2 = "RUB"
+				}
+			}
+			_, err = strconv.Atoi(splitedCommands[1])
+			msgText := "-"
+			if err != nil {
+				msgText = "digit err"
+			} else {
+				msgText = fmt.Sprintf("Convert result from %s %s = \n%s %s \n%s %s \n[%s]",
+					splitedCommands[1], convertFrom,
+					fiat(convertFrom, convertTo1, splitedCommands[1]), convertTo1,
+					fiat(convertFrom, convertTo2, splitedCommands[1]), convertTo2,
+					time.Now().Format(dbDateFormatMonth))
+			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, msgText)
+			msg.ReplyToMessageID = update.Message.MessageID
 			bot.Send(msg)
 
 		case "/SaveCommandsList":
@@ -1102,16 +669,157 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandValue+":\n-"+strings.Join(commands, "\n-"))
 			bot.Send(msg)
 
-		case "/admin":
-			adminLogin, found := c.Get("adminLogin")
-			if found {
-				fmt.Println(adminLogin)
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Admin is "+adminLogin.(string))
-				bot.Send(msg)
+		case "/tm", "/timestamp":
+			msgText := fmt.Sprintf("Input: %s\n\n", commandValue)
+			timestampConvert, _ := regexp.MatchString(`^\d\d\d\d\d\d+$`, commandValue)
+			timestampCompare, _ := regexp.MatchString(`^\d\d\d\d\d\d+\s\d\d\d\d\d\d+$`, commandValue)
+			switch {
+			case timestampConvert:
+				timeInt, err := strconv.ParseInt(commandValue, 10, 64)
+				if err != nil {
+					msgText += "Error parse int timestamp: " + err.Error()
+				} else {
+					parsedTime := time.Unix(timeInt, 0)
+					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02 15:04:05 -0700"))
+					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02T15:04:05Z07:00"))
+					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("Monday, 02-Jan-06 15:04:05 MST"))
+					msgText += fmt.Sprintf("Timestamp: %s \n", fmt.Sprintf("%v", parsedTime.Unix()))
+					msgText += fmt.Sprintf("Diff: %s \n", durafmt.Parse(time.Now().Sub(parsedTime)).LimitFirstN(2).String())
+					msgText += fmt.Sprintf("\nNow: %s \n", time.Now().Format("2006-01-02 15:04:05 -0700"))
+				}
+			case timestampCompare:
+				r, _ := regexp.Compile(`^(\d\d\d\d\d\d+)\s(\d\d\d\d\d\d+)$`)
+				parsedItems := r.FindStringSubmatch(commandValue)
+				fmt.Println(parsedItems)
+				if len(parsedItems) != 3 {
+					msgText += fmt.Sprintf("Error: parsedItems != 3 It= %v", len(parsedItems))
+				} else {
+					timeInt1, err1 := strconv.ParseInt(parsedItems[1], 10, 64)
+					if err != nil {
+						msgText += "\nError: " + err.Error()
+					}
+					timeInt2, err2 := strconv.ParseInt(parsedItems[2], 10, 64)
+					if err != nil {
+						msgText += "\nError: " + err.Error()
+					}
+					if err1 == nil && err2 == nil {
+						parsedTime1 := time.Unix(timeInt1, 0)
+						parsedTime2 := time.Unix(timeInt2, 0)
+						msgText += fmt.Sprintf("Diff: %s \n", durafmt.Parse(parsedTime1.Sub(parsedTime2)).LimitFirstN(2).String())
+					}
+				}
+			default:
+				parsedTime, err := time.Parse("2006-01-02 15:04:05", commandValue)
+				if err != nil {
+					parsedTime, err = time.Parse("2006-01-02 15:04", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("2006-01-02", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("02-01-2006", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("02.01.2006", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("02/01/2006", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("2006-01-02T15:04:05Z07:00", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("Mon Jan _2 15:04:05 2006", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("Mon Jan _2 15:04:05 MST 2006", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("02 Jan 06 15:04 MST", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("Mon, 02 Jan 2006 15:04:05 MST", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("Mon 02 Jan 2006 15:04:05 MST", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("Mon 02 Jan 2006 15:04:05 07:00", commandValue)
+				}
+				if err != nil {
+					parsedTime, err = time.Parse("January 2, 2006", commandValue)
+				}
+				var parsedDuration time.Duration
+				if err != nil {
+					parsedDuration, err = time.ParseDuration(commandValue)
+					parsedTime = time.Now().Add(parsedDuration)
+				}
+				if err != nil {
+					msgText += "Error parse time"
+				} else {
+					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02 15:04:05 -0700"))
+					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02T15:04:05Z07:00"))
+					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("Monday, 02-Jan-06 15:04:05 MST"))
+					msgText += fmt.Sprintf("Timestamp: %s \n", fmt.Sprintf("%v", parsedTime.Unix()))
+					msgText += fmt.Sprintf("Diff by current: %s \n", durafmt.Parse(time.Now().Sub(parsedTime)).LimitFirstN(2).String())
+					msgText += fmt.Sprintf("\nNow: %s \n", time.Now().Format("2006-01-02 15:04:05 -0700"))
+				}
 			}
+			time.Parse(commandValue, commandValue)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, msgText)
+			bot.Send(msg)
 
+		case "/set":
+			config.Set(splitedCommands[1], splitedCommands[2])
+		case "/get":
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("%v=%v", splitedCommands[1], config.Str(splitedCommands[1])))
+			bot.Send(msg)
+			//logLevel
+		case "/vars":
+			//TODO:fix
+			config.Set(splitedCommands[1], splitedCommands[2])
+
+		case "/admin":
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Admin is @"+config.TelegramAdminLogin())
+			bot.Send(msg)
+		case "/qr256":
+			var qr []byte
+			qr, err := qrcode.Encode(commandValue, qrcode.Medium, 256)
+			if err != nil {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "failed to encode qrcode")
+				bot.Send(msg)
+				continue
+			}
+			file := tgbotapi.FileBytes{Name: "qr.png", Bytes: qr}
+			message := tgbotapi.NewPhoto(update.Message.Chat.ID, file)
+			message.Caption = commandValue
+			_, err = bot.Send(message)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		case "/b64", "/base64":
+			b64result := base64.StdEncoding.EncodeToString([]byte(commandValue))
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, b64result)
+			msg.ReplyToMessageID = update.Message.MessageID
+			bot.Send(msg)
+
+		case "/qr":
+			var qr []byte
+			qr, err := qrcode.Encode(commandValue, qrcode.Medium, 1024)
+			if err != nil {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "failed to encode qrcode")
+				bot.Send(msg)
+				continue
+			}
+			file := tgbotapi.FileBytes{Name: "qr.png", Bytes: qr}
+			message := tgbotapi.NewPhoto(update.Message.Chat.ID, file)
+			message.Caption = commandValue
+			_, err = bot.Send(message)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
 		case "/version", "/appVersion", "/версия":
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, appVersion)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, appStat.Version)
 			bot.Send(msg)
 
 		case "/homeweb":
@@ -1243,7 +951,7 @@ func main() {
 		default:
 			records, err := DB.ReadAll("command")
 			if err != nil {
-				fmt.Println("Error", err)
+				fmt.Println("Error DB.ReadAl", err)
 			}
 
 			commandContain := false
@@ -1251,7 +959,7 @@ func main() {
 			for _, f := range records {
 				commandFound := TGCommand{}
 				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
-					fmt.Println("Error", err)
+					fmt.Println("Error commandFound Unmarshal", err)
 				}
 				commands = append(commands, commandFound)
 				if commandFound.Command == commandName {
@@ -1274,19 +982,32 @@ func main() {
 					}
 				}
 			}
-
-			if !commandContain {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "This is unsupport command.")
+			matchedCalc, _ := regexp.MatchString(`^[\d\s\+\\\-\*\(\)\.]+$`, update.Message.Text)
+			matchedCalc2, _ := regexp.MatchString(`^\d+$`, update.Message.Text)
+			//fmt.Println(matchedCalc)
+			if matchedCalc && !matchedCalc2 {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(update.Message.Text))
 				msg.ReplyToMessageID = update.Message.MessageID
 				bot.Send(msg)
+			}
+
+			if !commandContain {
+				///////log.Println("This is unsupport command.")
+				//msg := tgbotapi.NewMessage(update.Message.Chat.ID, "This is unsupport command.")
+				//msg.ReplyToMessageID = update.Message.MessageID
+				//bot.Send(msg)
 			}
 		}
 
 		//log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-		log.Printf("INNER MESSAGE %s[%d]: %s",
-			update.Message.From.UserName,
-			update.Message.From.ID,
-			update.Message.Text)
+
+		if update.Message.Chat.Type == "private" && config.Str("logLevel") == "private" || config.Str("logLevel") == "chat" {
+			log.Printf("INNER MESSAGE %s[%d]: %s",
+				update.Message.From.UserName,
+				update.Message.From.ID,
+				update.Message.Text)
+			fmt.Printf("inline query %+v\n", update.InlineQuery)
+		}
 
 		//msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 		//msg.ReplyToMessageID = update.Message.MessageID
@@ -1295,3 +1016,100 @@ func main() {
 	}
 
 }
+
+type TgFileInfo struct {
+	Ok     bool `json:"ok,omitempty"`
+	Result struct {
+		FileId       string `json:"file_id,omitempty"`
+		FileUniqueId string `json:"file_unique_id,omitempty"`
+		FileSize     int    `json:"file_size,omitempty"`
+		FilePath     string `json:"file_path,omitempty"`
+	} `json:"result,omitempty"`
+}
+
+type AmoCrmMMessageMedia struct {
+	Type     string
+	Media    string
+	FileName string
+	FileSize int
+}
+
+func splitInt(n int) []int {
+	slc := []int{}
+	for n > 0 {
+		slc = append(slc, n%10)
+		n = n / 10
+	}
+	return slc
+}
+
+func splitInt64(n int64) []int64 {
+	slc := []int64{}
+	for n > 0 {
+		slc = append(slc, n%10)
+		n = n / 10
+	}
+	return slc
+}
+
+func lastDigits(n int) (int, int) {
+	result := splitInt(n)
+	if len(result) < 2 {
+		return 0, 0
+	}
+	return result[0], result[1]
+}
+
+func lastDigits64(n int64) (int64, int64) {
+	result := splitInt64(n)
+	if len(result) < 2 {
+		return 0, 0
+	}
+	return result[len(result)-1], result[len(result)-2]
+}
+
+var catNameSet1 = map[int]string{
+	0: "Немытый",
+	1: "Жирный",
+	2: "Горячий",
+	3: "Лысый",
+	4: "Всратый",
+	5: "Забивной",
+	6: "Пушистый",
+	7: "Бешенный",
+	8: "Депресивный",
+	9: "Отбитый",
+}
+
+var catNameSet2 = map[int]string{
+	0: "Гей",
+	1: "Тигр",
+	2: "Даун",
+	3: "Кошак",
+	4: "Чмо",
+	5: "Красавчик",
+	6: "Уебан",
+	7: "Пидорас",
+	8: "Кiт",
+	9: "Чухан",
+}
+
+var putinSpeech = map[int]string{
+	0:  "Глотаю пыль",
+	1:  "Аграрий",
+	2:  "Простой человек с кухни",
+	3:  "Гендерно нейтральный бог",
+	4:  "Ядерные объедки",
+	5:  "Ветеран",
+	6:  "Оступившийся человек",
+	7:  "Второсортный чужак",
+	8:  "Джинн из бутылки",
+	9:  "Кхе кхе",
+	10: "Крапленые карты",
+	11: "Лысый черт",
+	12: "Пособник Киевского режима",
+}
+
+//TODO: implement check command
+//t.IsCommand(commandName, "/setLeadStatus")
+//func (t *tgConfig) IsCommand(msg, command string) bool { return msg == command || msg == fmt.Sprintf("%s@%s", command, t.BotName)}
