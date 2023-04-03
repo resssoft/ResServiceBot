@@ -9,9 +9,9 @@ import (
 	"fun-coice/funs"
 	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
+	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hako/durafmt"
-	scribble "github.com/nanobox-io/golang-scribble"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	qrcode "github.com/skip2/go-qrcode"
@@ -58,8 +58,9 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//TODO: moved simple DB implement to pkg
 	// read admin info from DB or write it to db
-	DB, err = scribble.New(appPath+"/data", nil)
+	DB, err = scribble.New(appPath + "/data")
 	if err != nil {
 		fmt.Println("Error", err)
 	}
