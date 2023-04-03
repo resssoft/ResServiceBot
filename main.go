@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"fun-coice/config"
+	"fun-coice/funs"
+	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hako/durafmt"
@@ -38,14 +40,6 @@ func main() {
 	zlog.Level(zerolog.DebugLevel)
 	fmt.Print("Load configuration... ")
 	config.Configure()
-	configurationFile, _ := os.Open("configuration.json")
-	defer configurationFile.Close()
-	decoder := json.NewDecoder(configurationFile)
-	configuration := Configuration{}
-	err := decoder.Decode(&configuration)
-	if err != nil {
-		fmt.Println("load configuration error:", err)
-	}
 	configureConverter(config.Str("plugins.apilayer.token"))
 
 	fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
@@ -83,10 +77,17 @@ func main() {
 		}
 	}
 
-	initFunCommand()
+	//initFunCommand()
+
+	funCommandsService := funs.New(DB)
+	commands = commands.Merge(funCommandsService.Commands())
+
+	fmt.Println("funCommandsService", funCommandsService.Commands())
+
+	fmt.Println("commands", commands)
 
 	//bot.Debug = true
-	msg := tgbotapi.NewMessage(config.TelegramAdminId(), "Bot Started with version "+appStat.Version)
+	msg := tgbotapi.NewMessage(config.TelegramAdminId(), "!Bot Started with version "+appStat.Version)
 	bot.Send(msg)
 	bot.GetMyCommands()
 
@@ -338,7 +339,7 @@ func main() {
 		//fmt.Println("splitedCommands", splitedCommands)
 
 		for _, command := range commands {
-			if !command.isImplemented(commandName, botName) {
+			if !command.IsImplemented(commandName, botName) {
 				continue
 			}
 			if !command.Permission(update.Message) {
@@ -355,17 +356,23 @@ func main() {
 			}
 		}
 
-		if commandData, exist := isFunCommand(commandName); exist {
-			s1 := rand.NewSource(time.Now().UnixNano())
-			r1 := rand.New(s1)
-			time.Sleep(time.Millisecond * time.Duration(r1.Int63n(600)))
-			r2 := rand.New(s1)
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandData.List1[r1.Intn(len(commandData.List1))]+" "+commandData.List2[r2.Intn(len(commandData.List2))])
-			msg.ReplyToMessageID = update.Message.MessageID
-			bot.Send(msg)
-		} else {
-			//fmt.Println("NOT isFunCommand")
-		}
+		/*
+			if commandData, exist := isFunCommand(commandName); exist {
+				s1 := rand.NewSource(time.Now().UnixNano())
+				r1 := rand.New(s1)
+				time.Sleep(time.Millisecond * time.Duration(r1.Int63n(600)))
+				r2 := rand.New(s1)
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandData.List1[r1.Intn(len(commandData.List1))]+" "+commandData.List2[r2.Intn(len(commandData.List2))])
+				msg.ReplyToMessageID = update.Message.MessageID
+				bot.Send(msg)
+			} else {
+				//fmt.Println("NOT isFunCommand")
+			}
+		*/
+
+		//TODO:: add service bot informer for /member and SAVER service
+		//TODO:: defaults to services
+		//TODO:: photo and other file handlers to services (USE WAIT LIST)
 
 		//TODO: set permissions for default commands
 		switch commandName {
@@ -384,20 +391,20 @@ func main() {
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String()+", you are registered!")
 			bot.Send(msg)
-
-		case "/addfan":
-			fmt.Println(splitedCommands)
-			text := ""
-			if len(splitedCommands) != 4 {
-				text = "format: /addfan newcommandname list1_item1,list1_item2 list2_item1,list2_item2"
-				text += "\nExample: cats cute,funny,fluffy Molly,Charlie,Oscar"
-				text += "\n no more than 3 spase in the string"
-			} else {
-				text = addFunCommand(splitedCommands[1], splitedCommands[2], splitedCommands[3])
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
-			bot.Send(msg)
-
+			/*
+				case "/addfan":
+					fmt.Println(splitedCommands)
+					text := ""
+					if len(splitedCommands) != 4 {
+						text = "format: /addfan newcommandname list1_item1,list1_item2 list2_item1,list2_item2"
+						text += "\nExample: cats cute,funny,fluffy Molly,Charlie,Oscar"
+						text += "\n no more than 3 spase in the string"
+					} else {
+						text = addFunCommand(splitedCommands[1], splitedCommands[2], splitedCommands[3])
+					}
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
+					bot.Send(msg)
+			*/
 		case "/member":
 			from := update.Message.From
 			chat := update.Message.Chat
@@ -489,10 +496,10 @@ func main() {
 			bot.Send(msg)
 
 		case "/addSaveCommand":
-			command := TGCommand{
+			command := tgCommands.Command{
 				Command:     commandValue,
 				CommandType: "SaveCommand",
-				Permissions: TGCommandPermissions{
+				Permissions: tgCommands.CommandPermissions{
 					UserPermissions: "",
 					ChatPermissions: "",
 				},
@@ -640,7 +647,7 @@ func main() {
 
 			commands := []string{}
 			for _, f := range records {
-				commandFound := TGCommand{}
+				commandFound := tgCommands.Command{}
 				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
 					fmt.Println("Error", err)
 				}
@@ -955,9 +962,9 @@ func main() {
 			}
 
 			commandContain := false
-			commands := []TGCommand{}
+			var commands []tgCommands.Command
 			for _, f := range records {
-				commandFound := TGCommand{}
+				commandFound := tgCommands.Command{}
 				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
 					fmt.Println("Error commandFound Unmarshal", err)
 				}

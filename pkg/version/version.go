@@ -6,7 +6,7 @@ import (
 
 var (
 	commit = "dev"
-	date   = "2023-03-08T14:05:00"
+	date   = "2023-04-03T14:05:00"
 )
 
 type Version struct {

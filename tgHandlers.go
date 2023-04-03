@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"fun-coice/pkg/appStat"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"strconv"
 )
 
 func myInfo(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
@@ -29,4 +30,21 @@ func appInfo(msg *tgbotapi.Message, commandName string, param string, params []s
 	info := appStat.Info()
 	infoJson, _ := json.MarshalIndent(info, "", "  ")
 	return tgbotapi.NewMessage(msg.Chat.ID, string(infoJson)), true
+}
+
+//TODO:: move to app bot service
+func startBot(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	_, isAdmin := checkPermission("admin", msg.From.ID)
+	user := TGUser{
+		UserID:  int64(msg.From.ID),
+		ChatId:  msg.Chat.ID,
+		Login:   msg.From.UserName,
+		Name:    msg.From.String(),
+		IsAdmin: isAdmin,
+	}
+	if err := DB.Write("user", strconv.FormatInt(msg.From.ID, 10), user); err != nil {
+		fmt.Println("add command error", err)
+	}
+
+	return tgbotapi.NewMessage(msg.Chat.ID, "Hi "+msg.From.String()+", you are registered!"), true
 }
