@@ -990,7 +990,7 @@ func main() {
 					}
 				}
 			}
-			matchedCalc, _ := regexp.MatchString(`^[\d\s\+\\\-\*\(\)\.]+$`, update.Message.Text)
+			matchedCalc, _ := regexp.MatchString(`^\d[\d\s\+\\\-\*\(\)\.]+$`, update.Message.Text)
 			matchedCalc2, _ := regexp.MatchString(`^\d+$`, update.Message.Text)
 			//fmt.Println(matchedCalc)
 			if matchedCalc && !matchedCalc2 {
