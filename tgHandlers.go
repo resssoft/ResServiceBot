@@ -48,3 +48,15 @@ func startBot(msg *tgbotapi.Message, commandName string, param string, params []
 
 	return tgbotapi.NewMessage(msg.Chat.ID, "Hi "+msg.From.String()+", you are registered!"), true
 }
+
+func userId(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	return tgbotapi.NewMessage(msg.Chat.ID, strconv.FormatInt(msg.Chat.ID, 10)), true
+}
+
+func appVersion(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	return tgbotapi.NewMessage(msg.Chat.ID, appStat.Version), true
+}
+
+func homePage(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	return tgbotapi.NewMessage(msg.Chat.ID, strconv.FormatInt(msg.Chat.ID, 10)), true
+}

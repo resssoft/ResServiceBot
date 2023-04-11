@@ -2,21 +2,20 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"fun-coice/config"
 	"fun-coice/funs"
+	"fun-coice/internal/application/b64"
+	"fun-coice/internal/application/datatimes"
+	qrcodes "fun-coice/internal/application/qrcodes"
 	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/hako/durafmt"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
-	qrcode "github.com/skip2/go-qrcode"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -57,6 +56,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	//TODO: TRANSLATES
 
 	//TODO: moved simple DB implement to pkg
 	// read admin info from DB or write it to db
@@ -78,17 +78,24 @@ func main() {
 		}
 	}
 
-	//initFunCommand()
-
 	funCommandsService := funs.New(DB)
 	commands = commands.Merge(funCommandsService.Commands())
+
+	b64Service := b64.New()
+	commands = commands.Merge(b64Service.Commands())
+
+	QrCodesService := qrcodes.New()
+	commands = commands.Merge(QrCodesService.Commands())
+
+	dataTimesService := datatimes.New()
+	commands = commands.Merge(dataTimesService.Commands())
 
 	fmt.Println("funCommandsService", funCommandsService.Commands())
 
 	fmt.Println("commands", commands)
 
 	//bot.Debug = true
-	msg := tgbotapi.NewMessage(config.TelegramAdminId(), "!Bot Started with version "+appStat.Version)
+	msg := tgbotapi.NewMessage(config.TelegramAdminId(), "Bot Started with version "+appStat.Version)
 	bot.Send(msg)
 	bot.GetMyCommands()
 
@@ -371,9 +378,12 @@ func main() {
 			}
 		*/
 
-		//TODO:: add service bot informer for /member and SAVER service
+		//TODO:: add service bot informer for /member - admin service and SAVER service
+		//TODO:  calc service, fiat service
 		//TODO:: defaults to services
 		//TODO:: photo and other file handlers to services (USE WAIT LIST)
+		//TODO: /commands - show with perms
+		//TODO: added wait answer commands (or files-images combiner)
 
 		//TODO: set permissions for default commands
 		switch commandName {
@@ -538,22 +548,6 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, messages)
 			bot.Send(msg)
 
-		case "/catrandom", "/catrandom@FunChoiceBot":
-			s1 := rand.NewSource(time.Now().UnixNano())
-			r1 := rand.New(s1)
-			time.Sleep(time.Millisecond * time.Duration(r1.Int63n(600)))
-			r2 := rand.New(s1)
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, catNameSet1[r1.Intn(10)]+" "+catNameSet2[r2.Intn(10)])
-			msg.ReplyToMessageID = update.Message.MessageID
-			bot.Send(msg)
-
-		case "/putinSpeech", "/putinSpeech@FunChoiceBot":
-			s1 := rand.NewSource(time.Now().UnixNano())
-			r1 := rand.New(s1)
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, putinSpeech[r1.Intn(12)])
-			msg.ReplyToMessageID = update.Message.MessageID
-			bot.Send(msg)
-
 		case "/calc", "/calc@FunChoiceBot":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(commandValue))
 			msg.ReplyToMessageID = update.Message.MessageID
@@ -677,106 +671,6 @@ func main() {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandValue+":\n-"+strings.Join(commands, "\n-"))
 			bot.Send(msg)
 
-		case "/tm", "/timestamp":
-			msgText := fmt.Sprintf("Input: %s\n\n", commandValue)
-			timestampConvert, _ := regexp.MatchString(`^\d\d\d\d\d\d+$`, commandValue)
-			timestampCompare, _ := regexp.MatchString(`^\d\d\d\d\d\d+\s\d\d\d\d\d\d+$`, commandValue)
-			switch {
-			case timestampConvert:
-				timeInt, err := strconv.ParseInt(commandValue, 10, 64)
-				if err != nil {
-					msgText += "Error parse int timestamp: " + err.Error()
-				} else {
-					parsedTime := time.Unix(timeInt, 0)
-					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02 15:04:05 -0700"))
-					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02T15:04:05Z07:00"))
-					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("Monday, 02-Jan-06 15:04:05 MST"))
-					msgText += fmt.Sprintf("Timestamp: %s \n", fmt.Sprintf("%v", parsedTime.Unix()))
-					msgText += fmt.Sprintf("Diff: %s \n", durafmt.Parse(time.Now().Sub(parsedTime)).LimitFirstN(2).String())
-					msgText += fmt.Sprintf("\nNow: %s \n", time.Now().Format("2006-01-02 15:04:05 -0700"))
-				}
-			case timestampCompare:
-				r, _ := regexp.Compile(`^(\d\d\d\d\d\d+)\s(\d\d\d\d\d\d+)$`)
-				parsedItems := r.FindStringSubmatch(commandValue)
-				fmt.Println(parsedItems)
-				if len(parsedItems) != 3 {
-					msgText += fmt.Sprintf("Error: parsedItems != 3 It= %v", len(parsedItems))
-				} else {
-					timeInt1, err1 := strconv.ParseInt(parsedItems[1], 10, 64)
-					if err != nil {
-						msgText += "\nError: " + err.Error()
-					}
-					timeInt2, err2 := strconv.ParseInt(parsedItems[2], 10, 64)
-					if err != nil {
-						msgText += "\nError: " + err.Error()
-					}
-					if err1 == nil && err2 == nil {
-						parsedTime1 := time.Unix(timeInt1, 0)
-						parsedTime2 := time.Unix(timeInt2, 0)
-						msgText += fmt.Sprintf("Diff: %s \n", durafmt.Parse(parsedTime1.Sub(parsedTime2)).LimitFirstN(2).String())
-					}
-				}
-			default:
-				parsedTime, err := time.Parse("2006-01-02 15:04:05", commandValue)
-				if err != nil {
-					parsedTime, err = time.Parse("2006-01-02 15:04", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("2006-01-02", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("02-01-2006", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("02.01.2006", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("02/01/2006", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("2006-01-02T15:04:05Z07:00", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("Mon Jan _2 15:04:05 2006", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("Mon Jan _2 15:04:05 MST 2006", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("02 Jan 06 15:04 MST", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("Mon, 02 Jan 2006 15:04:05 MST", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("Mon 02 Jan 2006 15:04:05 MST", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("Mon 02 Jan 2006 15:04:05 07:00", commandValue)
-				}
-				if err != nil {
-					parsedTime, err = time.Parse("January 2, 2006", commandValue)
-				}
-				var parsedDuration time.Duration
-				if err != nil {
-					parsedDuration, err = time.ParseDuration(commandValue)
-					parsedTime = time.Now().Add(parsedDuration)
-				}
-				if err != nil {
-					msgText += "Error parse time"
-				} else {
-					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02 15:04:05 -0700"))
-					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("2006-01-02T15:04:05Z07:00"))
-					msgText += fmt.Sprintf("Date: %s \n", parsedTime.Format("Monday, 02-Jan-06 15:04:05 MST"))
-					msgText += fmt.Sprintf("Timestamp: %s \n", fmt.Sprintf("%v", parsedTime.Unix()))
-					msgText += fmt.Sprintf("Diff by current: %s \n", durafmt.Parse(time.Now().Sub(parsedTime)).LimitFirstN(2).String())
-					msgText += fmt.Sprintf("\nNow: %s \n", time.Now().Format("2006-01-02 15:04:05 -0700"))
-				}
-			}
-			time.Parse(commandValue, commandValue)
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, msgText)
-			bot.Send(msg)
-
 		case "/set":
 			config.Set(splitedCommands[1], splitedCommands[2])
 		case "/get":
@@ -786,48 +680,8 @@ func main() {
 		case "/vars":
 			//TODO:fix
 			config.Set(splitedCommands[1], splitedCommands[2])
-
 		case "/admin":
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Admin is @"+config.TelegramAdminLogin())
-			bot.Send(msg)
-		case "/qr256":
-			var qr []byte
-			qr, err := qrcode.Encode(commandValue, qrcode.Medium, 256)
-			if err != nil {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "failed to encode qrcode")
-				bot.Send(msg)
-				continue
-			}
-			file := tgbotapi.FileBytes{Name: "qr.png", Bytes: qr}
-			message := tgbotapi.NewPhoto(update.Message.Chat.ID, file)
-			message.Caption = commandValue
-			_, err = bot.Send(message)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-		case "/b64", "/base64":
-			b64result := base64.StdEncoding.EncodeToString([]byte(commandValue))
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, b64result)
-			msg.ReplyToMessageID = update.Message.MessageID
-			bot.Send(msg)
-
-		case "/qr":
-			var qr []byte
-			qr, err := qrcode.Encode(commandValue, qrcode.Medium, 1024)
-			if err != nil {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "failed to encode qrcode")
-				bot.Send(msg)
-				continue
-			}
-			file := tgbotapi.FileBytes{Name: "qr.png", Bytes: qr}
-			message := tgbotapi.NewPhoto(update.Message.Chat.ID, file)
-			message.Caption = commandValue
-			_, err = bot.Send(message)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-		case "/version", "/appVersion", "/версия":
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, appStat.Version)
 			bot.Send(msg)
 
 		case "/homeweb":
@@ -836,6 +690,10 @@ func main() {
 			bot.Send(msg)
 
 		case commands["addCheckItem"].Command:
+			if len(splitedCommands) <= 1 {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "set list name")
+				bot.Send(msg)
+			}
 			debugMessage := ""
 			checkItemText := ""
 			checkListGroup := splitedCommands[1]
@@ -879,6 +737,10 @@ func main() {
 			bot.Send(msg)
 
 		case commands["updateCheckItem"].Command:
+			if len(splitedCommands) <= 1 {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "set list name")
+				bot.Send(msg)
+			}
 			checkListGroup := splitedCommands[1]
 			if checkListGroup == "" {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
@@ -920,6 +782,10 @@ func main() {
 			bot.Send(msg)
 
 		case commands["сheckList"].Command:
+			if len(splitedCommands) <= 1 {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "set list name")
+				bot.Send(msg)
+			}
 			checkListGroup := splitedCommands[1]
 			if checkListGroup == "" {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")

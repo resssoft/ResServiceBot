@@ -50,6 +50,13 @@ var commands = tgCommands.Commands{
 		Permissions: tgCommands.FreePerms,
 		Handler:     appInfo,
 	},
+	"id": {
+		Command:     "/id",
+		Description: "Write user id",
+		CommandType: "text",
+		Permissions: tgCommands.FreePerms,
+		Handler:     userId,
+	},
 	"member": {
 		Command:     "/member",
 		Description: "Write GT user info and member status",
@@ -106,21 +113,11 @@ var commands = tgCommands.Commands{
 	},
 	"version": {
 		Command:     "/version",
-		Description: "Вывод версии",
+		Synonyms:    []string{"appVersion", "ver", "версия"},
+		Description: "Write bot version",
 		CommandType: "text",
 		Permissions: tgCommands.FreePerms,
-	},
-	"appVersion": {
-		Command:     "/appVersion",
-		Description: "синоним version",
-		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
-	},
-	"версия": {
-		Command:     "/версия",
-		Description: "синоним version",
-		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Handler:     appVersion,
 	},
 	"commands": {
 		Command:     "/commands",
