@@ -30,6 +30,9 @@ type homeWebCamServiceURLImageData struct {
 	Error  string `json:"error,omitempty"`
 }
 
+const HWCSURLEvent = "go"
+const HWCSURLImage = "result/"
+
 func getHomeWebCamImage() (string, error) {
 	HWCSData := homeWebCamServiceURLImageData{}
 	resp, err := http.Get(HWCSURL + HWCSURLEvent)

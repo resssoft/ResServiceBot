@@ -57,12 +57,6 @@ var commands = tgCommands.Commands{
 		Permissions: tgCommands.FreePerms,
 		Handler:     userId,
 	},
-	"member": {
-		Command:     "/member",
-		Description: "Write GT user info and member status",
-		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
-	},
 	"getUserList": {
 		Command:     "/getUserList",
 		Description: "-",
@@ -87,12 +81,6 @@ var commands = tgCommands.Commands{
 		CommandType: "text",
 		Permissions: tgCommands.FreePerms,
 	},
-	"cat": {
-		Command:     "/cat",
-		Description: "Какой ты кот",
-		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
-	},
 	"SaveCommandsList": {
 		Command:     "/SaveCommandsList",
 		Description: "Список комманд для сохранения текстовых строк",
@@ -102,12 +90,6 @@ var commands = tgCommands.Commands{
 	"listOf": {
 		Command:     "/listOf",
 		Description: "(+ аргумент) Список сохраненных сообщений по указанной комманде",
-		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
-	},
-	"admin": {
-		Command:     "/admin",
-		Description: "Вывод логина админа",
 		CommandType: "text",
 		Permissions: tgCommands.FreePerms,
 	},
@@ -128,12 +110,6 @@ var commands = tgCommands.Commands{
 	"rebuild": {
 		Command:     "/rebuild",
 		Description: "rebuild",
-		CommandType: "text",
-		Permissions: tgCommands.AdminPerms,
-	},
-	"homeweb": {
-		Command:     "/homeweb",
-		Description: "get image link from cam1",
 		CommandType: "text",
 		Permissions: tgCommands.AdminPerms,
 	},

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"fun-coice/config"
 	"fun-coice/funs"
+	"fun-coice/internal/application/admins"
 	"fun-coice/internal/application/b64"
 	"fun-coice/internal/application/datatimes"
 	qrcodes "fun-coice/internal/application/qrcodes"
+	"fun-coice/internal/application/translate"
 	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
 	"fun-coice/pkg/scribble"
@@ -27,8 +29,6 @@ import (
 
 const doneMessage = "Done"
 const telegramSingleMessageLengthLimit = 4096
-const HWCSURLEvent = "go"
-const HWCSURLImage = "result/"
 const dbDateFormatMonth = "2006-01-02"
 
 var HWCSURL = ""
@@ -89,6 +89,12 @@ func main() {
 
 	dataTimesService := datatimes.New()
 	commands = commands.Merge(dataTimesService.Commands())
+
+	trService := translate.New()
+	commands = commands.Merge(trService.Commands())
+
+	adminService := admins.New(bot)
+	commands = commands.Merge(adminService.Commands())
 
 	fmt.Println("funCommandsService", funCommandsService.Commands())
 
@@ -347,10 +353,10 @@ func main() {
 		//fmt.Println("splitedCommands", splitedCommands)
 
 		for _, command := range commands {
-			if !command.IsImplemented(commandName, botName) {
+			if !command.Permission(update.Message) {
 				continue
 			}
-			if !command.Permission(update.Message) {
+			if !command.IsImplemented(commandName, botName) {
 				continue
 			}
 			if command.Handler != nil {
@@ -416,39 +422,6 @@ func main() {
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
 					bot.Send(msg)
 			*/
-		case "/member":
-			from := update.Message.From
-			chat := update.Message.Chat
-
-			chatConfigWithUser := tgbotapi.ChatConfigWithUser{
-				ChatID:             chat.ID,
-				SuperGroupUsername: "",
-				UserID:             from.ID,
-			}
-
-			chatMember, _ := bot.GetChatMember(tgbotapi.GetChatMemberConfig{chatConfigWithUser})
-
-			userInfo := fmt.Sprintf(
-				"--== UserInfo==--\n"+
-					"ID: %v\nUserName: %s\nFirstName: %s\nLastName: %s\nLanguageCode: %s"+
-					"\n--==ChatInfo==--\n"+
-					"ID: %v\nTitle: %s\nType: %s"+
-					"\n--== MemberInfo==--\n"+
-					"Status: %s",
-				from.ID,
-				from.UserName,
-				from.FirstName,
-				from.LastName,
-				from.LanguageCode,
-				chat.ID,
-				chat.Title,
-				chat.Type,
-				chatMember.Status,
-			)
-			msg := tgbotapi.NewMessage(chat.ID, userInfo)
-			bot.Send(msg)
-			//chat.ID,"",update.Message.From.ID
-
 		case "/getUserList":
 			err, permission := checkPermission("rebuild", update.Message.From.ID)
 			if err != nil {
@@ -669,24 +642,6 @@ func main() {
 				}
 			}
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandValue+":\n-"+strings.Join(commands, "\n-"))
-			bot.Send(msg)
-
-		case "/set":
-			config.Set(splitedCommands[1], splitedCommands[2])
-		case "/get":
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("%v=%v", splitedCommands[1], config.Str(splitedCommands[1])))
-			bot.Send(msg)
-			//logLevel
-		case "/vars":
-			//TODO:fix
-			config.Set(splitedCommands[1], splitedCommands[2])
-		case "/admin":
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Admin is @"+config.TelegramAdminLogin())
-			bot.Send(msg)
-
-		case "/homeweb":
-			homeWebImageURL, _ := getHomeWebCamImage()
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, homeWebImageURL)
 			bot.Send(msg)
 
 		case commands["addCheckItem"].Command:

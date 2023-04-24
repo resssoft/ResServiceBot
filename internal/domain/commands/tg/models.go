@@ -23,6 +23,7 @@ type Command struct {
 	CommandType string
 	Permissions CommandPermissions
 	Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool)
+	//Bots        []string //multybots
 }
 
 func (t *Command) IsImplemented(msg, botName string) bool {
