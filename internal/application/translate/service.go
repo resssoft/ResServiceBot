@@ -36,6 +36,20 @@ func New() tgCommands.Service {
 		Permissions: tgCommands.FreePerms,
 		Handler:     result.tr_ru_hy,
 	}
+	commandsList["tr_ru_en"] = tgCommands.Command{
+		Command:     "/tr_ru_en",
+		Description: "Translate from russian to english",
+		CommandType: "text",
+		Permissions: tgCommands.FreePerms,
+		Handler:     result.tr_ru_en,
+	}
+	commandsList["tr_en_ru"] = tgCommands.Command{
+		Command:     "/tr_en_ru",
+		Description: "Translate from english to russian",
+		CommandType: "text",
+		Permissions: tgCommands.FreePerms,
+		Handler:     result.tr_en_ru,
+	}
 
 	result.list = commandsList
 	return &result
@@ -69,6 +83,28 @@ func (d data) tr_hy_ru(msg *tgbotapi.Message, commandName string, param string, 
 
 func (d data) tr_ru_hy(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
 	result, err := gt.Translate(param, "ru", "hy")
+	if err != nil {
+		result = err.Error()
+		fmt.Println(err)
+	}
+	msgNew := tgbotapi.NewMessage(msg.Chat.ID, result)
+	msgNew.ReplyToMessageID = msg.MessageID
+	return msgNew, true
+}
+
+func (d data) tr_ru_en(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	result, err := gt.Translate(param, "ru", "en")
+	if err != nil {
+		result = err.Error()
+		fmt.Println(err)
+	}
+	msgNew := tgbotapi.NewMessage(msg.Chat.ID, result)
+	msgNew.ReplyToMessageID = msg.MessageID
+	return msgNew, true
+}
+
+func (d data) tr_en_ru(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	result, err := gt.Translate(param, "en", "ru")
 	if err != nil {
 		result = err.Error()
 		fmt.Println(err)
