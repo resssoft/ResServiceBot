@@ -8,6 +8,7 @@ import (
 	"fun-coice/funs"
 	"fun-coice/internal/application/admins"
 	"fun-coice/internal/application/b64"
+	"fun-coice/internal/application/calculator"
 	"fun-coice/internal/application/datatimes"
 	qrcodes "fun-coice/internal/application/qrcodes"
 	"fun-coice/internal/application/translate"
@@ -21,7 +22,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -95,6 +95,9 @@ func main() {
 
 	adminService := admins.New(bot)
 	commands = commands.Merge(adminService.Commands())
+
+	calculatorService := calculator.New()
+	commands = commands.Merge(calculatorService.Commands())
 
 	fmt.Println("funCommandsService", funCommandsService.Commands())
 
@@ -344,6 +347,8 @@ func main() {
 
 		}
 		//fmt.Println(update.Message.Text)
+
+		//TODO: remove
 		splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
 		commandsCount := len(splitedCommands)
 		if commandsCount == 0 {
@@ -353,19 +358,26 @@ func main() {
 		//fmt.Println("splitedCommands", splitedCommands)
 
 		for _, command := range commands {
-			if !command.Permission(update.Message) {
+			if !command.Permission(update.Message) || command.Handler == nil {
+				continue
+			}
+			splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
+			commandsCount := len(splitedCommands)
+			if commandsCount == 0 {
 				continue
 			}
 			if !command.IsImplemented(commandName, botName) {
-				continue
+				if command.IsMatched(commandName, botName) {
+					commandValue = update.Message.Text
+				} else {
+					continue
+				}
 			}
-			if command.Handler != nil {
-				botMsg, prepared := command.Handler(update.Message, commandName, commandValue, splitedCommands)
-				if prepared {
-					_, err = bot.Send(botMsg)
-					if err != nil {
-						fmt.Println(err.Error())
-					}
+			botMsg, prepared := command.Handler(update.Message, command.Command, commandValue, splitedCommands)
+			if prepared {
+				_, err = bot.Send(botMsg)
+				if err != nil {
+					fmt.Println(err.Error())
 				}
 			}
 		}
@@ -513,25 +525,13 @@ func main() {
 
 		case "/getFeatures":
 			//TODO: why it doesnt work
+			//TODO: added save place switcher
 			err, messages := readLines("./features.txt", telegramSingleMessageLengthLimit)
 			if err != nil {
 				fmt.Println("write command error", err)
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, messages)
-			bot.Send(msg)
-
-		case "/calc", "/calc@FunChoiceBot":
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(commandValue))
-			msg.ReplyToMessageID = update.Message.MessageID
-			bot.Send(msg)
-
-		case "calc", "калк", "сколько будет":
-			if update.Message.Chat.Type != "private" {
-				continue
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(commandValue))
-			msg.ReplyToMessageID = update.Message.MessageID
 			bot.Send(msg)
 
 		case "/fiat", "/fiat@FunChoiceBot":
@@ -811,14 +811,16 @@ func main() {
 					}
 				}
 			}
-			matchedCalc, _ := regexp.MatchString(`^\d[\d\s\+\\\-\*\(\)\.]+$`, update.Message.Text)
-			matchedCalc2, _ := regexp.MatchString(`^\d+$`, update.Message.Text)
-			//fmt.Println(matchedCalc)
-			if matchedCalc && !matchedCalc2 {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(update.Message.Text))
-				msg.ReplyToMessageID = update.Message.MessageID
-				bot.Send(msg)
-			}
+			/*
+				matchedCalc, _ := regexp.MatchString(`^\d[\d\s\+\\\-\*\(\)\.]+$`, update.Message.Text)
+				matchedCalc2, _ := regexp.MatchString(`^\d+$`, update.Message.Text)
+				//fmt.Println(matchedCalc)
+				if matchedCalc && !matchedCalc2 {
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(update.Message.Text))
+					msg.ReplyToMessageID = update.Message.MessageID
+					bot.Send(msg)
+				}
+			*/
 
 			if !commandContain {
 				///////log.Println("This is unsupport command.")

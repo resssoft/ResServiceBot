@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"fun-coice/config"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"regexp"
 )
 
 type User struct {
@@ -33,6 +34,18 @@ func (t *Command) IsImplemented(msg, botName string) bool {
 	for _, synonym := range t.Synonyms {
 		if IsCommand(synonym, msg, botName) {
 			return true
+		}
+	}
+	return false
+}
+
+func (t *Command) IsMatched(msg, botName string) bool {
+	if len(t.Templates) > 0 {
+		for _, template := range t.Templates {
+			templateMatched, _ := regexp.MatchString(template, msg)
+			if templateMatched {
+				return true
+			}
 		}
 	}
 	return false

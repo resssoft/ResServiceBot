@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	Version        = "1.0.0.410-1" //grepVersion
+	Version        = "1.0.0.411-1" //grepVersion
 	DateTimeFormat = "2006-01-02 15:04:05 -0700"
 )
 
