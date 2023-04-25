@@ -10,6 +10,7 @@ import (
 	"fun-coice/internal/application/b64"
 	"fun-coice/internal/application/calculator"
 	"fun-coice/internal/application/datatimes"
+	financy "fun-coice/internal/application/money"
 	qrcodes "fun-coice/internal/application/qrcodes"
 	"fun-coice/internal/application/translate"
 	tgCommands "fun-coice/internal/domain/commands/tg"
@@ -39,7 +40,6 @@ func main() {
 	zlog.Level(zerolog.DebugLevel)
 	fmt.Print("Load configuration... ")
 	config.Configure()
-	configureConverter(config.Str("plugins.apilayer.token"))
 
 	fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
 	fmt.Println(fmt.Sprintf("Telegram[%s]", config.TelegramToken()))
@@ -98,6 +98,9 @@ func main() {
 
 	calculatorService := calculator.New()
 	commands = commands.Merge(calculatorService.Commands())
+
+	financeService := financy.New(config.Str("plugins.apilayer.token"))
+	commands = commands.Merge(financeService.Commands())
 
 	fmt.Println("funCommandsService", funCommandsService.Commands())
 
@@ -382,20 +385,6 @@ func main() {
 			}
 		}
 
-		/*
-			if commandData, exist := isFunCommand(commandName); exist {
-				s1 := rand.NewSource(time.Now().UnixNano())
-				r1 := rand.New(s1)
-				time.Sleep(time.Millisecond * time.Duration(r1.Int63n(600)))
-				r2 := rand.New(s1)
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandData.List1[r1.Intn(len(commandData.List1))]+" "+commandData.List2[r2.Intn(len(commandData.List2))])
-				msg.ReplyToMessageID = update.Message.MessageID
-				bot.Send(msg)
-			} else {
-				//fmt.Println("NOT isFunCommand")
-			}
-		*/
-
 		//TODO:: add service bot informer for /member - admin service and SAVER service
 		//TODO:  calc service, fiat service
 		//TODO:: defaults to services
@@ -532,79 +521,6 @@ func main() {
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, messages)
-			bot.Send(msg)
-
-		case "/fiat", "/fiat@FunChoiceBot":
-			convertFrom := "AMD"
-			convertTo1 := "RUB"
-			convertTo2 := "USD"
-			if len(splitedCommands) > 2 {
-				switch splitedCommands[2] {
-				case "a", "amd", "am", "ам", "амд", "дпам", "драм", "др":
-					convertFrom = "AMD"
-					convertTo1 = "RUB"
-					convertTo2 = "USD"
-				case "r", "ru", "rub", "rur", "ру", "р", "руб", "рублей":
-					convertFrom = "RUB"
-					convertTo1 = "AMD"
-					convertTo2 = "USD"
-				case "s", "us", "usd", "$", "дол", "до", "доларов", "долларов":
-					convertFrom = "USD"
-					convertTo1 = "AMD"
-					convertTo2 = "RUB"
-				}
-			}
-			_, err = strconv.Atoi(splitedCommands[1])
-			msgText := "-"
-			if err != nil {
-				msgText = "digit err"
-			} else {
-				msgText = fmt.Sprintf("Convert result from %s %s = \n%s %s \n%s %s \n[%s]",
-					splitedCommands[1], convertFrom,
-					fiat(convertFrom, convertTo1, splitedCommands[1]), convertTo1,
-					fiat(convertFrom, convertTo2, splitedCommands[1]), convertTo2,
-					time.Now().Format(dbDateFormatMonth))
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, msgText)
-			msg.ReplyToMessageID = update.Message.MessageID
-			bot.Send(msg)
-
-		case "fiat", "convert", "конверт", "кон", "из", "from":
-			if update.Message.Chat.Type != "private" {
-				continue
-			}
-			convertFrom := "AMD"
-			convertTo1 := "RUB"
-			convertTo2 := "USD"
-			if len(splitedCommands) > 2 {
-				switch splitedCommands[2] {
-				case "a", "amd", "am", "ам", "амд", "дпам", "драм", "др":
-					convertFrom = "AMD"
-					convertTo1 = "RUB"
-					convertTo2 = "USD"
-				case "r", "ru", "rub", "rur", "ру", "р", "руб", "рублей":
-					convertFrom = "RUB"
-					convertTo1 = "AMD"
-					convertTo2 = "USD"
-				case "s", "us", "usd", "$", "дол", "до", "доларов", "долларов":
-					convertFrom = "USD"
-					convertTo1 = "AMD"
-					convertTo2 = "RUB"
-				}
-			}
-			_, err = strconv.Atoi(splitedCommands[1])
-			msgText := "-"
-			if err != nil {
-				msgText = "digit err"
-			} else {
-				msgText = fmt.Sprintf("Convert result from %s %s = \n%s %s \n%s %s \n[%s]",
-					splitedCommands[1], convertFrom,
-					fiat(convertFrom, convertTo1, splitedCommands[1]), convertTo1,
-					fiat(convertFrom, convertTo2, splitedCommands[1]), convertTo2,
-					time.Now().Format(dbDateFormatMonth))
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, msgText)
-			msg.ReplyToMessageID = update.Message.MessageID
 			bot.Send(msg)
 
 		case "/SaveCommandsList":
@@ -811,18 +727,7 @@ func main() {
 					}
 				}
 			}
-			/*
-				matchedCalc, _ := regexp.MatchString(`^\d[\d\s\+\\\-\*\(\)\.]+$`, update.Message.Text)
-				matchedCalc2, _ := regexp.MatchString(`^\d+$`, update.Message.Text)
-				//fmt.Println(matchedCalc)
-				if matchedCalc && !matchedCalc2 {
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, calcFromStr(update.Message.Text))
-					msg.ReplyToMessageID = update.Message.MessageID
-					bot.Send(msg)
-				}
-			*/
-
-			if !commandContain {
+			if !commandContain { //TODO: remove
 				///////log.Println("This is unsupport command.")
 				//msg := tgbotapi.NewMessage(update.Message.Chat.ID, "This is unsupport command.")
 				//msg.ReplyToMessageID = update.Message.MessageID
