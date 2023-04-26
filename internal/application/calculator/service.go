@@ -19,8 +19,9 @@ func New() tgCommands.Service {
 	commandsList["calc"] = tgCommands.Command{
 		Command:     "/calc",
 		Synonyms:    []string{"calc", "калк", "сколько будет"},
+		Triggers:    []string{"calc", "калк", "сколько будет"},
 		Templates:   []string{`^\d[\d\s\+\\\-\*\(\)\.]+$`},
-		Description: "Encode string to base64",
+		Description: "(параметры - строка для продсчета данных, пример 2+2 или (2.5 - 1.35) * 2.0",
 		CommandType: "text",
 		Permissions: tgCommands.FreePerms,
 		Handler:     result.calcFromStr,

@@ -32,6 +32,8 @@ var syncMap *sync.Mutex
 var funCommandDCollection = "funcommands"
 var funCommandType = "funcommand"
 
+// New TODO: move to aplication folder
+// New TODO: add list commands and remove (by admin)
 func New(DB *scribble.Driver) tgCommands.Service {
 	result := data{
 		DB: DB,
@@ -71,9 +73,9 @@ func New(DB *scribble.Driver) tgCommands.Service {
 		funCommand.TgCommand.Handler = result.run
 		appendFunCommand(funCommand.Name, funCommand)
 		commandsList[funCommand.Name] = funCommand.TgCommand
-		fmt.Println("Add fun command", funCommand.Name)
+		//fmt.Println("Add fun command", funCommand.Name)
 	}
-	fmt.Println("FunCommands", FunCommands)
+	//fmt.Println("FunCommands", FunCommands)
 	result.list = commandsList
 	return &result
 }
