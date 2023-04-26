@@ -21,20 +21,6 @@ type KeyBoardButtonTG struct {
 	Data string
 }
 
-type SavedBlock struct {
-	Group string
-	User  string
-	Text  string
-}
-
-type CheckList struct {
-	Group  string
-	ChatID int64
-	Text   string
-	Status bool
-	Public bool
-}
-
 type ChatUser struct {
 	ChatId      int64
 	ChatName    string

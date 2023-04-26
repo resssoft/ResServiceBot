@@ -10,10 +10,10 @@ import (
 	"fun-coice/internal/application/b64"
 	"fun-coice/internal/application/calculator"
 	"fun-coice/internal/application/datatimes"
+	"fun-coice/internal/application/lists"
 	financy "fun-coice/internal/application/money"
 	qrcodes "fun-coice/internal/application/qrcodes"
 	"fun-coice/internal/application/translate"
-	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -22,10 +22,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
-	"strings"
-	"time"
 )
 
 const doneMessage = "Done"
@@ -93,18 +90,24 @@ func main() {
 	trService := translate.New()
 	commands = commands.Merge(trService.Commands())
 
-	adminService := admins.New(bot)
-	commands = commands.Merge(adminService.Commands())
-
 	calculatorService := calculator.New()
 	commands = commands.Merge(calculatorService.Commands())
 
 	financeService := financy.New(config.Str("plugins.apilayer.token"))
 	commands = commands.Merge(financeService.Commands())
 
-	fmt.Println("funCommandsService", funCommandsService.Commands())
+	listService := lists.New(DB)
+	commands = commands.Merge(listService.Commands())
 
-	fmt.Println("commands", commands)
+	usersService := lists.New(DB)
+	commands = commands.Merge(usersService.Commands())
+
+	adminService := admins.New(bot, DB, commands)
+	commands = commands.Merge(adminService.Commands())
+
+	//fmt.Println("funCommandsService", funCommandsService.Commands())
+
+	//fmt.Println("commands", commands)
 
 	//bot.Debug = true
 	msg := tgbotapi.NewMessage(config.TelegramAdminId(), "Bot Started with version "+appStat.Version)
@@ -351,20 +354,15 @@ func main() {
 		}
 		//fmt.Println(update.Message.Text)
 
-		//TODO: remove
-		splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
-		commandsCount := len(splitedCommands)
-		if commandsCount == 0 {
-			continue
-		}
-		commandName := splitedCommands[0]
-		//fmt.Println("splitedCommands", splitedCommands)
-
 		for _, command := range commands {
 			if !command.Permission(update.Message) || command.Handler == nil {
 				continue
 			}
 			splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
+			if len(splitedCommands) == 0 {
+				continue
+			}
+			commandName := splitedCommands[0]
 			commandsCount := len(splitedCommands)
 			if commandsCount == 0 {
 				continue
@@ -392,348 +390,16 @@ func main() {
 		//TODO: /commands - show with perms
 		//TODO: added wait answer commands (or files-images combiner)
 
-		//TODO: set permissions for default commands
-		switch commandName {
-		case "/start":
-			_, isAdmin := checkPermission("admin", update.Message.From.ID)
-			user := TGUser{
-				UserID:  int64(update.Message.From.ID),
-				ChatId:  update.Message.Chat.ID,
-				Login:   update.Message.From.UserName,
-				Name:    update.Message.From.String(),
-				IsAdmin: isAdmin,
-			}
-			if err := DB.Write("user", strconv.FormatInt(update.Message.From.ID, 10), user); err != nil {
-				fmt.Println("add command error", err)
-			}
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hi "+update.Message.From.String()+", you are registered!")
-			bot.Send(msg)
-			/*
-				case "/addfan":
-					fmt.Println(splitedCommands)
-					text := ""
-					if len(splitedCommands) != 4 {
-						text = "format: /addfan newcommandname list1_item1,list1_item2 list2_item1,list2_item2"
-						text += "\nExample: cats cute,funny,fluffy Molly,Charlie,Oscar"
-						text += "\n no more than 3 spase in the string"
-					} else {
-						text = addFunCommand(splitedCommands[1], splitedCommands[2], splitedCommands[3])
-					}
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, text)
-					bot.Send(msg)
-			*/
-		case "/getUserList":
-			err, permission := checkPermission("rebuild", update.Message.From.ID)
-			if err != nil {
-				log.Printf("Failed permissions: %v", err)
-			}
-			if permission {
-				records, err := DB.ReadAll("user")
-				if err != nil {
-					fmt.Println("Error", err)
-				}
-
-				userList := []string{}
-				for _, f := range records {
-					userFound := TGUser{}
-					if err := json.Unmarshal([]byte(f), &userFound); err != nil {
-						fmt.Println("Error", err)
-					}
-					userList = append(userList, "["+strconv.FormatInt(config.TelegramAdminId(), 10)+"] "+userFound.Name)
-				}
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(userList, "\n"))
+		/*
+			switch commandName {
+			case "/games":
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Games list")
+				msg.ReplyMarkup = gamesListKeyboard
 				bot.Send(msg)
-			} else {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Permission denied")
-				bot.Send(msg)
+
+			default:
 			}
-
-		case "/rebuild":
-			err, permission := checkPermission("rebuild", update.Message.From.ID)
-			if err != nil {
-				log.Printf("Failed permissions: %v", err)
-			}
-			if permission {
-				dir, err := os.Getwd()
-				if err != nil {
-					log.Printf("Failed to get dir: %v", err)
-				}
-				cmd := exec.Command("/bin/sh", dir+"/rebuild.sh")
-				if err := cmd.Start(); err != nil {
-					log.Printf("Failed to start cmd: %v", err)
-				}
-
-				log.Println("Exit by command...")
-
-				os.Exit(3)
-			} else {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Permission denied")
-				bot.Send(msg)
-			}
-
-		case "/commands":
-			commandsList := "Commands:\n"
-			for _, commandsItem := range commands {
-				commandsList += commandsItem.Command + " - " + commandsItem.Description + "\n"
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandsList)
-			bot.Send(msg)
-
-		case "/addSaveCommand":
-			command := tgCommands.Command{
-				Command:     commandValue,
-				CommandType: "SaveCommand",
-				Permissions: tgCommands.CommandPermissions{
-					UserPermissions: "",
-					ChatPermissions: "",
-				},
-			}
-
-			if err := DB.Write("command", commandValue, command); err != nil {
-				fmt.Println("add command error", err)
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added "+commandValue)
-			bot.Send(msg)
-
-		case "/addFeature":
-			currentTime := time.Now().Format(time.RFC3339)
-			formattedMessage := currentTime + "[" + appStat.Version + "]: " + commandValue
-			err := writeLines([]string{formattedMessage}, "./features.txt")
-			if err != nil {
-				fmt.Println("write command error", err)
-			}
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, doneMessage)
-			bot.Send(msg)
-
-		case "/games":
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Games list")
-			msg.ReplyMarkup = gamesListKeyboard
-			bot.Send(msg)
-
-		case "/getFeatures":
-			//TODO: why it doesnt work
-			//TODO: added save place switcher
-			err, messages := readLines("./features.txt", telegramSingleMessageLengthLimit)
-			if err != nil {
-				fmt.Println("write command error", err)
-			}
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, messages)
-			bot.Send(msg)
-
-		case "/SaveCommandsList":
-			records, err := DB.ReadAll("command")
-			if err != nil {
-				fmt.Println("Error", err)
-			}
-
-			commands := []string{}
-			for _, f := range records {
-				commandFound := tgCommands.Command{}
-				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
-					fmt.Println("Error", err)
-				}
-				commands = append(commands, commandFound.Command)
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, strings.Join(commands, ", "))
-			bot.Send(msg)
-
-		case "/listOf":
-			records, err := DB.ReadAll("saved")
-			if err != nil {
-				fmt.Println("Error", err)
-			}
-
-			commands := []string{}
-			for _, f := range records {
-				commandFound := SavedBlock{}
-				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
-					fmt.Println("Error", err)
-				}
-
-				if commandFound.Group == commandValue && commandFound.User == strconv.FormatInt(update.Message.Chat.ID, 10) {
-					commands = append(commands, commandFound.Text)
-				}
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, commandValue+":\n-"+strings.Join(commands, "\n-"))
-			bot.Send(msg)
-
-		case commands["addCheckItem"].Command:
-			if len(splitedCommands) <= 1 {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "set list name")
-				bot.Send(msg)
-			}
-			debugMessage := ""
-			checkItemText := ""
-			checkListGroup := splitedCommands[1]
-			isPublic := false
-			checkListStatus := false
-			if checkListGroup == "" {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
-				bot.Send(msg)
-				break
-			}
-			checkItemText = strings.Replace(commandValue, checkListGroup+" ", "", -1)
-			debugMessage += " [" + checkItemText + "] "
-			if splitedCommands[2] == "=1" || splitedCommands[2] == "isPublic" {
-				isPublic = true
-				checkItemText = strings.Replace(commandValue, splitedCommands[2]+" ", "", -1)
-				debugMessage += " isPublic "
-			}
-			if splitedCommands[3] == "=1" || splitedCommands[3] == "isCheck" {
-				checkItemText = strings.Replace(commandValue, splitedCommands[3]+" ", "", -1)
-				checkListStatus = true
-				debugMessage += " checkListStatus "
-			}
-			debugMessage += " [" + checkItemText + "] "
-
-			checkListItem := CheckList{
-				Group:  checkListGroup,
-				ChatID: update.Message.Chat.ID,
-				Status: checkListStatus,
-				Public: isPublic,
-				Text:   checkItemText,
-			}
-
-			itemCode := checkListGroup +
-				"_" + strconv.FormatInt(update.Message.Chat.ID, 10) +
-				"_" + strconv.FormatInt(time.Now().UnixNano(), 10)
-
-			if err := DB.Write("checkList", itemCode, checkListItem); err != nil {
-				fmt.Println("add command error", err)
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
-			bot.Send(msg)
-
-		case commands["updateCheckItem"].Command:
-			if len(splitedCommands) <= 1 {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "set list name")
-				bot.Send(msg)
-			}
-			checkListGroup := splitedCommands[1]
-			if checkListGroup == "" {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
-				bot.Send(msg)
-				break
-			}
-
-			records, err := DB.ReadAll("checkList")
-			if err != nil {
-				fmt.Println("db read error", err)
-			}
-
-			newStatus := false
-			if splitedCommands[1] == "=1" {
-				newStatus = true
-			}
-
-			checkItemText := strings.Replace(commandValue, splitedCommands[1]+" ", "", -1)
-			updatedItems := 0
-
-			for _, f := range records {
-				commandFound := CheckList{}
-				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
-					fmt.Println("Error", err)
-				}
-
-				if commandFound.Group == checkListGroup && commandFound.ChatID == update.Message.Chat.ID {
-					if commandFound.Text == checkItemText {
-						commandFound.Status = newStatus
-						if err := DB.Write("checkList", checkListGroup, commandFound); err != nil {
-							fmt.Println("add command error", err)
-						} else {
-							updatedItems++
-						}
-					}
-				}
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
-			bot.Send(msg)
-
-		case commands["сheckList"].Command:
-			if len(splitedCommands) <= 1 {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "set list name")
-				bot.Send(msg)
-			}
-			checkListGroup := splitedCommands[1]
-			if checkListGroup == "" {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "need more info, read /commands")
-				bot.Send(msg)
-				break
-			}
-
-			records, err := DB.ReadAll("сheckList")
-			if err != nil {
-				fmt.Println("db read error", err)
-			}
-
-			checkListStatusCheck := "✓"
-			checkListStatusUnCheck := "○"
-			checkListFull := checkListGroup + ":\n"
-			for _, f := range records {
-				checkListFull += "."
-				commandFound := CheckList{}
-				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
-					fmt.Println("Error", err)
-				}
-
-				checkListFull += "[" + commandFound.Group + " == " + checkListGroup + "] "
-				checkListFull += "[" + strconv.FormatInt(commandFound.ChatID, 10) + " == " + strconv.FormatInt(update.Message.Chat.ID, 10) + "] "
-				if commandFound.Group == checkListGroup && commandFound.ChatID == update.Message.Chat.ID {
-					if commandFound.Status == true {
-						checkListFull += checkListStatusCheck
-					} else {
-						checkListFull += checkListStatusUnCheck
-					}
-					checkListFull += " " + commandFound.Text + "\n"
-				}
-			}
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, checkListFull)
-			bot.Send(msg)
-
-		default:
-			records, err := DB.ReadAll("command")
-			if err != nil {
-				fmt.Println("Error DB.ReadAl", err)
-			}
-
-			commandContain := false
-			var commands []tgCommands.Command
-			for _, f := range records {
-				commandFound := tgCommands.Command{}
-				if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
-					fmt.Println("Error commandFound Unmarshal", err)
-				}
-				commands = append(commands, commandFound)
-				if commandFound.Command == commandName {
-					commandContain = true
-					itemCode := commandName +
-						"_" + strconv.FormatInt(update.Message.Chat.ID, 10) +
-						"_" + strconv.FormatInt(time.Now().UnixNano(), 10)
-					if err := DB.Write(
-						"saved",
-						itemCode,
-						SavedBlock{
-							Text:  commandValue,
-							Group: commandName,
-							User:  strconv.FormatInt(update.Message.Chat.ID, 10),
-						}); err != nil {
-						fmt.Println("add command error", err)
-					} else {
-						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Done")
-						bot.Send(msg)
-					}
-				}
-			}
-			if !commandContain { //TODO: remove
-				///////log.Println("This is unsupport command.")
-				//msg := tgbotapi.NewMessage(update.Message.Chat.ID, "This is unsupport command.")
-				//msg.ReplyToMessageID = update.Message.MessageID
-				//bot.Send(msg)
-			}
-		}
+		*/
 
 		//log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
