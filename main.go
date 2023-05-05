@@ -13,6 +13,7 @@ import (
 	"fun-coice/internal/application/lists"
 	financy "fun-coice/internal/application/money"
 	qrcodes "fun-coice/internal/application/qrcodes"
+	"fun-coice/internal/application/text"
 	"fun-coice/internal/application/translate"
 	"fun-coice/pkg/appStat"
 	"fun-coice/pkg/scribble"
@@ -101,6 +102,9 @@ func main() {
 
 	usersService := lists.New(DB)
 	commands = commands.Merge(usersService.Commands())
+
+	textService := text.New()
+	commands = commands.Merge(textService.Commands())
 
 	adminService := admins.New(bot, DB, commands)
 	commands = commands.Merge(adminService.Commands())
@@ -368,7 +372,7 @@ func main() {
 				continue
 			}
 			if !command.IsImplemented(commandName, botName) {
-				if command.IsMatched(commandName, botName) {
+				if command.IsMatched(update.Message.Text, botName) {
 					commandValue = update.Message.Text
 				} else {
 					continue

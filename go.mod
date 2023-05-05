@@ -7,6 +7,7 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/mnogu/go-calculator v0.0.1
+	github.com/pawelszydlo/humanize v0.0.0-20200522003854-142c3fe71478
 	github.com/rs/zerolog v1.29.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/spf13/viper v1.15.0
