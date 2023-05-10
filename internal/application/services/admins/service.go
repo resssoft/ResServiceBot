@@ -142,13 +142,13 @@ func (d data) Commands() tgCommands.Commands {
 	return d.admin
 }
 
-func (d data) commandInfo(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) commandInfo(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	if len(params) < 2 {
-		return tgbotapi.NewMessage(msg.Chat.ID, "Not found"), true
+		return tgCommands.Simple(msg.Chat.ID, "Not found")
 	}
 	currentCommand, founded := d.user[params[1]]
 	if !founded {
-		return tgbotapi.NewMessage(msg.Chat.ID, "Not found"), true
+		return tgCommands.Simple(msg.Chat.ID, "Not found")
 	}
 	info := fmt.Sprintf("Command: %s\nSynonyms: %s\nTriggers: %s\n\n%s",
 		currentCommand.Command,
@@ -156,46 +156,46 @@ func (d data) commandInfo(msg *tgbotapi.Message, commandName string, param strin
 		currentCommand.Triggers,
 		currentCommand.Description,
 	)
-	return tgbotapi.NewMessage(msg.Chat.ID, info), true
+	return tgCommands.Simple(msg.Chat.ID, info)
 }
 
-func (d data) commandsList(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) commandsList(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	commandsList := "Commands:\n"
 	for _, commandsItem := range d.user {
 		commandsList += commandsItem.Command + " - " + commandsItem.Description + "\n"
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, commandsList), true
+	return tgCommands.Simple(msg.Chat.ID, commandsList)
 }
 
-func (d data) info(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
-	return tgbotapi.NewMessage(msg.Chat.ID, "Admin is @"+config.TelegramAdminLogin()), true
+func (d data) info(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	return tgCommands.Simple(msg.Chat.ID, "Admin is @"+config.TelegramAdminLogin())
 }
 
-func (d data) vars(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) vars(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
-		return tgbotapi.NewMessage(msg.Chat.ID, "set "+params[1]+""+params[2]), true
+		return tgCommands.Simple(msg.Chat.ID, "set "+params[1]+""+params[2])
 	}
-	return nil, false
+	return tgCommands.EmptyCommand()
 }
 
-func (d data) set(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) set(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
-		return tgbotapi.NewMessage(msg.Chat.ID, "set "+params[1]+""+params[2]), true
+		return tgCommands.Simple(msg.Chat.ID, "set "+params[1]+""+params[2])
 	}
-	return nil, false
+	return tgCommands.EmptyCommand()
 }
 
-func (d data) get(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) get(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
-		return tgbotapi.NewMessage(msg.Chat.ID, "set "+params[1]+""+params[2]), true
+		return tgCommands.Simple(msg.Chat.ID, "set "+params[1]+""+params[2])
 	}
-	return nil, false
+	return tgCommands.EmptyCommand()
 }
 
-func (d data) member(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) member(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	from := msg.From
 	chat := msg.Chat
 	chatConfigWithUser := tgbotapi.ChatConfigWithUser{
@@ -222,27 +222,27 @@ func (d data) member(msg *tgbotapi.Message, commandName string, param string, pa
 		chat.Type,
 		chatMember.Status,
 	)
-	return tgbotapi.NewMessage(chat.ID, userInfo), true
+	return tgCommands.Simple(chat.ID, userInfo)
 }
 
-func (d data) rebuild(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) rebuild(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	dir, err := os.Getwd()
 	if err != nil {
 		log.Printf("Failed to get dir: %v", err)
-		return tgbotapi.NewMessage(msg.Chat.ID, "Failed to get dir: "+err.Error()), true
+		return tgCommands.Simple(msg.Chat.ID, "Failed to get dir: "+err.Error())
 	}
 	cmd := exec.Command("/bin/sh", dir+"/rebuild.sh")
 	if err := cmd.Start(); err != nil {
 		log.Printf("Failed to start cmd: %v", err)
-		return tgbotapi.NewMessage(msg.Chat.ID, "Failed to start cmd: "+err.Error()), true
+		return tgCommands.Simple(msg.Chat.ID, "Failed to start cmd: "+err.Error())
 	}
 	log.Println("Exit by command rebuild...")
 
 	os.Exit(3)
-	return nil, false
+	return tgCommands.EmptyCommand()
 }
 
-func (d data) users(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) users(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	records, err := d.DB.ReadAll("user")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -256,10 +256,10 @@ func (d data) users(msg *tgbotapi.Message, commandName string, param string, par
 		}
 		userList = append(userList, "["+strconv.FormatInt(config.TelegramAdminId(), 10)+"] "+userFound.Name)
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, strings.Join(userList, "\n")), true
+	return tgCommands.Simple(msg.Chat.ID, strings.Join(userList, "\n"))
 }
 
-func (d data) addFeature(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) addFeature(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	formattedMessage := ""
 	d.DB.Read("features", "features", &formattedMessage)
 	currentTime := time.Now().Format(time.RFC3339)
@@ -267,25 +267,25 @@ func (d data) addFeature(msg *tgbotapi.Message, commandName string, param string
 
 	if err := d.DB.Write("features", "features", formattedMessage); err != nil {
 		fmt.Println("add command error", err)
-		return tgbotapi.NewMessage(msg.Chat.ID, "Err: "+err.Error()), true
+		return tgCommands.Simple(msg.Chat.ID, "Err: "+err.Error())
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, "saved"), true
+	return tgCommands.Simple(msg.Chat.ID, "saved")
 }
 
-func (d data) features(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) features(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	formattedMessage := "-"
 	d.DB.Read("features", "features", &formattedMessage)
-	return tgbotapi.NewMessage(msg.Chat.ID, formattedMessage), true
+	return tgCommands.Simple(msg.Chat.ID, formattedMessage)
 }
 
-func (d data) scanChat(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) scanChat(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	fmt.Println("commandName", commandName)
 	fmt.Println("param", param)
 	fmt.Println("params", params)
 	result := ""
 	if len(params) < 2 {
 		result = "Incorrect params"
-		return tgbotapi.NewMessage(msg.Chat.ID, result), true
+		return tgCommands.Simple(msg.Chat.ID, result)
 	}
 	chatId, _ := strconv.ParseInt(params[1], 10, 64)
 	chat, err := d.bot.GetChat(tgbotapi.ChatInfoConfig{
@@ -296,7 +296,7 @@ func (d data) scanChat(msg *tgbotapi.Message, commandName string, param string, 
 	})
 	if err != nil {
 		fmt.Println(err.Error())
-		return tgbotapi.NewMessage(msg.Chat.ID, result), true
+		return tgCommands.Simple(msg.Chat.ID, result)
 	}
 
 	chatMembersCount, err := d.bot.GetChatMembersCount(tgbotapi.ChatMemberCountConfig{
@@ -307,7 +307,7 @@ func (d data) scanChat(msg *tgbotapi.Message, commandName string, param string, 
 	})
 	if err != nil {
 		fmt.Println(err.Error())
-		return tgbotapi.NewMessage(msg.Chat.ID, result), true
+		return tgCommands.Simple(msg.Chat.ID, result)
 	}
 	dop := chat.Type
 	if chat.HasProtectedContent {
@@ -328,16 +328,16 @@ func (d data) scanChat(msg *tgbotapi.Message, commandName string, param string, 
 		fmt.Println(err.Error())
 		result += err.Error()
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, result), true
+	return tgCommands.Simple(msg.Chat.ID, result)
 }
 
 //wait command
-func (d data) fillChatUsersInfo(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) fillChatUsersInfo(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	var from int64
 	var fromChat int64
 	result := ""
 	if msg.ForwardFrom == nil {
-		return tgbotapi.NewMessage(msg.Chat.ID, "u need forward message"), true
+		return tgCommands.Simple(msg.Chat.ID, "u need forward message")
 	} else {
 		from = msg.ForwardFrom.ID
 		fromChat = msg.ForwardFromChat.ID
@@ -351,12 +351,12 @@ func (d data) fillChatUsersInfo(msg *tgbotapi.Message, commandName string, param
 	})
 	if err != nil {
 		fmt.Println(err.Error())
-		return tgbotapi.NewMessage(msg.Chat.ID, "Get user err"+err.Error()), true
+		return tgCommands.Simple(msg.Chat.ID, "Get user err"+err.Error())
 	}
 	err = d.DB.Write("chat"+strconv.FormatInt(fromChat, 10), strconv.FormatInt(from, 10), chatMemberInfo)
 	if err != nil {
 		fmt.Println(err.Error())
 		result += err.Error()
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, result), true
+	return tgCommands.Simple(msg.Chat.ID, result)
 }

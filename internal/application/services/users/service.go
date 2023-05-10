@@ -36,7 +36,7 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) startBot(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) startBot(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	user := tgCommands.User{
 		UserID: msg.From.ID,
 		ChatId: msg.Chat.ID,
@@ -48,5 +48,5 @@ func (d data) startBot(msg *tgbotapi.Message, commandName string, param string, 
 		fmt.Println("add command error", err)
 	}
 
-	return tgbotapi.NewMessage(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome! See by /commands"), true
+	return tgCommands.Simple(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome! See by /commands")
 }

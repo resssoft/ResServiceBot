@@ -36,12 +36,10 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) ToLower(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
-	message := tgbotapi.NewMessage(msg.Chat.ID, strings.ToLower(param))
-	return message, true
+func (d data) ToLower(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	return tgCommands.Simple(msg.Chat.ID, strings.ToLower(param))
 }
 
-func (d data) toUpper(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
-	message := tgbotapi.NewMessage(msg.Chat.ID, strings.ToUpper(param))
-	return message, true
+func (d data) toUpper(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	return tgCommands.Simple(msg.Chat.ID, strings.ToUpper(param))
 }

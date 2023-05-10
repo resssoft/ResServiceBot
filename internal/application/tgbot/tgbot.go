@@ -8,6 +8,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	zlog "github.com/rs/zerolog/log"
 	"log"
+	"sync"
 )
 
 var defaultWorkersCount = 10
@@ -20,6 +21,8 @@ type data struct {
 	Commands     tgCommands.Commands
 	Bot          *tgbotapi.BotAPI
 	WorkersCount int
+	Deferred     map[uint64]tgCommands.Command
+	mutex        *sync.Mutex
 }
 
 func New(token, webUri string) data {
@@ -34,6 +37,8 @@ func New(token, webUri string) data {
 		Bot:          bot,
 		WorkersCount: defaultWorkersCount,
 		StartMsg:     true,
+		Deferred:     make(map[uint64]tgCommands.Command),
+		mutex:        &sync.Mutex{},
 	}
 }
 
@@ -326,9 +331,9 @@ func (d data) CommandsHandler(updates tgbotapi.UpdatesChannel) {
 					continue
 				}
 			}
-			botMsg, prepared := command.Handler(update.Message, command.Command, commandValue, splitedCommands)
-			if prepared {
-				_, err = d.Bot.Send(botMsg)
+			result := command.Handler(update.Message, command.Command, commandValue, splitedCommands)
+			if result.Prepared {
+				_, err = d.Bot.Send(result.ChatEvent)
 				if err != nil {
 					fmt.Println(err.Error())
 				}

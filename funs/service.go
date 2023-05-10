@@ -84,7 +84,7 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) add(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) add(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	fmt.Println(params)
 	text := ""
 	if len(params) != 4 {
@@ -94,20 +94,20 @@ func (d data) add(msg *tgbotapi.Message, commandName string, param string, param
 	} else {
 		text = d.addFunCommand(params[1], params[2], params[3])
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, text), true
+	return tgCommands.Simple(msg.Chat.ID, text)
 }
 
-func (d data) run(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) run(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	if commandData, exist := isFunCommand(commandName); exist {
 		s1 := rand.NewSource(time.Now().UnixNano())
 		r1 := rand.New(s1)
 		time.Sleep(time.Millisecond * time.Duration(r1.Int63n(200)))
 		r2 := rand.New(s1)
-		message := tgbotapi.NewMessage(msg.Chat.ID, commandData.List1[r1.Intn(len(commandData.List1))]+" "+commandData.List2[r2.Intn(len(commandData.List2))])
-		message.ReplyToMessageID = msg.MessageID
-		return message, true
+		return tgCommands.SimpleReply(msg.Chat.ID,
+			commandData.List1[r1.Intn(len(commandData.List1))]+" "+commandData.List2[r2.Intn(len(commandData.List2))],
+			msg.MessageID)
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, "Something wrong! Write to admin"), true
+	return tgCommands.Simple(msg.Chat.ID, "Something wrong! Write to admin")
 }
 
 func isFunCommand(name string) (FunCommand, bool) {

@@ -35,7 +35,7 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) calcFromStr(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) calcFromStr(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	log.Println("calcFromStr", param)
 	log.Println("params", params)
 	log.Println("commandName", commandName)
@@ -43,7 +43,7 @@ func (d data) calcFromStr(msg *tgbotapi.Message, commandName string, param strin
 	if err != nil {
 		log.Println(err.Error())
 		//TODO: admin errors log
-		return nil, false
+		return tgCommands.EmptyCommand()
 	}
 	resultText := fmt.Sprintf("%.2f", val)
 	intPart, floatPart := math.Modf(val)
@@ -53,7 +53,5 @@ func (d data) calcFromStr(msg *tgbotapi.Message, commandName string, param strin
 	if val < 0.01 {
 		resultText = fmt.Sprintf("%.5f", val)
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, resultText)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, resultText, msg.MessageID)
 }

@@ -59,57 +59,47 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) tr(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) tr(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	result, err := gt.Translate(param, params[1], params[2])
 	if err != nil {
 		result = err.Error()
 		fmt.Println(err)
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, result)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) tr_hy_ru(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) tr_hy_ru(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	result, err := gt.Translate(param, "hy", "ru")
 	if err != nil {
 		result = err.Error()
 		fmt.Println(err)
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, result)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) tr_ru_hy(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) tr_ru_hy(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	result, err := gt.Translate(param, "ru", "hy")
 	if err != nil {
 		result = err.Error()
 		fmt.Println(err)
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, result)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) tr_ru_en(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) tr_ru_en(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	result, err := gt.Translate(param, "ru", "en")
 	if err != nil {
 		result = err.Error()
 		fmt.Println(err)
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, result)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) tr_en_ru(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) tr_en_ru(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	result, err := gt.Translate(param, "en", "ru")
 	if err != nil {
 		result = err.Error()
 		fmt.Println(err)
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, result)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }

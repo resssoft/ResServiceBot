@@ -25,37 +25,60 @@ type Command struct {
 	Description string
 	CommandType string
 	Permissions CommandPermissions
-	Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool)
-	//Bots        []string //multybots
+	Handler     func(*tgbotapi.Message, string, string, []string) HandlerResult
 }
 
+//OLD func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool) tgCommands.HandlerResult tgCommands.PreparedCommand( tgCommands.PreparedCommand
+// tgCommands.PreparedCommand(tgbotapi.NewMessage ->  tgCommands.Simple
 //TODO: Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, HandlerResult)
 
 type HandlerResult struct {
-	Prepared bool // command is prepared for sending
-	Wait     bool // wait next command
+	Prepared  bool // command is prepared for sending
+	Wait      bool // wait next command
+	ChatEvent tgbotapi.Chattable
 }
 
-func PreparedCommand() HandlerResult {
+func EmptyCommand() HandlerResult {
 	return HandlerResult{
-		Prepared: true,
+		ChatEvent: nil,
 	}
 }
 
-func UnPreparedCommand() HandlerResult {
-	return HandlerResult{}
-}
-
-func WaitingCommand() HandlerResult {
+func PreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
 	return HandlerResult{
-		Wait: true,
+		Prepared:  true,
+		ChatEvent: chatEvent,
 	}
 }
 
-func WaitingPreparedCommand() HandlerResult {
+func Simple(chatId int64, text string) HandlerResult {
+	return PreparedCommand(tgbotapi.NewMessage(chatId, text))
+}
+
+func SimpleReply(chatId int64, text string, replyTo int) HandlerResult {
+	newMsg := tgbotapi.NewMessage(chatId, text)
+	newMsg.ReplyToMessageID = replyTo
+	return PreparedCommand(newMsg)
+}
+
+func UnPreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
 	return HandlerResult{
-		Wait:     true,
-		Prepared: true,
+		ChatEvent: chatEvent,
+	}
+}
+
+func WaitingCommand(chatEvent tgbotapi.Chattable) HandlerResult {
+	return HandlerResult{
+		Wait:      true,
+		ChatEvent: chatEvent,
+	}
+}
+
+func WaitingPreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
+	return HandlerResult{
+		Wait:      true,
+		Prepared:  true,
+		ChatEvent: chatEvent,
 	}
 }
 

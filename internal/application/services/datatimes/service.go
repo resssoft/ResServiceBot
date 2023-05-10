@@ -81,7 +81,7 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) getDuration(msg *tgbotapi.Message, commandName string, commandValue string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) getDuration(msg *tgbotapi.Message, commandName string, commandValue string, params []string) tgCommands.HandlerResult {
 	msgText := fmt.Sprintf("Input: %s\n\n", commandValue)
 	duration := time.Second
 	var err error
@@ -98,13 +98,13 @@ func (d data) getDuration(msg *tgbotapi.Message, commandName string, commandValu
 		fmt.Println("humanize for en is not exist")
 	}
 	msgText += dateFormat(time.Now().Add(duration))
-	return tgbotapi.NewMessage(msg.Chat.ID, msgText), true
+	return tgCommands.Simple(msg.Chat.ID, msgText)
 }
 
-func (d data) getInfo(msg *tgbotapi.Message, commandName string, commandValue string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) getInfo(msg *tgbotapi.Message, commandName string, commandValue string, params []string) tgCommands.HandlerResult {
 	var err error
 	if len(params) == 0 {
-		return tgbotapi.NewMessage(msg.Chat.ID, time.Now().Format("2006-01-02 15:04:05 -0700")), true
+		return tgCommands.Simple(msg.Chat.ID, time.Now().Format("2006-01-02 15:04:05 -0700"))
 	}
 	msgText := fmt.Sprintf("Input: %s\n\n", commandValue)
 	timestampConvert, _ := regexp.MatchString(`^\d\d\d\d\d\d+$`, commandValue)
@@ -227,7 +227,7 @@ func (d data) getInfo(msg *tgbotapi.Message, commandName string, commandValue st
 		}
 	}
 	//time.Parse(commandValue, commandValue)
-	return tgbotapi.NewMessage(msg.Chat.ID, msgText), true
+	return tgCommands.Simple(msg.Chat.ID, msgText)
 }
 
 func byTimezone(value string) *time.Location {
@@ -287,7 +287,7 @@ func durationFormat(val string) string {
 	return msgText
 }
 
-func (d data) timeConvert(msg *tgbotapi.Message, commandName string, commandValue string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) timeConvert(msg *tgbotapi.Message, commandName string, commandValue string, params []string) tgCommands.HandlerResult {
 	commandValue = strings.ToLower(commandValue)
 	fromType := Nanosecond
 	toType := Nanosecond
@@ -297,7 +297,7 @@ func (d data) timeConvert(msg *tgbotapi.Message, commandName string, commandValu
 	fromVal, fromName, toName := d.parseTimeCovert(commandValue)
 	if fromName == "" || fromVal == "" {
 		fmt.Println("not parsed", commandValue) // DEBUG
-		return nil, false
+		return tgCommands.EmptyCommand()
 	}
 	switch fromName {
 	case "second", "seconds", "секунд", "секунда", "секунды", "секундах":
@@ -334,7 +334,7 @@ func (d data) timeConvert(msg *tgbotapi.Message, commandName string, commandValu
 	from, _ = strconv.ParseInt(fromVal, 10, 64)
 	fmt.Println(fmt.Sprintf("fromName[%s]%v toName[%s]%v val: %v", fromName, fromType, toName, toType, from)) // DEBUG
 	result := d.convert(from, fromType, toType)
-	return tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("%v %s", result, resultName)), true
+	return tgCommands.Simple(msg.Chat.ID, fmt.Sprintf("%v %s", result, resultName))
 }
 
 func (d data) parseTimeCovert(val string) (string, string, string) {

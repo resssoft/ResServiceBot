@@ -54,7 +54,7 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) fiat(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) fiat(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	convertFrom := "AMD"
 	convertTo1 := "RUB"
 	convertTo2 := "USD"
@@ -86,9 +86,7 @@ func (d data) fiat(msg *tgbotapi.Message, commandName string, param string, para
 			time.Now().Format(dbDateFormatMonth))
 	}
 
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, msgText)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, msgText, msg.MessageID)
 }
 
 func (d data) fiatConvert(from, to, amount string) string {

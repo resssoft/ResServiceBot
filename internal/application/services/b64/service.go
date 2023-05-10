@@ -38,16 +38,12 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) decode(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) decode(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	b64result, _ := base64.StdEncoding.DecodeString(param)
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, string(b64result))
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, string(b64result), msg.MessageID)
 }
 
-func (d data) encode(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) encode(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	b64result := base64.StdEncoding.EncodeToString([]byte(param))
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, b64result)
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, b64result, msg.MessageID)
 }

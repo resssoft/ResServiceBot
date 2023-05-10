@@ -74,10 +74,10 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) addCheckItem(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) addCheckItem(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 
 	if len(params) <= 1 {
-		return tgbotapi.NewMessage(msg.Chat.ID, "set list name"), true
+		return tgCommands.Simple(msg.Chat.ID, "set list name")
 	}
 	debugMessage := ""
 	checkItemText := ""
@@ -85,7 +85,7 @@ func (d data) addCheckItem(msg *tgbotapi.Message, commandName string, param stri
 	isPublic := false
 	checkListStatus := false
 	if checkListGroup == "" {
-		return tgbotapi.NewMessage(msg.Chat.ID, "need more info, read /commands"), true
+		return tgCommands.Simple(msg.Chat.ID, "need more info, read /commands")
 	}
 	checkItemText = strings.Replace(param, checkListGroup+" ", "", -1)
 	debugMessage += " [" + checkItemText + "] "
@@ -115,18 +115,18 @@ func (d data) addCheckItem(msg *tgbotapi.Message, commandName string, param stri
 
 	if err := d.DB.Write("checkList", itemCode, checkListItem); err != nil {
 		fmt.Println("add command error", err)
-		return nil, false
+		return tgCommands.EmptyCommand()
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage), true
+	return tgCommands.Simple(msg.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
 }
 
-func (d data) updateCheckItem(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) updateCheckItem(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	if len(params) <= 1 {
-		return tgbotapi.NewMessage(msg.Chat.ID, "set list name"), true
+		return tgCommands.Simple(msg.Chat.ID, "set list name")
 	}
 	checkListGroup := params[1]
 	if checkListGroup == "" {
-		return tgbotapi.NewMessage(msg.Chat.ID, "need more info, read /commands"), true
+		return tgCommands.Simple(msg.Chat.ID, "need more info, read /commands")
 	}
 
 	records, err := d.DB.ReadAll("checkList")
@@ -159,16 +159,16 @@ func (d data) updateCheckItem(msg *tgbotapi.Message, commandName string, param s
 			}
 		}
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items"), true
+	return tgCommands.Simple(msg.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
 }
 
-func (d data) сheckList(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) сheckList(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	if len(params) <= 1 {
-		return tgbotapi.NewMessage(msg.Chat.ID, "set list name"), true
+		return tgCommands.Simple(msg.Chat.ID, "set list name")
 	}
 	checkListGroup := params[1]
 	if checkListGroup == "" {
-		return tgbotapi.NewMessage(msg.Chat.ID, "need more info, read /commands"), true
+		return tgCommands.Simple(msg.Chat.ID, "need more info, read /commands")
 	}
 
 	records, err := d.DB.ReadAll("сheckList")
@@ -197,10 +197,10 @@ func (d data) сheckList(msg *tgbotapi.Message, commandName string, param string
 			checkListFull += " " + commandFound.Text + "\n"
 		}
 	}
-	return tgbotapi.NewMessage(msg.Chat.ID, checkListFull), true
+	return tgCommands.Simple(msg.Chat.ID, checkListFull)
 }
 
-func (d data) addSaveCommand(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) addSaveCommand(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	command := tgCommands.Command{
 		Command:     param,
 		CommandType: "SaveCommand",
@@ -212,13 +212,12 @@ func (d data) addSaveCommand(msg *tgbotapi.Message, commandName string, param st
 
 	if err := d.DB.Write("command", param, command); err != nil {
 		fmt.Println("add command error", err)
-		return nil, false
+		return tgCommands.EmptyCommand()
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, "Added "+param)
-	return msgNew, true
+	return tgCommands.Simple(msg.Chat.ID, "Added "+param)
 }
 
-func (d data) SaveCommandsList(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) SaveCommandsList(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	records, err := d.DB.ReadAll("command")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -229,16 +228,14 @@ func (d data) SaveCommandsList(msg *tgbotapi.Message, commandName string, param 
 		commandFound := tgCommands.Command{}
 		if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
 			fmt.Println("Error", err)
-			return nil, false
+			return tgCommands.EmptyCommand()
 		}
 		commands = append(commands, commandFound.Command)
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, strings.Join(commands, ", "))
-	msgNew.ReplyToMessageID = msg.MessageID
-	return msgNew, true
+	return tgCommands.SimpleReply(msg.Chat.ID, strings.Join(commands, ", "), msg.MessageID)
 }
 
-func (d data) listOf(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) listOf(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	records, err := d.DB.ReadAll("saved")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -253,6 +250,5 @@ func (d data) listOf(msg *tgbotapi.Message, commandName string, param string, pa
 			commands = append(commands, commandFound.Text)
 		}
 	}
-	msgNew := tgbotapi.NewMessage(msg.Chat.ID, param+":\n-"+strings.Join(commands, "\n-"))
-	return msgNew, true
+	return tgCommands.Simple(msg.Chat.ID, param+":\n-"+strings.Join(commands, "\n-"))
 }

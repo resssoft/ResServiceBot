@@ -36,26 +36,26 @@ func (d data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) qr(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) qr(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	var qr []byte
 	qr, err := qrcode.Encode(param, qrcode.Medium, 1024)
 	if err != nil {
-		return tgbotapi.NewMessage(msg.Chat.ID, "failed to encode qrcode"), true
+		return tgCommands.Simple(msg.Chat.ID, "failed to encode qrcode")
 	}
 	file := tgbotapi.FileBytes{Name: "qr.png", Bytes: qr}
 	message := tgbotapi.NewPhoto(msg.Chat.ID, file)
 	message.Caption = param
-	return message, true
+	return tgCommands.PreparedCommand(message)
 }
 
-func (d data) qr256(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+func (d data) qr256(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	var qr []byte
 	qr, err := qrcode.Encode(param, qrcode.Medium, 256)
 	if err != nil {
-		return tgbotapi.NewMessage(msg.Chat.ID, "failed to encode qrcode"), true
+		return tgCommands.Simple(msg.Chat.ID, "failed to encode qrcode")
 	}
 	file := tgbotapi.FileBytes{Name: "qr256.png", Bytes: qr}
 	message := tgbotapi.NewPhoto(msg.Chat.ID, file)
 	message.Caption = param
-	return message, true
+	return tgCommands.PreparedCommand(message)
 }
