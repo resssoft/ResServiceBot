@@ -18,6 +18,8 @@ import (
 	"unicode/utf8"
 )
 
+//TODO: CLEAR OLD FUNCTIONS OR MOVE TO OTHERS SERVICES
+
 var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("🧡 Lovely game", "lovelyGame"),
@@ -291,53 +293,21 @@ func unregisteredChannelUsers(contentType string, chatId int64) string {
 	return users
 }
 
-func splitCommand(command string, separate string) ([]string, string) {
-	if command == "" {
-		return []string{}, ""
-	}
-	if separate == "" {
-		separate = " "
-	}
-	result := strings.Split(command, separate)
-	return result, strings.Replace(command, result[0]+separate, "", -1)
-}
-
-func writeLines(lines []string, path string) error {
-
-	// overwrite file if it exists
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	// new writer w/ default 4096 buffer size
-	w := bufio.NewWriter(file)
-
-	for _, line := range lines {
-		_, err := w.WriteString(line + "\n")
-		if err != nil {
-			return err
-		}
-	}
-
-	// flush outstanding data
-	return w.Flush()
-}
-
 func checkPermission(command string, userId int64) (error, bool) {
-	typeOfCommand := commands[command].Permissions.UserPermissions
-	switch typeOfCommand {
-	case "all":
-		return nil, true
-	case "admin":
-		if userId == existAdmin.UserID {
+
+	/*
+		typeOfCommand := tgbot.commands[command].Permissions.UserPermissions
+		switch typeOfCommand {
+		case "all":
 			return nil, true
-		} else {
-			return nil, false
+		case "admin":
+			if userId == existAdmin.UserID {
+				return nil, true
+			} else {
+				return nil, false
+			}
 		}
-	}
+	*/
 	return nil, true
 }
 
@@ -402,4 +372,3 @@ func getTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
 
 var existAdmin = TGUser{}
 var DB *scribble.Driver
-var appPath = ""

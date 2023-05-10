@@ -1,8 +1,10 @@
-package main
+package tgbot
 
-import tgCommands "fun-coice/internal/domain/commands/tg"
+import (
+	tgCommands "fun-coice/internal/domain/commands/tg"
+)
 
-var commands = tgCommands.Commands{
+var defaultCommands = tgCommands.Commands{
 	"start": {
 		Command:     "/start",
 		Description: "start bot",

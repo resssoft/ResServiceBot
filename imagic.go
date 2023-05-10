@@ -6,6 +6,8 @@ import (
 	"math"
 )
 
+//TODO: MOVE TO SERVICE
+
 func getMagic(blob []byte) ([]byte, error) {
 	imagick.Initialize()
 	defer imagick.Terminate()

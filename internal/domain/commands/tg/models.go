@@ -1,9 +1,11 @@
 package tgCommands
 
 import (
+	"bufio"
 	"fmt"
 	"fun-coice/config"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"os"
 	"regexp"
 )
 
@@ -25,6 +27,36 @@ type Command struct {
 	Permissions CommandPermissions
 	Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool)
 	//Bots        []string //multybots
+}
+
+//TODO: Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, HandlerResult)
+
+type HandlerResult struct {
+	Prepared bool // command is prepared for sending
+	Wait     bool // wait next command
+}
+
+func PreparedCommand() HandlerResult {
+	return HandlerResult{
+		Prepared: true,
+	}
+}
+
+func UnPreparedCommand() HandlerResult {
+	return HandlerResult{}
+}
+
+func WaitingCommand() HandlerResult {
+	return HandlerResult{
+		Wait: true,
+	}
+}
+
+func WaitingPreparedCommand() HandlerResult {
+	return HandlerResult{
+		Wait:     true,
+		Prepared: true,
+	}
 }
 
 func (t *Command) IsImplemented(msg, botName string) bool {
@@ -115,4 +147,28 @@ func (cs Commands) Merge(list Commands) Commands {
 		merged[key] = value
 	}
 	return merged
+}
+
+func writeLines(lines []string, path string) error {
+
+	// overwrite file if it exists
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	// new writer w/ default 4096 buffer size
+	w := bufio.NewWriter(file)
+
+	for _, line := range lines {
+		_, err := w.WriteString(line + "\n")
+		if err != nil {
+			return err
+		}
+	}
+
+	// flush outstanding data
+	return w.Flush()
 }

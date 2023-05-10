@@ -115,6 +115,23 @@ func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgCommands.Comm
 		Permissions: tgCommands.FreePerms,
 		Handler:     result.commandsList,
 	}
+	commandsList["scanChat"] = tgCommands.Command{
+		Command:     "/scanChat",
+		Description: "scan Chat",
+		CommandType: "text",
+		Permissions: tgCommands.AdminPerms,
+		Handler:     result.scanChat,
+	}
+	/*
+		commandsList["scanChat"] = tgCommands.Command{
+			Command:     "/scanChat",
+			Description: "scan Chat",
+			CommandType: "text",
+			Permissions: tgCommands.AdminPerms,
+			Handler:     result.scanChat,
+		}
+		/*
+	*/
 	// "/vars"
 
 	result.admin = commandsList
@@ -259,4 +276,87 @@ func (d data) features(msg *tgbotapi.Message, commandName string, param string, 
 	formattedMessage := "-"
 	d.DB.Read("features", "features", &formattedMessage)
 	return tgbotapi.NewMessage(msg.Chat.ID, formattedMessage), true
+}
+
+func (d data) scanChat(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	fmt.Println("commandName", commandName)
+	fmt.Println("param", param)
+	fmt.Println("params", params)
+	result := ""
+	if len(params) < 2 {
+		result = "Incorrect params"
+		return tgbotapi.NewMessage(msg.Chat.ID, result), true
+	}
+	chatId, _ := strconv.ParseInt(params[1], 10, 64)
+	chat, err := d.bot.GetChat(tgbotapi.ChatInfoConfig{
+		tgbotapi.ChatConfig{
+			ChatID: chatId,
+			//SuperGroupUsername: "",
+		},
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return tgbotapi.NewMessage(msg.Chat.ID, result), true
+	}
+
+	chatMembersCount, err := d.bot.GetChatMembersCount(tgbotapi.ChatMemberCountConfig{
+		tgbotapi.ChatConfig{
+			ChatID: chatId,
+			//SuperGroupUsername: "",
+		},
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return tgbotapi.NewMessage(msg.Chat.ID, result), true
+	}
+	dop := chat.Type
+	if chat.HasProtectedContent {
+		dop += " ProtectedContent "
+	}
+	if chat.InviteLink != "" {
+		dop += " Link: " + chat.InviteLink
+	}
+	result = fmt.Sprintf("Chat[%v] Users [%v] \n%v\nTitle: %s \n %s",
+		chat.ID,
+		dop,
+		chatMembersCount,
+		chat.Title,
+		chat.Description,
+	)
+	err = d.DB.Write("chats", strconv.FormatInt(chat.ID, 10), chat)
+	if err != nil {
+		fmt.Println(err.Error())
+		result += err.Error()
+	}
+	return tgbotapi.NewMessage(msg.Chat.ID, result), true
+}
+
+//wait command
+func (d data) fillChatUsersInfo(msg *tgbotapi.Message, commandName string, param string, params []string) (tgbotapi.Chattable, bool) {
+	var from int64
+	var fromChat int64
+	result := ""
+	if msg.ForwardFrom == nil {
+		return tgbotapi.NewMessage(msg.Chat.ID, "u need forward message"), true
+	} else {
+		from = msg.ForwardFrom.ID
+		fromChat = msg.ForwardFromChat.ID
+	}
+
+	chatMemberInfo, err := d.bot.GetChatMember(tgbotapi.GetChatMemberConfig{
+		ChatConfigWithUser: tgbotapi.ChatConfigWithUser{
+			ChatID: fromChat,
+			UserID: from,
+		},
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+		return tgbotapi.NewMessage(msg.Chat.ID, "Get user err"+err.Error()), true
+	}
+	err = d.DB.Write("chat"+strconv.FormatInt(fromChat, 10), strconv.FormatInt(from, 10), chatMemberInfo)
+	if err != nil {
+		fmt.Println(err.Error())
+		result += err.Error()
+	}
+	return tgbotapi.NewMessage(msg.Chat.ID, result), true
 }
