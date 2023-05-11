@@ -33,8 +33,9 @@ type Command struct {
 //TODO: Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, HandlerResult)
 
 type HandlerResult struct {
-	Prepared  bool // command is prepared for sending
-	Wait      bool // wait next command
+	Prepared  bool   // command is prepared for sending
+	Wait      bool   // wait next command
+	Next      string // next command
 	ChatEvent tgbotapi.Chattable
 }
 
@@ -67,10 +68,19 @@ func UnPreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
 	}
 }
 
-func WaitingCommand(chatEvent tgbotapi.Chattable) HandlerResult {
+func WaitingCommand(command string) HandlerResult {
+	return HandlerResult{
+		Wait: true,
+		Next: command,
+	}
+}
+
+func WaitingWithText(chatId int64, text, command string) HandlerResult {
 	return HandlerResult{
 		Wait:      true,
-		ChatEvent: chatEvent,
+		Prepared:  true,
+		ChatEvent: tgbotapi.NewMessage(chatId, text),
+		Next:      command,
 	}
 }
 

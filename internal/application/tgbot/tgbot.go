@@ -8,6 +8,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	zlog "github.com/rs/zerolog/log"
 	"log"
+	"strings"
 	"sync"
 )
 
@@ -21,7 +22,7 @@ type data struct {
 	Commands     tgCommands.Commands
 	Bot          *tgbotapi.BotAPI
 	WorkersCount int
-	Deferred     map[uint64]tgCommands.Command
+	Deferred     map[int64]string
 	mutex        *sync.Mutex
 }
 
@@ -37,7 +38,7 @@ func New(token, webUri string) data {
 		Bot:          bot,
 		WorkersCount: defaultWorkersCount,
 		StartMsg:     true,
-		Deferred:     make(map[uint64]tgCommands.Command),
+		Deferred:     make(map[int64]string),
 		mutex:        &sync.Mutex{},
 	}
 }
@@ -71,8 +72,42 @@ func (d data) Run() error {
 	return nil
 }
 
+func (d data) AppendDeferred(user int64, command string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	d.Deferred[user] = command
+}
+
+func (d data) CheckDeferred(user int64) string {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	//fmt.Println(user, len(d.Deferred)) //DEVMODE
+	founded := d.Deferred[user]
+	delete(d.Deferred, user)
+	return founded
+}
+
+func (d data) RunCommand(command tgCommands.Command, msg *tgbotapi.Message, commandName string, param string, params []string) bool {
+	result := command.Handler(msg, command.Command, param, params)
+	if result.Prepared {
+		//fmt.Println("COMMAND PREPAERD") //DEVMODE
+		_, err := d.Bot.Send(result.ChatEvent)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		if !result.Wait {
+			return true
+		}
+	}
+	if result.Wait {
+		//fmt.Println("COMMAND Wait", msg.From.ID, result.Next)  //DEVMODE
+		d.AppendDeferred(msg.From.ID, result.Next)
+		return true
+	}
+	return false
+}
+
 func (d data) CommandsHandler(updates tgbotapi.UpdatesChannel) {
-	var err error
 	for update := range updates {
 		/*
 			if update.CallbackQuery != nil {
@@ -311,16 +346,28 @@ func (d data) CommandsHandler(updates tgbotapi.UpdatesChannel) {
 		*/
 		//fmt.Println(update.Message.Text)
 
+		if founded := d.CheckDeferred(update.Message.From.ID); founded != "" {
+			if commandDeferred, ok := d.Commands[founded]; ok {
+				if d.RunCommand(
+					commandDeferred,
+					update.Message,
+					commandDeferred.Command,
+					update.Message.Text,
+					strings.Split(update.Message.Text, " ")) {
+					break
+				}
+			}
+		}
 		for _, command := range d.Commands {
 			if !command.Permission(update.Message) || command.Handler == nil {
 				continue
 			}
-			splitedCommands, commandValue := splitCommand(update.Message.Text, " ")
-			if len(splitedCommands) == 0 {
+			splitCommands, commandValue := splitCommand(update.Message.Text, " ")
+			if len(splitCommands) == 0 {
 				continue
 			}
-			commandName := splitedCommands[0]
-			commandsCount := len(splitedCommands)
+			commandName := splitCommands[0]
+			commandsCount := len(splitCommands)
 			if commandsCount == 0 {
 				continue
 			}
@@ -331,12 +378,8 @@ func (d data) CommandsHandler(updates tgbotapi.UpdatesChannel) {
 					continue
 				}
 			}
-			result := command.Handler(update.Message, command.Command, commandValue, splitedCommands)
-			if result.Prepared {
-				_, err = d.Bot.Send(result.ChatEvent)
-				if err != nil {
-					fmt.Println(err.Error())
-				}
+			if d.RunCommand(command, update.Message, command.Command, commandValue, splitCommands) {
+				break
 			}
 		}
 
@@ -358,8 +401,6 @@ func (d data) CommandsHandler(updates tgbotapi.UpdatesChannel) {
 			}
 		*/
 
-		//log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-
 		if update.Message.Chat.Type == "private" && config.Str("logLevel") == "private" || config.Str("logLevel") == "chat" {
 			log.Printf("INNER MESSAGE %s[%d]: %s",
 				update.Message.From.UserName,
@@ -367,11 +408,5 @@ func (d data) CommandsHandler(updates tgbotapi.UpdatesChannel) {
 				update.Message.Text)
 			fmt.Printf("inline query %+v\n", update.InlineQuery)
 		}
-
-		//msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-		//msg.ReplyToMessageID = update.Message.MessageID
-
-		//bot.Send(msg)
 	}
-
 }

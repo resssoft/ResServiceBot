@@ -50,6 +50,14 @@ func New() tgCommands.Service {
 		Permissions: tgCommands.FreePerms,
 		Handler:     result.tr_en_ru,
 	}
+	commandsList["перевод"] = tgCommands.Command{
+		Command:     "/перевод",
+		Synonyms:    []string{"перевод", "переведи"},
+		Description: "Translate from english to russian",
+		CommandType: "text",
+		Permissions: tgCommands.FreePerms,
+		Handler:     result.trNext,
+	}
 
 	result.list = commandsList
 	return &result
@@ -102,4 +110,8 @@ func (d data) tr_en_ru(msg *tgbotapi.Message, commandName string, param string, 
 		fmt.Println(err)
 	}
 	return tgCommands.SimpleReply(msg.Chat.ID, result, msg.MessageID)
+}
+
+func (d data) trNext(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	return tgCommands.WaitingWithText(msg.Chat.ID, "Enter for translate from EN to RU", "tr_en_ru")
 }
