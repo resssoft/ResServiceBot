@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"fun-coice/config"
-	"fun-coice/funs"
 	"fun-coice/internal/application/services/admins"
 	"fun-coice/internal/application/services/b64"
 	"fun-coice/internal/application/services/calculator"
 	"fun-coice/internal/application/services/datatimes"
 	"fun-coice/internal/application/services/examples"
+	"fun-coice/internal/application/services/funs"
 	"fun-coice/internal/application/services/images"
 	"fun-coice/internal/application/services/lists"
 	"fun-coice/internal/application/services/money"
