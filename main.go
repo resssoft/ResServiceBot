@@ -8,6 +8,7 @@ import (
 	"fun-coice/internal/application/services/b64"
 	"fun-coice/internal/application/services/calculator"
 	"fun-coice/internal/application/services/datatimes"
+	"fun-coice/internal/application/services/images"
 	"fun-coice/internal/application/services/lists"
 	"fun-coice/internal/application/services/money"
 	"fun-coice/internal/application/services/qrcodes"
@@ -104,6 +105,10 @@ func main() {
 	textService := text.New()
 	multiBot.Commands = multiBot.Commands.Merge(textService.Commands())
 
+	imageService := images.New()
+	multiBot.Commands = multiBot.Commands.Merge(imageService.Commands())
+
+	//last init for command list
 	adminService := admins.New(multiBot.Bot, DB, multiBot.Commands)
 	multiBot.Commands = multiBot.Commands.Merge(adminService.Commands())
 

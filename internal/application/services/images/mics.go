@@ -1,14 +1,47 @@
-package main
+package images
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"fun-coice/config"
+	tgCommands "fun-coice/internal/domain/commands/tg"
 	"gopkg.in/gographics/imagick.v2/imagick"
 	"math"
+	"net/http"
 )
 
-//TODO: MOVE TO SERVICE
+func getTgFile(fileId string) (*bytes.Buffer, error) {
+	buf := new(bytes.Buffer)
+	//response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
+	response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
+	if err != nil {
+		return nil, errors.New("download TG photo error")
+	}
+	_, err = buf.ReadFrom(response.Body)
+	if err != nil {
+		return nil, errors.New("read file Body err")
+	}
+	result := buf.String()
+	fileInfo := tgCommands.TgFileInfo{}
+	err = json.Unmarshal([]byte(result), &fileInfo)
+	if err != nil {
+		return nil, errors.New("decode fileInfo err")
+	}
+	fileUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s",
+		config.TelegramToken(), fileInfo.Result.FilePath)
 
-func getMagic(blob []byte) ([]byte, error) {
+	response, err = http.Get(fileUrl)
+	if err != nil {
+		return nil, errors.New("download TG import file error")
+	}
+	buf = new(bytes.Buffer)
+	buf.ReadFrom(response.Body)
+	return buf, nil
+}
+
+func getMagic(blob []byte, size int) ([]byte, error) {
 	imagick.Initialize()
 	defer imagick.Terminate()
 
@@ -25,7 +58,7 @@ func getMagic(blob []byte) ([]byte, error) {
 	//ret, err := mw.ConvertImageCommand([]string{"convert", "logo:", "-resize", "100x100", "/tmp/out.png"})
 	//if err != nil {return nil, err}
 	//fmt.Println("Meta:", ret.Meta)
-	result := resizeImage(mw, 100, false)
+	result := resizeImage(mw, size, false)
 
 	return result.GetImageBlob(), nil
 }
@@ -91,58 +124,58 @@ func glitchImage(wand *imagick.MagickWand, q url.Values) ([]byte, error) {
 func crop(mw *imagick.MagickWand, x, y int, cols, rows uint) error {
 	var result error
 	result = nil
-
 	imCols := mw.GetImageWidth()
 	imRows := mw.GetImageHeight()
-
 	if x < 0 {
 		x = 0
 	}
 	if y < 0 {
 		y = 0
 	}
-
 	if uint(x) >= imCols || uint(y) >= imRows {
 		result = fmt.Errorf("x, y more than image cols, rows")
 		return result
 	}
-
 	if cols == 0 || imCols < uint(x)+cols {
 		cols = imCols - uint(x)
 	}
-
 	if rows == 0 || imRows < uint(y)+rows {
 		rows = imRows - uint(y)
 	}
-
 	fmt.Print(fmt.Sprintf("wi_crop(im, %d, %d, %d, %d)\n", x, y, cols, rows))
-
 	result = mw.CropImage(cols, rows, x, y)
-
 	return result
 }
 
 func shrinkImage(wand *imagick.MagickWand, maxSize int) (w, h uint) {
-
 	w, h = getDimensions(wand)
-
 	shrinkBy := 1
-
 	if w >= h {
 		shrinkBy = int(w) / maxSize
 	} else {
 		shrinkBy = int(h) / maxSize
 	}
-
 	wand.AdaptiveResizeImage(
 		uint(int(w)/shrinkBy),
 		uint(int(h)/shrinkBy),
 	)
-
 	// Sharpen the image to bring back some of the color lost in the shrinking
 	//wand.AdaptiveSharpenImage(0, AdaptiveSharpenVal)
-
 	w, h = getDimensions(wand)
-
 	return
 }
+
+func rotate(blob []byte, degrees float64) ([]byte, error) {
+	imagick.Initialize()
+	defer imagick.Terminate()
+	mw := imagick.NewMagickWand()
+	err := mw.ReadImageBlob(blob)
+	if err != nil {
+		return nil, err
+	}
+	err = mw.RotateImage(mw.GetBackgroundColor(), degrees)
+	result := mw.GetImageBlob()
+	return result, err
+}
+
+//info https://zalinux.ru/?p=7544

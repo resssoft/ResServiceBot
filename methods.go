@@ -2,15 +2,11 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"io/ioutil"
-	"log"
 	"math/rand"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -26,34 +22,6 @@ var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardButtonURL("Rules", ""),
 	),
 )
-
-type homeWebCamServiceURLImageData struct {
-	Result string `json:"result,omitempty"`
-	Error  string `json:"error,omitempty"`
-}
-
-const HWCSURLEvent = "go"
-const HWCSURLImage = "result/"
-
-func getHomeWebCamImage() (string, error) {
-	HWCSData := homeWebCamServiceURLImageData{}
-	resp, err := http.Get(HWCSURL + HWCSURLEvent)
-	if err != nil {
-		log.Printf("Status: %v Error: %v \n", err.Error())
-	}
-	defer resp.Body.Close()
-	jsonData, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Read body error: %v \n", err.Error())
-		return "", err
-	}
-
-	if err = json.Unmarshal(jsonData, &HWCSData); err != nil {
-		log.Printf("Unmarshal error: %s \n", err.Error())
-		return "", err
-	}
-	return HWCSURL + HWCSURLImage + HWCSData.Result, nil
-}
 
 func getChannelUserCount(contentType string, chatId int64) int {
 	userCount := 0

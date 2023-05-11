@@ -162,6 +162,9 @@ func (d data) commandInfo(msg *tgbotapi.Message, commandName string, param strin
 func (d data) commandsList(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	commandsList := "Commands:\n"
 	for _, commandsItem := range d.user {
+		if commandsItem.ListExclude {
+			continue
+		}
 		commandsList += commandsItem.Command + " - " + commandsItem.Description + "\n"
 	}
 	return tgCommands.Simple(msg.Chat.ID, commandsList)

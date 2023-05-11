@@ -292,59 +292,15 @@ func (d data) CommandsHandler(updates tgbotapi.UpdatesChannel) {
 			} //update.CallbackQuery != nil
 		*/
 
+		//TODO: processed update.CallbackQuery.Data
+		//TODO: add sended messages history
+
 		zlog.Info().Any("msg", update.Message).Any("InlineQuery", update.InlineQuery).Send()
 
 		if update.Message == nil || (update.Message == nil && update.InlineQuery != nil) {
 			zlog.Info().Any("update", update).Send()
 			continue
 		}
-
-		//TODO: MOVE TO image processing service with wait messages types
-		/*
-			if update.Message.Photo != nil {
-				fileId := ""
-				for _, photoItem := range update.Message.Photo {
-					fileId = photoItem.FileID
-				}
-				//response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
-				response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
-				if err != nil {
-					log.Println("download TG photo error")
-					continue
-				}
-				buf := new(bytes.Buffer)
-				buf.ReadFrom(response.Body)
-				result := buf.String()
-				//log.Println("tg fileInfo unparsed")
-				fileInfo := TgFileInfo{}
-				err = json.Unmarshal([]byte(result), &fileInfo)
-				if err != nil {
-					log.Println("Decode fileInfo err")
-					continue
-				}
-				fileUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s",
-					config.TelegramToken(), fileInfo.Result.FilePath)
-
-				response, err = http.Get(fileUrl)
-				if err != nil {
-					log.Println("download TG import file error")
-					continue
-				}
-				buf = new(bytes.Buffer)
-				buf.ReadFrom(response.Body)
-
-				newImage, err := getMagic(buf.Bytes())
-				tgNewfile := tgbotapi.FileBytes{
-					Name:  "photo.jpg",
-					Bytes: newImage,
-				}
-				var message tgbotapi.Chattable
-				message = tgbotapi.NewPhoto(update.Message.Chat.ID, tgNewfile)
-				d.Bot.Send(message)
-
-			}
-		*/
-		//fmt.Println(update.Message.Text)
 
 		if founded := d.CheckDeferred(update.Message.From.ID); founded != "" {
 			if commandDeferred, ok := d.Commands[founded]; ok {

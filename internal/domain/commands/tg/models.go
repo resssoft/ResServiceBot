@@ -24,6 +24,7 @@ type Command struct {
 	Templates   []string
 	Description string
 	CommandType string
+	ListExclude bool
 	Permissions CommandPermissions
 	Handler     func(*tgbotapi.Message, string, string, []string) HandlerResult
 }
@@ -204,4 +205,14 @@ func writeLines(lines []string, path string) error {
 
 	// flush outstanding data
 	return w.Flush()
+}
+
+type TgFileInfo struct {
+	Ok     bool `json:"ok,omitempty"`
+	Result struct {
+		FileId       string `json:"file_id,omitempty"`
+		FileUniqueId string `json:"file_unique_id,omitempty"`
+		FileSize     int    `json:"file_size,omitempty"`
+		FilePath     string `json:"file_path,omitempty"`
+	} `json:"result,omitempty"`
 }
