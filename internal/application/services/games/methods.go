@@ -1,9 +1,10 @@
-package main
+package games
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
+	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"math/rand"
@@ -15,13 +16,6 @@ import (
 )
 
 //TODO: CLEAR OLD FUNCTIONS OR MOVE TO OTHERS SERVICES
-
-var gamesListKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("🧡 Lovely game", "lovelyGame"),
-		tgbotapi.NewInlineKeyboardButtonURL("Rules", ""),
-	),
-)
 
 func getChannelUserCount(contentType string, chatId int64) int {
 	userCount := 0
@@ -171,14 +165,14 @@ func getChannelUser(contentType string, chatId int64, userId int64) (ChatUser, e
 }
 
 func getUsersButtons(chatUsers []ChatUser, chatID int64, code string) tgbotapi.InlineKeyboardMarkup {
-	var rows []KeyBoardRowTG
+	var rows []tgCommands.KeyBoardRowTG
 	for _, chatUser := range chatUsers {
-		rows = append(rows, KBButs(KeyBoardButtonTG{
+		rows = append(rows, KBButs(tgCommands.KeyBoardButtonTG{
 			Text: chatUser.User.Name + " (" + strconv.Itoa(chatUser.VoteCount) + ")",
 			Data: strconv.FormatInt(chatUser.User.UserID, 10) + "|" + strconv.FormatInt(chatID, 10) + "#" + code,
 		}))
 	}
-	return getTGButtons(KeyBoardTG{rows})
+	return getTGButtons(tgCommands.KeyBoardTG{rows})
 }
 
 func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64, contentType string) {
@@ -236,7 +230,7 @@ func checkUserRegister(userId int64) bool {
 	// check - bot can write to user
 	isRegistered := false
 	var existUser = TGUser{}
-	err := DB.Read("user", strconv.FormatInt(userId, 10), &existUser)
+	err := DB.Read("user", strconv.FormatInt(userId, 10), &existUser) // USE from service
 	if err == nil {
 		if existUser.ChatId != 0 {
 			isRegistered = true
@@ -303,16 +297,16 @@ func readLines(path string, resultLimit int) (error, string) {
 	return nil, ""
 }
 
-func KBRows(KBrows ...KeyBoardRowTG) KeyBoardTG {
-	var rows []KeyBoardRowTG
+func KBRows(KBrows ...tgCommands.KeyBoardRowTG) tgCommands.KeyBoardTG {
+	var rows []tgCommands.KeyBoardRowTG
 	rows = append(rows, KBrows...)
-	return KeyBoardTG{rows}
+	return tgCommands.KeyBoardTG{rows}
 }
 
-func KBButs(KBrows ...KeyBoardButtonTG) KeyBoardRowTG {
-	var rows []KeyBoardButtonTG
+func KBButs(KBrows ...tgCommands.KeyBoardButtonTG) tgCommands.KeyBoardRowTG {
+	var rows []tgCommands.KeyBoardButtonTG
 	rows = append(rows, KBrows...)
-	return KeyBoardRowTG{rows}
+	return tgCommands.KeyBoardRowTG{rows}
 }
 
 func getSimpleTGButton(text, data string) tgbotapi.InlineKeyboardMarkup {
@@ -323,7 +317,7 @@ func getSimpleTGButton(text, data string) tgbotapi.InlineKeyboardMarkup {
 	)
 }
 
-func getTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
+func getTGButtons(params tgCommands.KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
 	var row []tgbotapi.InlineKeyboardButton
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, rowsData := range params.Rows {
@@ -338,5 +332,4 @@ func getTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
 	}
 }
 
-var existAdmin = TGUser{}
 var DB *scribble.Driver

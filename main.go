@@ -8,6 +8,7 @@ import (
 	"fun-coice/internal/application/services/b64"
 	"fun-coice/internal/application/services/calculator"
 	"fun-coice/internal/application/services/datatimes"
+	"fun-coice/internal/application/services/examples"
 	"fun-coice/internal/application/services/images"
 	"fun-coice/internal/application/services/lists"
 	"fun-coice/internal/application/services/money"
@@ -15,6 +16,7 @@ import (
 	"fun-coice/internal/application/services/text"
 	"fun-coice/internal/application/services/translate"
 	"fun-coice/internal/application/tgbot"
+	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -24,13 +26,7 @@ import (
 	"strconv"
 )
 
-const doneMessage = "Done"
-const telegramSingleMessageLengthLimit = 4096
-const dbDateFormatMonth = "2006-01-02"
-
-var HWCSURL = ""
-
-var ChatUserList = make([]ChatUser, 1)
+var DB *scribble.Driver
 
 func main() {
 	var err error
@@ -60,9 +56,10 @@ func main() {
 	if err != nil {
 		fmt.Println("Error", err)
 	}
+	var existAdmin = tgCommands.TGUser{}
 	if err := DB.Read("user", strconv.FormatInt(int64(config.TelegramAdminId()), 10), &existAdmin); err != nil {
 		fmt.Println("admin not found error", err)
-		existAdmin = TGUser{
+		existAdmin = tgCommands.TGUser{
 			UserID:  config.TelegramAdminId(),
 			ChatId:  0,
 			Login:   "",
@@ -108,6 +105,9 @@ func main() {
 	imageService := images.New()
 	multiBot.Commands = multiBot.Commands.Merge(imageService.Commands())
 
+	exampleService := examples.New()
+	multiBot.Commands = multiBot.Commands.Merge(exampleService.Commands())
+
 	//last init for command list
 	adminService := admins.New(multiBot.Bot, DB, multiBot.Commands)
 	multiBot.Commands = multiBot.Commands.Merge(adminService.Commands())
@@ -122,7 +122,3 @@ func main() {
 		fmt.Println("Error", err)
 	}
 }
-
-//TODO: implement check command
-//t.IsCommand(commandName, "/setLeadStatus")
-//func (t *tgConfig) IsCommand(msg, command string) bool { return msg == command || msg == fmt.Sprintf("%s@%s", command, t.BotName)}

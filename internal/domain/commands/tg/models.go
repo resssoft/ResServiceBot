@@ -216,3 +216,24 @@ type TgFileInfo struct {
 		FilePath     string `json:"file_path,omitempty"`
 	} `json:"result,omitempty"`
 }
+
+type KeyBoardTG struct {
+	Rows []KeyBoardRowTG
+}
+
+type KeyBoardRowTG struct {
+	Buttons []KeyBoardButtonTG
+}
+
+type KeyBoardButtonTG struct {
+	Text string
+	Data string
+}
+
+type TGUser struct {
+	UserID  int64
+	ChatId  int64
+	Login   string
+	Name    string
+	IsAdmin bool
+}
