@@ -36,7 +36,7 @@ func Configure() {
 	viper.AddConfigPath(".")
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Info().Msg("Unable to read config file")
+		log.Error().Err(err).Msg("Unable to read config file")
 	}
 	for key, value := range viper.AllSettings() {
 		fmt.Println(key, value)

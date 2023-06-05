@@ -1,0 +1,14 @@
+[Unit]
+Description=Tg bot
+
+[Service]
+ExecStart=/usr/bin/mybot
+WorkingDirectory=/opt/bots/mybotdir
+Restart=on-failure
+RestartSec=5s
+Environment=SERVER_URL=:8000
+Environment=SERVER_ADDRESS=xxx
+Environment=BOT_LOG_PATH=/var/log/tgbot/
+
+[Install]
+WantedBy=multi-user.target

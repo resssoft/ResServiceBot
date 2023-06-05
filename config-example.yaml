@@ -3,10 +3,25 @@ loglevel: debug
 server:
   url: :8099
 telegram:
-  token: 999999:AAGFSFQEFGQRWGWRGQWEGHQRGWFEWFE
-  admin: 99999
-  adminlogin: login
-  chat: -100153799999
+  token: 9999999999:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA #deprecated
+  admin: 9999999999 #deprecated
+  adminlogin: login #deprecated
+  chat: -100153799999 #deprecated
+  bots:
+    translit:
+      token: 9999999999:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      login: Namebot
+      admin: 9999999999
+      adminlogin: login
+      chat: -1000000000000
+      uri: /tg/translitbot/
+    multy:
+      token: 9999999999:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      login: Namebot
+      admin: 9999999999
+      adminlogin: login
+      chat: -1000000000000
+      uri: /tg/multytbot/
 db:
   mongoDb:
     url: mongodb://root:test@127.0.0.1:27017/ExampleBot
