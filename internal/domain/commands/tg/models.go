@@ -34,22 +34,23 @@ type Command struct {
 //TODO: Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, HandlerResult)
 
 type HandlerResult struct {
-	Prepared  bool   // command is prepared for sending
-	Wait      bool   // wait next command
-	Next      string // next command
-	ChatEvent tgbotapi.Chattable
+	Prepared bool   // command is prepared for sending
+	Wait     bool   // wait next command
+	Next     string // next command
+	Messages []tgbotapi.Chattable
+	Events   []Event
 }
 
 func EmptyCommand() HandlerResult {
 	return HandlerResult{
-		ChatEvent: nil,
+		Messages: nil,
 	}
 }
 
 func PreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
 	return HandlerResult{
-		Prepared:  true,
-		ChatEvent: chatEvent,
+		Prepared: true,
+		Messages: []tgbotapi.Chattable{chatEvent},
 	}
 }
 
@@ -65,7 +66,7 @@ func SimpleReply(chatId int64, text string, replyTo int) HandlerResult {
 
 func UnPreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
 	return HandlerResult{
-		ChatEvent: chatEvent,
+		Messages: []tgbotapi.Chattable{chatEvent},
 	}
 }
 
@@ -78,19 +79,24 @@ func WaitingCommand(command string) HandlerResult {
 
 func WaitingWithText(chatId int64, text, command string) HandlerResult {
 	return HandlerResult{
-		Wait:      true,
-		Prepared:  true,
-		ChatEvent: tgbotapi.NewMessage(chatId, text),
-		Next:      command,
+		Wait:     true,
+		Prepared: true,
+		Messages: []tgbotapi.Chattable{tgbotapi.NewMessage(chatId, text)},
+		Next:     command,
 	}
 }
 
 func WaitingPreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
 	return HandlerResult{
-		Wait:      true,
-		Prepared:  true,
-		ChatEvent: chatEvent,
+		Wait:     true,
+		Prepared: true,
+		Messages: []tgbotapi.Chattable{chatEvent},
 	}
+}
+
+func (hr HandlerResult) WithEvent(newEvent Event) HandlerResult {
+	hr.Events = append(hr.Events, newEvent)
+	return hr
 }
 
 func (t *Command) IsImplemented(msg, botName string) bool {
@@ -144,7 +150,7 @@ func (tgp *CommandPermissions) Check(user *tgbotapi.User) bool {
 	if tgp.UserPermissions == "all" {
 		return true
 	}
-	if tgp.UserPermissions == "admin" && int64(user.ID) == config.TelegramAdminId() {
+	if tgp.UserPermissions == "admin" && user.ID == config.TelegramAdminId() {
 		return true
 	}
 	return false
@@ -236,4 +242,63 @@ type TGUser struct {
 	Login   string
 	Name    string
 	IsAdmin bool
+}
+
+type Event struct {
+	Name ChatEvent
+	Msg  *tgbotapi.Message
+}
+
+func NewEvent(name ChatEvent, msg *tgbotapi.Message) Event {
+	return Event{
+		Name: name,
+		Msg:  msg,
+	}
+}
+
+type ChatEvent string
+
+const (
+	StartBotEvent        ChatEvent = "start" //triggered by /start command from the bot
+	UserLeaveChantEvent  ChatEvent = "user_leave_chat"
+	UserJoinedChantEvent ChatEvent = "user_joined_chat"
+)
+
+func (ce ChatEvent) String() string {
+	return string(ce)
+}
+
+func UserAndChatInfo(user *tgbotapi.User, chat *tgbotapi.Chat) string {
+	return UserInfo(user) + ChatInfo(chat)
+}
+
+func UserInfo(user *tgbotapi.User) string {
+	if user == nil {
+		return ""
+	}
+	userLogin := ""
+	if user.UserName != "" {
+		userLogin += fmt.Sprintf("(@%s)", user.UserName)
+	}
+	if user.LanguageCode != "" {
+		userLogin += fmt.Sprintf("(%s)", user.LanguageCode)
+	}
+	userInfo := fmt.Sprintf("User: [%v] %s %s %s",
+		user.ID,
+		userLogin,
+		user.FirstName,
+		user.LastName,
+	)
+	return userInfo
+}
+
+func ChatInfo(chat *tgbotapi.Chat) string {
+	if chat != nil {
+		return fmt.Sprintf("\nChat: [%v] (%s): %s",
+			chat.ID,
+			chat.Type,
+			chat.Title,
+		)
+	}
+	return ""
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"fun-coice/config"
+	"fun-coice/internal/application/services/adminNotifer"
 	"fun-coice/internal/application/services/admins"
 	"fun-coice/internal/application/services/b64"
 	"fun-coice/internal/application/services/calculator"
@@ -15,6 +16,7 @@ import (
 	"fun-coice/internal/application/services/qrcodes"
 	"fun-coice/internal/application/services/text"
 	"fun-coice/internal/application/services/translate"
+	"fun-coice/internal/application/services/transliter"
 	"fun-coice/internal/application/tgbot"
 	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
@@ -109,10 +111,29 @@ func main() {
 	multiBot.Commands = multiBot.Commands.Merge(exampleService.Commands())
 
 	//last init for command list
-	adminService := admins.New(multiBot.Bot, DB, multiBot.Commands)
+	adminService := admins.New(multiBot.Bot, DB, multiBot.Commands) // TODO: provide Bot var to commandHandler
 	multiBot.Commands = multiBot.Commands.Merge(adminService.Commands())
 
 	err = multiBot.Run()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	fmt.Println("multy.token", config.Str("telegram.bots.multy.token"))                      // TODO: USE THIS SHIT
+	fmt.Println("translit.token", config.Str("telegram.bots.translit.token"))                // TODO: USE THIS SHIT
+	translitBot := tgbot.New(config.Str("telegram.bots.translit.token"), "/tg/translitbot/") //
+	translitService := transliter.New()
+	translitBot.Commands = translitBot.Commands.Merge(translitService.Commands())
+	translitBot.DefaultCommand = "transit"
+
+	//last init for command list
+	adminService2 := admins.New(translitBot.Bot, DB, translitBot.Commands)
+	translitBot.Commands = translitBot.Commands.Merge(adminService2.Commands()) // TODO: add multibot service
+
+	notiferEventsService := adminNotifer.New()
+	translitBot.Commands = translitBot.Commands.Merge(notiferEventsService.Commands())
+
+	err = translitBot.Run()
 	if err != nil {
 		log.Panic(err)
 	}

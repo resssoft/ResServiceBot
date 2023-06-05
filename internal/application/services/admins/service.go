@@ -199,33 +199,13 @@ func (d data) get(msg *tgbotapi.Message, commandName string, param string, param
 }
 
 func (d data) member(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	from := msg.From
-	chat := msg.Chat
 	chatConfigWithUser := tgbotapi.ChatConfigWithUser{
-		ChatID:             chat.ID,
-		SuperGroupUsername: "",
-		UserID:             from.ID,
+		ChatID: msg.Chat.ID,
+		UserID: msg.From.ID,
 	}
 	chatMember, _ := d.bot.GetChatMember(tgbotapi.GetChatMemberConfig{chatConfigWithUser})
-
-	userInfo := fmt.Sprintf(
-		"--== UserInfo==--\n"+
-			"ID: %v\nUserName: %s\nFirstName: %s\nLastName: %s\nLanguageCode: %s"+
-			"\n--==ChatInfo==--\n"+
-			"ID: %v\nTitle: %s\nType: %s"+
-			"\n--== MemberInfo==--\n"+
-			"Status: %s",
-		from.ID,
-		from.UserName,
-		from.FirstName,
-		from.LastName,
-		from.LanguageCode,
-		chat.ID,
-		chat.Title,
-		chat.Type,
-		chatMember.Status,
-	)
-	return tgCommands.Simple(chat.ID, userInfo)
+	userInfo := tgCommands.UserAndChatInfo(msg.From, msg.Chat) + fmt.Sprintf("\nMemberStatus: %s", chatMember.Status)
+	return tgCommands.Simple(msg.Chat.ID, userInfo)
 }
 
 func (d data) rebuild(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {

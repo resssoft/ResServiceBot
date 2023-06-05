@@ -2,7 +2,6 @@ package tgbot
 
 import (
 	"encoding/json"
-	"fmt"
 	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -10,21 +9,10 @@ import (
 )
 
 func myInfo(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	from := msg.From
-	chat := msg.Chat
-
-	userInfo := fmt.Sprintf("--== UserInfo==--\nID: %v\nUserName: %s\nFirstName: %s\nLastName: %s\nLanguageCode: %s"+
-		"\n--==ChatInfo==--\nID: %v\nTitle: %s\nType: %s",
-		from.ID,
-		from.UserName,
-		from.FirstName,
-		from.LastName,
-		from.LanguageCode,
-		chat.ID,
-		chat.Title,
-		chat.Type,
-	)
-	return tgCommands.Simple(chat.ID, userInfo)
+	if msg == nil {
+		return tgCommands.EmptyCommand()
+	}
+	return tgCommands.Simple(msg.Chat.ID, tgCommands.UserAndChatInfo(msg.From, msg.Chat))
 }
 
 func appInfo(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
@@ -42,5 +30,6 @@ func appVersion(msg *tgbotapi.Message, commandName string, param string, params 
 }
 
 func startDefault(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome")
+	return tgCommands.Simple(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome").
+		WithEvent(tgCommands.NewEvent(tgCommands.StartBotEvent, msg))
 }

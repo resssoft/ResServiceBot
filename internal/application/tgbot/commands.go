@@ -14,7 +14,7 @@ var defaultCommands = tgCommands.Commands{
 	},
 	"myInfo": {
 		Command:     "/myInfo",
-		Synonyms:    []string{"info"},
+		Synonyms:    []string{"info", "me"},
 		Description: "Write GT user info",
 		CommandType: "text",
 		Permissions: tgCommands.FreePerms,
