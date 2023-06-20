@@ -47,10 +47,10 @@ func EmptyCommand() HandlerResult {
 	}
 }
 
-func PreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
+func PreparedCommand(chatEvents ...tgbotapi.Chattable) HandlerResult {
 	return HandlerResult{
 		Prepared: true,
-		Messages: []tgbotapi.Chattable{chatEvent},
+		Messages: chatEvents,
 	}
 }
 

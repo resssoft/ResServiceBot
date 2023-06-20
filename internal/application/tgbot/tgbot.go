@@ -96,9 +96,11 @@ func (d Data) RunCommand(command tgCommands.Command, msg *tgbotapi.Message, comm
 		log.Println("result.Messages", len(result.Messages))
 		for _, chantEvent := range result.Messages {
 			log.Println("chatEvent", chantEvent)
-			_, err := d.Bot.Send(chantEvent)
+			msgRes, err := d.Bot.Send(chantEvent)
 			if err != nil {
 				fmt.Println(err.Error())
+			} else {
+				fmt.Println("Send message", msgRes.MessageID)
 			}
 		}
 		if len(result.Events) > 0 {
