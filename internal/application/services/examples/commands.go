@@ -46,17 +46,25 @@ func (d *data) exampleEditInlineButtons(msg *tgbotapi.Message, commandName strin
 }
 
 func (d *data) exampleRemoveButtons(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	fmt.Println("example_remove_buttons_trigger", msg.Chat.ID, msg.MessageID)
 	newMsg := tgbotapi.NewDeleteMessage(msg.Chat.ID, msg.MessageID)
 	return tgCommands.PreparedCommand(newMsg)
 }
 
+func (d *data) exampleNotify(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	newMsg := tgbotapi.NewChatAction(msg.Chat.ID, "typing")
+	return tgCommands.PreparedCommand(newMsg)
+}
+
 func (d *data) exampleCounterIncrement(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	fmt.Println("exampleCounterIncrement", msg.Chat.ID, msg.MessageID)
 	newMsg := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, "Text under buttons, click counter")
 	newMsg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 		msg.Chat.ID,
 		msg.MessageID,
 		tgCommands.GetTGButtons(tgCommands.KBRows(tgCommands.KBButs(
 			tgCommands.KeyBoardButtonTG{Text: fmt.Sprintf("Counter (%v)", d.Counter()), Data: "example_button_counter"},
+			tgCommands.KeyBoardButtonTG{Text: "Action test", Data: "example_notify"},
 			tgCommands.KeyBoardButtonTG{Text: "Remove this message", Data: "example_remove_buttons_trigger"},
 		)))).ReplyMarkup
 	return tgCommands.PreparedCommand(newMsg)

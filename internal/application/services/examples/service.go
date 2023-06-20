@@ -74,6 +74,14 @@ func New() tgCommands.Service {
 		Permissions: tgCommands.FreePerms,
 		Handler:     result.exampleEditInlineButtons,
 	}
+	commandsList["example_notify"] = tgCommands.Command{
+		Command:     "/example_notify",
+		Description: "user notify",
+		CommandType: "event",
+		ListExclude: true, // do not show in the commands list
+		Permissions: tgCommands.FreePerms,
+		Handler:     result.exampleNotify,
+	}
 
 	result.list = commandsList
 	return &result
