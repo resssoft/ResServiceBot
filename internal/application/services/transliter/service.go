@@ -5,11 +5,13 @@ import (
 	tgCommands "fun-coice/internal/domain/commands/tg"
 	gt "github.com/bas24/googletranslatefree"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"sort"
 	"strings"
 )
 
 type data struct {
-	list tgCommands.Commands
+	list        tgCommands.Commands
+	userStrings map[int64]string
 }
 
 var LatToAm map[string]string
@@ -57,8 +59,13 @@ var AmToLat map[string]string = map[string]string{
 	"և":  "&",
 }
 
+var alphabetKeyboard tgbotapi.InlineKeyboardMarkup
+var alphabetTrigger = "alphabetKey"
+
 func New() tgCommands.Service {
-	result := data{}
+	result := data{
+		userStrings: make(map[int64]string),
+	}
 	commandsList := make(tgCommands.Commands)
 	commandsList["transit"] = tgCommands.Command{
 		Command:     "/transit",
@@ -67,20 +74,73 @@ func New() tgCommands.Service {
 		Permissions: tgCommands.FreePerms,
 		Handler:     result.transit,
 	}
+	commandsList["alphabet"] = tgCommands.Command{
+		Command:     "/alphabet",
+		Synonyms:    []string{"af"},
+		Description: "Encode string to base64",
+		CommandType: "text",
+		Permissions: tgCommands.FreePerms,
+		Handler:     result.alphabet,
+	}
+	commandsList[alphabetTrigger] = tgCommands.Command{
+		Command:     "/alphabetKey",
+		Description: "alphabet notify by key",
+		CommandType: "event",
+		ListExclude: true, // do not show in the commands list
+		Permissions: tgCommands.FreePerms,
+		Handler:     result.alphabetEvent,
+	}
+
 	LatToAm = make(map[string]string)
+	var amLetters []string
 	for key, val := range AmToLat {
 		LatToAm[val] = key
+		amLetters = append(amLetters, key)
+	}
+
+	//set alphabet
+	var row []tgbotapi.InlineKeyboardButton
+	var rows [][]tgbotapi.InlineKeyboardButton
+	itemsByRow := 6
+	index := 0
+	itemCount := 0
+
+	sort.Strings(amLetters)
+	fmt.Println("amLetters len", len(amLetters), len(LatToAm))
+	for _, val := range amLetters {
+		index++
+		itemCount++
+		fmt.Println(fmt.Sprintf("%s (%s)", val, AmToLat[val]))
+		row = append(row, tgbotapi.NewInlineKeyboardButtonData(
+			fmt.Sprintf("%s (%s)", val, AmToLat[val]),
+			alphabetTrigger+":"+val))
+		if index <= itemsByRow && itemCount != len(amLetters) {
+			continue
+		}
+		index = 0
+		fmt.Println("new ROW", len(row))
+		rows = append(rows, row)
+		row = nil
+	}
+	fmt.Println("rows", len(rows))
+	row = append(row, tgbotapi.NewInlineKeyboardButtonData(" ", alphabetTrigger+":"+" "))
+	row = append(row, tgbotapi.NewInlineKeyboardButtonData("←", alphabetTrigger+":"+"backspace"))
+	row = append(row, tgbotapi.NewInlineKeyboardButtonData("↯", alphabetTrigger+":"+"translate"))
+	rows = append(rows, row)
+	alphabetKeyboard = tgbotapi.InlineKeyboardMarkup{
+		InlineKeyboard: rows,
 	}
 
 	result.list = commandsList
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d *data) Commands() tgCommands.Commands {
 	return d.list
 }
 
-func (d data) transit(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d *data) transit(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	// TRANSLATE FROM RUSSIAN TO AM (DETECT RUS)
 	if param == "" {
 		fmt.Println("EMPTY TRANSLITE COMMAND")
 		return tgCommands.EmptyCommand()
@@ -106,3 +166,40 @@ func (d data) transit(msg *tgbotapi.Message, commandName string, param string, p
 }
 
 //translit site https://www.hayastan.com/translit/
+
+func (d *data) alphabet(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	fmt.Println("alphabet")
+	newMsg := tgbotapi.NewMessage(msg.Chat.ID, "_")
+	newMsg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+		msg.Chat.ID,
+		msg.MessageID,
+		alphabetKeyboard).ReplyMarkup
+	return tgCommands.PreparedCommand(newMsg)
+}
+
+func (d *data) alphabetEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	from := msg.From.ID
+	_, ok := d.userStrings[from]
+	/////////DATA RACE
+	if !ok {
+		d.userStrings[from] = ""
+	}
+	switch param {
+	case "backspace":
+		if len(d.userStrings[from]) > 0 {
+			d.userStrings[from] = string([]rune(d.userStrings[from])[:len([]rune(d.userStrings[from]))-1])
+		}
+	case "translate":
+		return d.transit(msg, commandName, d.userStrings[from], []string{})
+	default:
+		d.userStrings[from] += param
+	}
+
+	fmt.Println("alphabet event")
+	newMsg := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, d.userStrings[from]+"_")
+	newMsg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
+		msg.Chat.ID,
+		msg.MessageID,
+		alphabetKeyboard).ReplyMarkup
+	return tgCommands.PreparedCommand(newMsg)
+}
