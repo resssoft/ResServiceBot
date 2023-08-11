@@ -13,7 +13,7 @@ type data struct {
 
 func New() tgCommands.Service {
 	result := data{}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["tr"] = tgCommands.Command{
 		Command:     "/tr",
 		Synonyms:    []string{"tran", "translate", "gtr"},

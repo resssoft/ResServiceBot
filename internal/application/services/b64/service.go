@@ -12,7 +12,7 @@ type data struct {
 
 func New() tgCommands.Service {
 	result := data{}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["b64"] = tgCommands.Command{
 		Command:     "/b64",
 		Synonyms:    []string{"base64", "base64encode", "base64_encode"},

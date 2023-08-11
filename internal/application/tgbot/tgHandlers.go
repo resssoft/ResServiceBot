@@ -30,6 +30,5 @@ func appVersion(msg *tgbotapi.Message, commandName string, param string, params 
 }
 
 func startDefault(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome").
-		WithEvent(tgCommands.NewEvent(tgCommands.StartBotEvent, msg))
+	return tgCommands.Simple(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome")
 }

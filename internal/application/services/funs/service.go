@@ -38,7 +38,7 @@ func New(DB *scribble.Driver) tgCommands.Service {
 	result := data{
 		DB: DB,
 	}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["addfan"] = tgCommands.Command{
 		Command:     "/addfan",
 		Synonyms:    []string{"addfan", "добавитьфан"},

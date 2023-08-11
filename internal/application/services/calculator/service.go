@@ -15,7 +15,7 @@ type data struct {
 
 func New() tgCommands.Service {
 	result := data{}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["calc"] = tgCommands.Command{
 		Command:     "/calc",
 		Synonyms:    []string{"calc", "калк", "сколько будет"},

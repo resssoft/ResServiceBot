@@ -20,7 +20,7 @@ func New(DB *scribble.Driver) tgCommands.Service {
 	result := data{
 		DB: DB,
 	}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["addCheckItem"] = tgCommands.Command{
 		Command:     "/addCheckItem",
 		Description: "(параметры - имя чеклиста, =1 - если публичный, =1 если уже установлен) - создание элемента чеклиста в указанную группу",

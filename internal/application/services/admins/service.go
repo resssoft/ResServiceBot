@@ -17,21 +17,24 @@ import (
 )
 
 type data struct {
-	admin tgCommands.Commands
-	user  tgCommands.Commands
-	bot   *tgbotapi.BotAPI
-	DB    *scribble.Driver
+	admin   tgCommands.Commands
+	user    tgCommands.Commands
+	bot     *tgbotapi.BotAPI
+	DB      *scribble.Driver
+	botName string
 }
 
 var _ = (tgCommands.Service)(&data{})
 
-func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgCommands.Commands) tgCommands.Service {
+func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgCommands.Commands, botName string) tgCommands.Service {
 	result := data{
-		bot:  bot,
-		DB:   DB,
-		user: userCommands,
+		bot:     bot,
+		DB:      DB,
+		user:    userCommands,
+		botName: botName,
 	}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
+
 	commandsList["set"] = tgCommands.Command{
 		Command:     "/set",
 		Description: "Set var",
@@ -171,7 +174,7 @@ func (d data) commandsList(msg *tgbotapi.Message, commandName string, param stri
 }
 
 func (d data) info(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(msg.Chat.ID, "Admin is @"+config.TelegramAdminLogin())
+	return tgCommands.Simple(msg.Chat.ID, "Admin is @"+config.TelegramAdminLogin(d.botName))
 }
 
 func (d data) vars(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
@@ -237,7 +240,7 @@ func (d data) users(msg *tgbotapi.Message, commandName string, param string, par
 		if err := json.Unmarshal([]byte(f), &userFound); err != nil {
 			fmt.Println("Error", err)
 		}
-		userList = append(userList, "["+strconv.FormatInt(config.TelegramAdminId(), 10)+"] "+userFound.Name)
+		userList = append(userList, "["+strconv.FormatInt(config.TelegramAdminId(d.botName), 10)+"] "+userFound.Name)
 	}
 	return tgCommands.Simple(msg.Chat.ID, strings.Join(userList, "\n"))
 }
@@ -314,7 +317,7 @@ func (d data) scanChat(msg *tgbotapi.Message, commandName string, param string, 
 	return tgCommands.Simple(msg.Chat.ID, result)
 }
 
-//wait command
+// wait command
 func (d data) fillChatUsersInfo(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
 	var from int64
 	var fromChat int64

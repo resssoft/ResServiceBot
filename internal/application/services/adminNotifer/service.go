@@ -1,20 +1,22 @@
 package adminNotifer
 
 import (
-	"fun-coice/config"
 	tgCommands "fun-coice/internal/domain/commands/tg"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type data struct {
-	events tgCommands.Commands
+	events  tgCommands.Commands
+	adminId int64
 }
 
 var _ = (tgCommands.Service)(&data{})
 
-func New() tgCommands.Service {
-	result := data{}
-	commandsList := make(tgCommands.Commands)
+func New(adminId int64) tgCommands.Service {
+	result := data{
+		adminId: adminId,
+	}
+	commandsList := tgCommands.NewCommands()
 	commandsList["event:"+tgCommands.StartBotEvent.String()] = tgCommands.Command{
 		CommandType: "event",
 		Handler:     result.startEvent,
@@ -38,7 +40,7 @@ func (d data) Commands() tgCommands.Commands {
 }
 
 func (d data) startEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(config.TelegramAdminId(), "New bot start:\n"+tgCommands.UserInfo(msg.From))
+	return tgCommands.Simple(d.adminId, "New bot start:\n"+tgCommands.UserInfo(msg.From))
 }
 
 func (d data) UserLeaveChantEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
@@ -54,7 +56,7 @@ func (d data) UserLeaveChantEvent(msg *tgbotapi.Message, commandName string, par
 	if msg.From.ID != msg.LeftChatMember.ID {
 		info += "\nBy " + tgCommands.UserInfo(msg.From)
 	}
-	return tgCommands.Simple(config.TelegramAdminId(), "User Leave Chant:\n"+info)
+	return tgCommands.Simple(d.adminId, "User Leave Chant:\n"+info)
 }
 
 func (d data) UserJoinedChantEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
@@ -72,5 +74,5 @@ func (d data) UserJoinedChantEvent(msg *tgbotapi.Message, commandName string, pa
 		}
 		info += "\n"
 	}
-	return tgCommands.Simple(config.TelegramAdminId(), "Users Joined Chant:\n"+info)
+	return tgCommands.Simple(d.adminId, "Users Joined Chant:\n"+info)
 }

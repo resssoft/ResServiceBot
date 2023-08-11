@@ -17,7 +17,7 @@ func New(DB *scribble.Driver) tgCommands.Service {
 	result := data{
 		DB: DB,
 	}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["start"] = tgCommands.Command{
 		Command:     "/start",
 		Description: "start info",

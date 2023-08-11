@@ -36,7 +36,7 @@ func New(token string) tgCommands.Service {
 	result := data{
 		token: token,
 	}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["fiat"] = tgCommands.Command{
 		Command:     "/fiat",
 		Synonyms:    []string{"сколько будет", "фиат"},

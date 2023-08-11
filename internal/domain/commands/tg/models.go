@@ -3,10 +3,10 @@ package tgCommands
 import (
 	"bufio"
 	"fmt"
-	"fun-coice/config"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"os"
 	"regexp"
+	"strings"
 )
 
 type User struct {
@@ -26,7 +26,8 @@ type Command struct {
 	CommandType string
 	ListExclude bool
 	Permissions CommandPermissions
-	Handler     func(*tgbotapi.Message, string, string, []string) HandlerResult
+	Handler     HandlerFunc //TODO: REMOVE params []string and fix in the implements
+	//Service string  // set in the bot only
 }
 
 //OLD func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool) tgCommands.HandlerResult tgCommands.PreparedCommand( tgCommands.PreparedCommand
@@ -40,6 +41,9 @@ type HandlerResult struct {
 	Messages []tgbotapi.Chattable
 	Events   []Event
 }
+
+// TODO: REMOVE params []string and fix in the implements
+type HandlerFunc func(*tgbotapi.Message, string, string, []string) HandlerResult
 
 func EmptyCommand() HandlerResult {
 	return HandlerResult{
@@ -123,18 +127,18 @@ func (t *Command) IsMatched(msg, botName string) bool {
 	return false
 }
 
-func (t *Command) Permission(messageItem *tgbotapi.Message) bool {
+func (t *Command) Permission(messageItem *tgbotapi.Message, adminId int64) bool {
 	if messageItem != nil {
 		if messageItem == nil {
 			return false
 		}
 		switch messageItem.Chat.Type {
 		case "private":
-			if t.Permissions.Check(messageItem.From) {
+			if t.Permissions.Check(messageItem.From, adminId) {
 				return true
 			}
 		case "chat":
-			if t.Permissions.Check(messageItem.From) {
+			if t.Permissions.Check(messageItem.From, adminId) {
 				return true
 			}
 		}
@@ -146,11 +150,15 @@ func IsCommand(command, msg, botName string) bool {
 	return msg == command || msg == fmt.Sprintf("%s@%s", command, botName)
 }
 
-func (tgp *CommandPermissions) Check(user *tgbotapi.User) bool {
+func (t *Command) ParsedArgs(args string) []string {
+	return strings.Split(args, " ")
+}
+
+func (tgp *CommandPermissions) Check(user *tgbotapi.User, adminId int64) bool {
 	if tgp.UserPermissions == "all" {
 		return true
 	}
-	if tgp.UserPermissions == "admin" && user.ID == config.TelegramAdminId() {
+	if tgp.UserPermissions == "admin" && user.ID == adminId {
 		return true
 	}
 	return false
@@ -178,6 +186,10 @@ var ModerPerms = CommandPermissions{
 	UserPermissions: "moder",
 }
 
+func NewCommands() Commands {
+	return make(Commands)
+}
+
 func (cs Commands) Merge(list Commands) Commands {
 	merged := make(Commands)
 	for key, value := range cs {
@@ -187,6 +199,55 @@ func (cs Commands) Merge(list Commands) Commands {
 		merged[key] = value
 	}
 	return merged
+}
+
+func (cs Commands) Add(
+	name, description, commandType string,
+	synonyms, triggers, templates []string,
+	listExclude bool,
+	permissions CommandPermissions,
+	handler HandlerFunc,
+) Commands {
+	if cs == nil {
+		cs = make(Commands)
+	}
+	cs[name] = Command{
+		Command:     "/" + name,
+		Synonyms:    synonyms,
+		Triggers:    triggers,
+		Templates:   templates,
+		Description: description,
+		CommandType: commandType,
+		ListExclude: listExclude,
+		Permissions: permissions,
+		Handler:     handler,
+	}
+	return cs
+}
+
+func (cs Commands) AddSimple(
+	name, description string,
+	handler HandlerFunc,
+) Commands {
+	if cs == nil {
+		cs = make(Commands)
+	}
+	cs[name] = Command{
+		Command:     "/" + name,
+		Description: description,
+		CommandType: "text",
+		Permissions: FreePerms,
+		Handler:     handler,
+	}
+	return cs
+}
+
+func (cs Commands) Exclude() Commands {
+	for index, item := range cs {
+		item.ListExclude = true
+		cs[index] = item
+	}
+	return cs
 }
 
 func writeLines(lines []string, path string) error {
@@ -262,6 +323,7 @@ const (
 	StartBotEvent        ChatEvent = "start" //triggered by /start command from the bot
 	UserLeaveChantEvent  ChatEvent = "user_leave_chat"
 	UserJoinedChantEvent ChatEvent = "user_joined_chat"
+	TextMsgBotEvent      ChatEvent = "text_msg" //triggered by /start command from the bot
 )
 
 func (ce ChatEvent) String() string {
@@ -302,3 +364,5 @@ func ChatInfo(chat *tgbotapi.Chat) string {
 	}
 	return ""
 }
+
+type SentMessages chan<- tgbotapi.Chattable

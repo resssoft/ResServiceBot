@@ -46,7 +46,7 @@ func New() tgCommands.Service {
 	result := data{
 		humanTimes: humanTimes,
 	}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["tm"] = tgCommands.Command{
 		Command:     "/tm",
 		Synonyms:    []string{"time", "timestamp", "datetime", "date", "время"},

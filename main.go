@@ -17,15 +17,14 @@ import (
 	"fun-coice/internal/application/services/text"
 	"fun-coice/internal/application/services/translate"
 	"fun-coice/internal/application/services/transliter"
+	"fun-coice/internal/application/services/weather"
 	"fun-coice/internal/application/tgbot"
-	tgCommands "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 var DB *scribble.Driver
@@ -37,12 +36,13 @@ func main() {
 	config.Configure()
 
 	fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
-	fmt.Println(fmt.Sprintf("Telegram[%s]", config.TelegramToken()))
-	fmt.Println(fmt.Sprintf("Admin[%v]", config.TelegramAdminId()))
 
-	multiBot := tgbot.New(config.TelegramToken(), "/tg/multybot/")
+	multiBot, err := tgbot.New("multybot")
+	if err != nil {
+		log.Fatal(err)
+	}
 	//multiBot.ADmin = config.TelegramAdminLogin()
-	log.Printf("Admin is ..." + config.TelegramAdminLogin())
+	//log.Printf("Admin is ..." + config.TelegramAdminLogin())
 	log.Printf("Work with DB...")
 	appPath, err := os.Getwd()
 	if err != nil {
@@ -58,87 +58,86 @@ func main() {
 	if err != nil {
 		fmt.Println("Error", err)
 	}
-	var existAdmin = tgCommands.TGUser{}
-	if err := DB.Read("user", strconv.FormatInt(int64(config.TelegramAdminId()), 10), &existAdmin); err != nil {
-		fmt.Println("admin not found error", err)
-		existAdmin = tgCommands.TGUser{
-			UserID:  config.TelegramAdminId(),
-			ChatId:  0,
-			Login:   "",
-			Name:    "",
-			IsAdmin: false,
+
+	if config.Bool("telegram.bots.multybot.active") {
+		fmt.Println("commands count", len(multiBot.Commands))
+		funCommandsService := funs.New(DB)
+		multiBot.AddCommands(funCommandsService.Commands())
+
+		b64Service := b64.New()
+		multiBot.AddCommands(b64Service.Commands())
+		fmt.Println("commands count", len(multiBot.Commands))
+
+		QrCodesService := qrcodes.New()
+		multiBot.AddCommands(QrCodesService.Commands())
+
+		dataTimesService := datatimes.New()
+		multiBot.AddCommands(dataTimesService.Commands())
+
+		trService := translate.New()
+		multiBot.AddCommands(trService.Commands())
+
+		calculatorService := calculator.New()
+		multiBot.AddCommands(calculatorService.Commands())
+
+		financeService := financy.New(config.Str("plugins.apilayer.token"))
+		multiBot.AddCommands(financeService.Commands())
+
+		listService := lists.New(DB)
+		multiBot.AddCommands(listService.Commands())
+
+		usersService := lists.New(DB)
+		multiBot.AddCommands(usersService.Commands())
+
+		textService := text.New()
+		multiBot.AddCommands(textService.Commands())
+
+		imageService := images.New("multybot")
+		multiBot.AddCommands(imageService.Commands())
+
+		exampleService := examples.New()
+		multiBot.AddCommands(exampleService.Commands())
+
+		//last init for command list
+		adminService := admins.New(multiBot.Bot, DB, multiBot.Commands, "multybot") // TODO: provide Bot var to commandHandler
+		multiBot.AddCommands(adminService.Commands())
+
+		weatherTokens := map[string]string{
+			"yandex":   config.Str("plugins.yandex_weather.token"),
+			"gismeteo": config.Str("plugins.gismeteo.token"),
 		}
-		if err := DB.Write("user", strconv.FormatInt(int64(config.TelegramAdminId()), 10), existAdmin); err != nil {
-			fmt.Println("Error", err)
+		if false { //TODO: FIX SERVICE AND REMOVE CONDITION
+			weatherService := weather.New(multiBot.GetSentMessages(), DB, weatherTokens)
+			multiBot.AddCommands(weatherService.Commands())
+		}
+		err = multiBot.Run()
+		if err != nil {
+			log.Panic(err)
 		}
 	}
-	fmt.Println("commands count", len(multiBot.Commands))
-	funCommandsService := funs.New(DB)
-	multiBot.Commands = multiBot.Commands.Merge(funCommandsService.Commands())
 
-	b64Service := b64.New()
-	multiBot.Commands = multiBot.Commands.Merge(b64Service.Commands())
-	fmt.Println("commands count", len(multiBot.Commands))
+	if config.Bool("telegram.bots.translitbot.active") {
+		translitBot, err := tgbot.New("translitbot")
+		if err != nil {
+			log.Fatal(err)
+		}
+		translitService := transliter.New()
+		translitBot.AddCommands(translitService.Commands())
+		translitBot.DefaultCommand = "translit"
 
-	QrCodesService := qrcodes.New()
-	multiBot.Commands = multiBot.Commands.Merge(QrCodesService.Commands())
+		adminService2 := admins.New(translitBot.Bot, DB, translitBot.Commands, "translitbot")
+		translitBot.AddCommands(adminService2.Commands())
 
-	dataTimesService := datatimes.New()
-	multiBot.Commands = multiBot.Commands.Merge(dataTimesService.Commands())
-
-	trService := translate.New()
-	multiBot.Commands = multiBot.Commands.Merge(trService.Commands())
-
-	calculatorService := calculator.New()
-	multiBot.Commands = multiBot.Commands.Merge(calculatorService.Commands())
-
-	financeService := financy.New(config.Str("plugins.apilayer.token"))
-	multiBot.Commands = multiBot.Commands.Merge(financeService.Commands())
-
-	listService := lists.New(DB)
-	multiBot.Commands = multiBot.Commands.Merge(listService.Commands())
-
-	usersService := lists.New(DB)
-	multiBot.Commands = multiBot.Commands.Merge(usersService.Commands())
-
-	textService := text.New()
-	multiBot.Commands = multiBot.Commands.Merge(textService.Commands())
-
-	imageService := images.New()
-	multiBot.Commands = multiBot.Commands.Merge(imageService.Commands())
-
-	exampleService := examples.New()
-	multiBot.Commands = multiBot.Commands.Merge(exampleService.Commands())
-
-	//last init for command list
-	adminService := admins.New(multiBot.Bot, DB, multiBot.Commands) // TODO: provide Bot var to commandHandler
-	multiBot.Commands = multiBot.Commands.Merge(adminService.Commands())
-
-	err = multiBot.Run()
-	if err != nil {
-		log.Panic(err)
+		notiferEventsService := adminNotifer.New(config.TelegramAdminId("translitbot"))
+		translitBot.AddCommands(notiferEventsService.Commands())
+		err = translitBot.Run()
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 
-	fmt.Println("multy.token", config.Str("telegram.bots.multy.token"))                      // TODO: USE THIS SHIT
-	fmt.Println("translit.token", config.Str("telegram.bots.translit.token"))                // TODO: USE THIS SHIT
-	translitBot := tgbot.New(config.Str("telegram.bots.translit.token"), "/tg/translitbot/") //
-	translitService := transliter.New()
-	translitBot.Commands = translitBot.Commands.Merge(translitService.Commands())
-	translitBot.DefaultCommand = "transit"
-
-	//last init for command list
-	adminService2 := admins.New(translitBot.Bot, DB, translitBot.Commands)
-	translitBot.Commands = translitBot.Commands.Merge(adminService2.Commands()) // TODO: add multibot service
-
-	notiferEventsService := adminNotifer.New()
-	translitBot.Commands = translitBot.Commands.Merge(notiferEventsService.Commands())
-
-	err = translitBot.Run()
-	if err != nil {
-		log.Panic(err)
-	}
-
-	err = http.ListenAndServe("0.0.0.0:8080", nil)
+	fmt.Println("Start web server by" + config.WebServerAddr())
+	err = http.ListenAndServe(config.WebServerAddr(), nil)
 	if err != nil {
 		fmt.Println("Error", err)
 	}

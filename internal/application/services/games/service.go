@@ -10,7 +10,7 @@ type data struct {
 
 func New() tgCommands.Service {
 	result := data{}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["games"] = tgCommands.Command{
 		Command:     "/games",
 		Description: "Games list",

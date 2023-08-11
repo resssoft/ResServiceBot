@@ -43,14 +43,30 @@ func Configure() {
 	}
 }
 
-func TelegramToken() string {
-	return viper.GetString("telegram.token")
+func TelegramToken(botName string) string {
+	return viper.GetString("telegram.bots." + botName + ".token")
 }
 
-func TelegramAdminId() int64 {
-	return viper.GetInt64("telegram.admin")
+func TelegramAdminId(botName string) int64 {
+	return viper.GetInt64("telegram.bots." + botName + ".admin")
 }
 
-func TelegramAdminLogin() string {
-	return viper.GetString("telegram.adminlogin")
+func TelegramAdminLogin(botName string) string {
+	return viper.GetString("telegram.bots." + botName + ".adminlogin")
+}
+
+func TelegramIsWebMode(botName string) bool {
+	return viper.GetBool("telegram.bots." + botName + ".web")
+}
+
+func TelegramBotUrl(botName string) string {
+	return viper.GetString("telegram.bots." + botName + ".uri")
+}
+
+func TelegramBotCommand(botName string) string {
+	return viper.GetString("telegram.bots." + botName + ".command")
+}
+
+func WebServerAddr() string {
+	return viper.GetString("server.url")
 }

@@ -12,7 +12,7 @@ type data struct {
 }
 
 func New() tgCommands.Service {
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	result := data{
 		list:  commandsList,
 		mutex: &sync.Mutex{},

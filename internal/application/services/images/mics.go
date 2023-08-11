@@ -12,10 +12,10 @@ import (
 	"net/http"
 )
 
-func getTgFile(fileId string) (*bytes.Buffer, error) {
+func getTgFile(fileId string, botName string) (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
 	//response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
-	response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
+	response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(botName), fileId))
 	if err != nil {
 		return nil, errors.New("download TG photo error")
 	}
@@ -30,7 +30,7 @@ func getTgFile(fileId string) (*bytes.Buffer, error) {
 		return nil, errors.New("decode fileInfo err")
 	}
 	fileUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s",
-		config.TelegramToken(), fileInfo.Result.FilePath)
+		config.TelegramToken(botName), fileInfo.Result.FilePath)
 
 	response, err = http.Get(fileUrl)
 	if err != nil {

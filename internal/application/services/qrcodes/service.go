@@ -12,7 +12,7 @@ type data struct {
 
 func New() tgCommands.Service {
 	result := data{}
-	commandsList := make(tgCommands.Commands)
+	commandsList := tgCommands.NewCommands()
 	commandsList["qr"] = tgCommands.Command{
 		Command:     "/qr",
 		Description: "String to QR image",

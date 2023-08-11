@@ -1,7 +1,7 @@
 loglevel: debug
 
 server:
-  url: :8099
+  url: 0.0.0.0:8099
 telegram:
   token: 9999999999:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA #deprecated
   admin: 9999999999 #deprecated
@@ -9,19 +9,37 @@ telegram:
   chat: -100153799999 #deprecated
   bots:
     translit:
+      active: true
+      web: true
       token: 9999999999:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       login: Namebot
       admin: 9999999999
       adminlogin: login
+      ownerlogin: login
+      admins:
+        -123
+        -321
       chat: -1000000000000
       uri: /tg/translitbot/
+      services:
+        - translit
+        - admin
     multy:
+      active: true
+      web: true
       token: 9999999999:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       login: Namebot
       admin: 9999999999
       adminlogin: login
+      ownerlogin: login
+      admins:
+        -123
+        -321
       chat: -1000000000000
       uri: /tg/multytbot/
+      services:
+        - translit
+        - admin
 db:
   mongoDb:
     url: mongodb://root:test@127.0.0.1:27017/ExampleBot

@@ -36,7 +36,7 @@ func (d data) resizeImage(msg *tgbotapi.Message, commandName string, param strin
 	for _, photoItem := range msg.Photo {
 		fileId = photoItem.FileID
 	}
-	buf, err := getTgFile(fileId)
+	buf, err := getTgFile(fileId, d.botName) //TODO:get data from bot, middleware?
 	if err != nil {
 		log.Println(err.Error())
 		return tgCommands.Simple(msg.Chat.ID, err.Error())
@@ -70,7 +70,7 @@ func (d data) rotateImage(msg *tgbotapi.Message, commandName string, param strin
 	for _, photoItem := range msg.Photo {
 		fileId = photoItem.FileID
 	}
-	buf, err := getTgFile(fileId)
+	buf, err := getTgFile(fileId, d.botName) //TODO:get data from bot, middleware?
 	if err != nil {
 		log.Println(err.Error())
 		return tgCommands.Simple(msg.Chat.ID, err.Error())

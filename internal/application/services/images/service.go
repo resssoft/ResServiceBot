@@ -5,13 +5,15 @@ import (
 )
 
 type data struct {
-	list tgCommands.Commands
+	list    tgCommands.Commands
+	botName string
 }
 
-func New() tgCommands.Service {
-	commandsList := make(tgCommands.Commands)
+func New(botName string) tgCommands.Service {
+	commandsList := tgCommands.NewCommands()
 	result := data{
-		list: commandsList,
+		list:    commandsList,
+		botName: botName,
 	}
 	commandsList["imageHelp"] = tgCommands.Command{
 		Command:     "/imageHelp",
