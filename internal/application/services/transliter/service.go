@@ -16,7 +16,7 @@ type data struct {
 
 var LatToAm map[string]string
 
-var AmToLat map[string]string = map[string]string{
+var AmToLat = map[string]string{
 	"ա":  "a",
 	"բ":  "b",
 	"գ":  "g",
@@ -66,9 +66,9 @@ func New() tgCommands.Service {
 	result := data{
 		userStrings: make(map[int64]string),
 	}
-	commandsList := make(tgCommands.Commands)
-	commandsList["transit"] = tgCommands.Command{
-		Command:     "/transit",
+	commandsList := tgCommands.NewCommands()
+	commandsList["translit"] = tgCommands.Command{
+		Command:     "/translit",
 		Description: "Encode string to base64",
 		CommandType: "text",
 		Permissions: tgCommands.FreePerms,
@@ -106,23 +106,19 @@ func New() tgCommands.Service {
 	itemCount := 0
 
 	sort.Strings(amLetters)
-	fmt.Println("amLetters len", len(amLetters), len(LatToAm))
 	for _, val := range amLetters {
-		index++
 		itemCount++
-		fmt.Println(fmt.Sprintf("%s (%s)", val, AmToLat[val]))
-		row = append(row, tgbotapi.NewInlineKeyboardButtonData(
-			fmt.Sprintf("%s (%s)", val, AmToLat[val]),
-			alphabetTrigger+":"+val))
+		index++
 		if index <= itemsByRow && itemCount != len(amLetters) {
+			row = append(row, tgbotapi.NewInlineKeyboardButtonData(
+				fmt.Sprintf("%s (%s)", val, AmToLat[val]),
+				alphabetTrigger+":"+val))
 			continue
 		}
 		index = 0
-		fmt.Println("new ROW", len(row))
 		rows = append(rows, row)
 		row = nil
 	}
-	fmt.Println("rows", len(rows))
 	row = append(row, tgbotapi.NewInlineKeyboardButtonData(" ", alphabetTrigger+":"+" "))
 	row = append(row, tgbotapi.NewInlineKeyboardButtonData("←", alphabetTrigger+":"+"backspace"))
 	row = append(row, tgbotapi.NewInlineKeyboardButtonData("↯", alphabetTrigger+":"+"translate"))
@@ -140,9 +136,9 @@ func (d *data) Commands() tgCommands.Commands {
 }
 
 func (d *data) transit(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	// TRANSLATE FROM RUSSIAN TO AM (DETECT RUS)
+	fmt.Println("transit command")
+	//TODO: TRANSLATE FROM RUSSIAN TO AM (DETECT RUS)
 	if param == "" {
-		fmt.Println("EMPTY TRANSLITE COMMAND")
 		return tgCommands.EmptyCommand()
 	}
 	for latin, An := range LatToAm {
@@ -168,7 +164,8 @@ func (d *data) transit(msg *tgbotapi.Message, commandName string, param string, 
 //translit site https://www.hayastan.com/translit/
 
 func (d *data) alphabet(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	fmt.Println("alphabet")
+	//fmt.Println("alphabet") //TODO: send to statistic service
+
 	newMsg := tgbotapi.NewMessage(msg.Chat.ID, "_")
 	newMsg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 		msg.Chat.ID,
@@ -178,9 +175,10 @@ func (d *data) alphabet(msg *tgbotapi.Message, commandName string, param string,
 }
 
 func (d *data) alphabetEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+	//TODO: fix saved data
 	from := msg.From.ID
 	_, ok := d.userStrings[from]
-	/////////DATA RACE
+	//TODO:DATA RACE FIX
 	if !ok {
 		d.userStrings[from] = ""
 	}
@@ -195,7 +193,7 @@ func (d *data) alphabetEvent(msg *tgbotapi.Message, commandName string, param st
 		d.userStrings[from] += param
 	}
 
-	fmt.Println("alphabet event")
+	//fmt.Println("alphabet event") // send to statistic service
 	newMsg := tgbotapi.NewEditMessageText(msg.Chat.ID, msg.MessageID, d.userStrings[from]+"_")
 	newMsg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 		msg.Chat.ID,
