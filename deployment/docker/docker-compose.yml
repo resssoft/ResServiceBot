@@ -1,0 +1,41 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+  mongodb-bot:
+    image: mongo
+    ports:
+      - 27018:27018
+      - 27017:27017
+    container_name: mongodb-bot
+    restart: always
+    #    volumes:
+    #      - /var/db/salebot:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: bot
+      MONGO_INITDB_ROOT_PASSWORD: klbwfbgbwkrg
+    networks:
+      - bot-networks
+
+  mongo-express-bot:
+    profiles:
+      - donotstart
+    image: mongo-express
+    container_name: mongo-express-bot
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb-bot
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=bot
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=klbwfbgbwkrg
+      - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
+#      - ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+    depends_on:
+      - mongodb-bot
+    networks:
+      - bot-networks
+    restart: on-failure
+networks:
+  bot-networks:
+    driver: bridge
