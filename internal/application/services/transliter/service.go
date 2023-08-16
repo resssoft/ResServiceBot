@@ -2,7 +2,7 @@ package transliter
 
 import (
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	"fun-coice/internal/domain/commands/tg"
 	gt "github.com/bas24/googletranslatefree"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"sort"
@@ -10,7 +10,7 @@ import (
 )
 
 type data struct {
-	list        tgCommands.Commands
+	list        tgModel.Commands
 	userStrings map[int64]string
 }
 
@@ -62,32 +62,32 @@ var AmToLat = map[string]string{
 var alphabetKeyboard tgbotapi.InlineKeyboardMarkup
 var alphabetTrigger = "alphabetKey"
 
-func New() tgCommands.Service {
+func New() tgModel.Service {
 	result := data{
 		userStrings: make(map[int64]string),
 	}
-	commandsList := tgCommands.NewCommands()
-	commandsList["translit"] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["translit"] = tgModel.Command{
 		Command:     "/translit",
 		Description: "Encode string to base64",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.transit,
 	}
-	commandsList["alphabet"] = tgCommands.Command{
+	commandsList["alphabet"] = tgModel.Command{
 		Command:     "/alphabet",
 		Synonyms:    []string{"af"},
 		Description: "Encode string to base64",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.alphabet,
 	}
-	commandsList[alphabetTrigger] = tgCommands.Command{
+	commandsList[alphabetTrigger] = tgModel.Command{
 		Command:     "/alphabetKey",
 		Description: "alphabet notify by key",
 		CommandType: "event",
 		ListExclude: true, // do not show in the commands list
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.alphabetEvent,
 	}
 
@@ -131,15 +131,16 @@ func New() tgCommands.Service {
 	return &result
 }
 
-func (d *data) Commands() tgCommands.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d *data) transit(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d *data) transit(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	fmt.Println("transit command")
 	//TODO: TRANSLATE FROM RUSSIAN TO AM (DETECT RUS)
+	param := command.Arguments.Raw
 	if param == "" {
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
 	for latin, An := range LatToAm {
 		if len([]rune(latin)) > 1 {
@@ -158,12 +159,12 @@ func (d *data) transit(msg *tgbotapi.Message, commandName string, param string, 
 	} else {
 		param += "\n\n" + result
 	}
-	return tgCommands.SimpleReply(msg.Chat.ID, param, msg.MessageID)
+	return tgModel.SimpleReply(msg.Chat.ID, param, msg.MessageID)
 }
 
 //translit site https://www.hayastan.com/translit/
 
-func (d *data) alphabet(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d *data) alphabet(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
 	//fmt.Println("alphabet") //TODO: send to statistic service
 
 	newMsg := tgbotapi.NewMessage(msg.Chat.ID, "_")
@@ -171,10 +172,10 @@ func (d *data) alphabet(msg *tgbotapi.Message, commandName string, param string,
 		msg.Chat.ID,
 		msg.MessageID,
 		alphabetKeyboard).ReplyMarkup
-	return tgCommands.PreparedCommand(newMsg)
+	return tgModel.PreparedCommand(newMsg)
 }
 
-func (d *data) alphabetEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d *data) alphabetEvent(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	//TODO: fix saved data
 	from := msg.From.ID
 	_, ok := d.userStrings[from]
@@ -182,15 +183,18 @@ func (d *data) alphabetEvent(msg *tgbotapi.Message, commandName string, param st
 	if !ok {
 		d.userStrings[from] = ""
 	}
-	switch param {
+	switch command.Arguments.Raw {
 	case "backspace":
 		if len(d.userStrings[from]) > 0 {
 			d.userStrings[from] = string([]rune(d.userStrings[from])[:len([]rune(d.userStrings[from]))-1])
 		}
 	case "translate":
-		return d.transit(msg, commandName, d.userStrings[from], []string{})
+		newCommand := tgModel.Command{
+			Arguments: tgModel.CommandArguments{Raw: d.userStrings[from]},
+		}
+		return d.transit(msg, &newCommand)
 	default:
-		d.userStrings[from] += param
+		d.userStrings[from] += command.Arguments.Raw
 	}
 
 	//fmt.Println("alphabet event") // send to statistic service
@@ -199,5 +203,5 @@ func (d *data) alphabetEvent(msg *tgbotapi.Message, commandName string, param st
 		msg.Chat.ID,
 		msg.MessageID,
 		alphabetKeyboard).ReplyMarkup
-	return tgCommands.PreparedCommand(newMsg)
+	return tgModel.PreparedCommand(newMsg)
 }

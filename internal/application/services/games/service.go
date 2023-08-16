@@ -1,21 +1,21 @@
 package games
 
 import (
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 )
 
 type data struct {
-	list tgCommands.Commands
+	list tgModel.Commands
 }
 
-func New() tgCommands.Service {
+func New() tgModel.Service {
 	result := data{}
-	commandsList := tgCommands.NewCommands()
-	commandsList["games"] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["games"] = tgModel.Command{
 		Command:     "/games",
 		Description: "Games list",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.games,
 	}
 
@@ -23,6 +23,6 @@ func New() tgCommands.Service {
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d data) Commands() tgModel.Commands {
 	return d.list
 }

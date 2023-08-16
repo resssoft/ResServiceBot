@@ -2,7 +2,7 @@ package images
 
 import (
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strconv"
@@ -10,7 +10,7 @@ import (
 
 //TODO: add images buffer, imageMergeVertical, imageMergeHorizontal,
 
-func (d data) help(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) help(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	commandsList := "Image processing\n"
 	commandsList += "Commands:\n"
 	for _, commandsItem := range d.Commands() {
@@ -19,18 +19,18 @@ func (d data) help(msg *tgbotapi.Message, commandName string, param string, para
 		}
 		commandsList += commandsItem.Command + " - " + commandsItem.Description + "\n"
 	}
-	return tgCommands.Simple(msg.Chat.ID, commandsList)
+	return tgModel.Simple(msg.Chat.ID, commandsList)
 }
 
-func (d data) resize(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.WaitingWithText(msg.Chat.ID, "Send image, use text commands format '300'", "resizeImage")
+func (d data) resize(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	return tgModel.WaitingWithText(msg.Chat.ID, "Send image, use text commands format '300'", "resizeImage")
 }
 
-func (d data) resizeImage(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) resizeImage(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
 	var err error
 	var size = 100
 	if msg.Photo == nil {
-		return tgCommands.Simple(msg.Chat.ID, "image is empty or incorrect")
+		return tgModel.Simple(msg.Chat.ID, "image is empty or incorrect")
 	}
 	fileId := ""
 	for _, photoItem := range msg.Photo {
@@ -39,7 +39,7 @@ func (d data) resizeImage(msg *tgbotapi.Message, commandName string, param strin
 	buf, err := getTgFile(fileId, d.botName) //TODO:get data from bot, middleware?
 	if err != nil {
 		log.Println(err.Error())
-		return tgCommands.Simple(msg.Chat.ID, err.Error())
+		return tgModel.Simple(msg.Chat.ID, err.Error())
 	}
 	if msg.Caption != "" {
 		sizeNew, err := strconv.Atoi(msg.Caption)
@@ -53,18 +53,18 @@ func (d data) resizeImage(msg *tgbotapi.Message, commandName string, param strin
 		Name:  "photo.jpg",
 		Bytes: newImage,
 	}
-	return tgCommands.PreparedCommand(tgbotapi.NewPhoto(msg.Chat.ID, tgNewfile))
+	return tgModel.PreparedCommand(tgbotapi.NewPhoto(msg.Chat.ID, tgNewfile))
 }
 
-func (d data) rotate(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.WaitingWithText(msg.Chat.ID, "Send image, use text commands format '90' or '180'", "rotateImage")
+func (d data) rotate(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	return tgModel.WaitingWithText(msg.Chat.ID, "Send image, use text commands format '90' or '180'", "rotateImage")
 }
 
-func (d data) rotateImage(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) rotateImage(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	var err error
 	var degrees float64 = 90
 	if msg.Photo == nil {
-		return tgCommands.Simple(msg.Chat.ID, "image is empty or incorrect")
+		return tgModel.Simple(msg.Chat.ID, "image is empty or incorrect")
 	}
 	fileId := ""
 	for _, photoItem := range msg.Photo {
@@ -73,7 +73,7 @@ func (d data) rotateImage(msg *tgbotapi.Message, commandName string, param strin
 	buf, err := getTgFile(fileId, d.botName) //TODO:get data from bot, middleware?
 	if err != nil {
 		log.Println(err.Error())
-		return tgCommands.Simple(msg.Chat.ID, err.Error())
+		return tgModel.Simple(msg.Chat.ID, err.Error())
 	}
 	if msg.Caption != "" {
 		degreesNew, err := strconv.ParseFloat(msg.Caption, 64)
@@ -87,5 +87,5 @@ func (d data) rotateImage(msg *tgbotapi.Message, commandName string, param strin
 		Name:  "rotated.jpg",
 		Bytes: newImage,
 	}
-	return tgCommands.PreparedCommand(tgbotapi.NewPhoto(msg.Chat.ID, tgNewfile))
+	return tgModel.PreparedCommand(tgbotapi.NewPhoto(msg.Chat.ID, tgNewfile))
 }

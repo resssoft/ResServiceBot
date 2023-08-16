@@ -1,14 +1,14 @@
 package games
 
 import (
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func (d data) games(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) games(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	newMsg := tgbotapi.NewMessage(msg.Chat.ID, "Games list")
 	newMsg.ReplyMarkup = gamesListKeyboard
-	return tgCommands.PreparedCommand(newMsg)
+	return tgModel.PreparedCommand(newMsg)
 }
 
 /*

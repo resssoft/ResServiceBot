@@ -3,7 +3,7 @@ package lists
 import (
 	"encoding/json"
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"strconv"
@@ -12,55 +12,55 @@ import (
 )
 
 type data struct {
-	list tgCommands.Commands
+	list tgModel.Commands
 	DB   *scribble.Driver
 }
 
-func New(DB *scribble.Driver) tgCommands.Service {
+func New(DB *scribble.Driver) tgModel.Service {
 	result := data{
 		DB: DB,
 	}
-	commandsList := tgCommands.NewCommands()
-	commandsList["addCheckItem"] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["addCheckItem"] = tgModel.Command{
 		Command:     "/addCheckItem",
 		Description: "(параметры - имя чеклиста, =1 - если публичный, =1 если уже установлен) - создание элемента чеклиста в указанную группу",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.addCheckItem,
 	}
-	commandsList["updateCheckItem"] = tgCommands.Command{
+	commandsList["updateCheckItem"] = tgModel.Command{
 		Command:     "/updateCheckItem",
 		Description: "(параметр - имя чеклиста, =1 или =0 для статуса, полный текст элемента для обновления) - вывод указанной группы чеклиста",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.updateCheckItem,
 	}
-	commandsList["сheckList"] = tgCommands.Command{
+	commandsList["сheckList"] = tgModel.Command{
 		Command:     "/сheckList",
 		Description: "(параметр - имя чеклиста) - вывод указанной группы чеклиста",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.сheckList,
 	}
-	commandsList["addSaveCommand"] = tgCommands.Command{
+	commandsList["addSaveCommand"] = tgModel.Command{
 		Command:     "/addSaveCommand",
 		Description: "Создать комманду сохранения коротких текстовых сообщений, чтобы потом ею сохранять текстовые строки. например. '/addSaveCommand whatToDo' и потом 'whatToDo вымыть посуду'",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.addSaveCommand,
 	}
-	commandsList["SaveCommandsList"] = tgCommands.Command{
+	commandsList["SaveCommandsList"] = tgModel.Command{
 		Command:     "/SaveCommandsList",
 		Description: "Список комманд для сохранения текстовых строк",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.SaveCommandsList,
 	}
-	commandsList["listOf"] = tgCommands.Command{
+	commandsList["listOf"] = tgModel.Command{
 		Command:     "/listOf",
 		Description: "(+ аргумент) Список сохраненных сообщений по указанной комманде",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.listOf,
 	}
 
@@ -70,14 +70,14 @@ func New(DB *scribble.Driver) tgCommands.Service {
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) addCheckItem(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-
+func (d data) addCheckItem(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) <= 1 {
-		return tgCommands.Simple(msg.Chat.ID, "set list name")
+		return tgModel.Simple(msg.Chat.ID, "set list name")
 	}
 	debugMessage := ""
 	checkItemText := ""
@@ -85,17 +85,17 @@ func (d data) addCheckItem(msg *tgbotapi.Message, commandName string, param stri
 	isPublic := false
 	checkListStatus := false
 	if checkListGroup == "" {
-		return tgCommands.Simple(msg.Chat.ID, "need more info, read /commands")
+		return tgModel.Simple(msg.Chat.ID, "need more info, read /commands")
 	}
-	checkItemText = strings.Replace(param, checkListGroup+" ", "", -1)
+	checkItemText = strings.Replace(command.Arguments.Raw, checkListGroup+" ", "", -1)
 	debugMessage += " [" + checkItemText + "] "
 	if params[2] == "=1" || params[2] == "isPublic" {
 		isPublic = true
-		checkItemText = strings.Replace(param, params[2]+" ", "", -1)
+		checkItemText = strings.Replace(command.Arguments.Raw, params[2]+" ", "", -1)
 		debugMessage += " isPublic "
 	}
 	if params[3] == "=1" || params[3] == "isCheck" {
-		checkItemText = strings.Replace(param, params[3]+" ", "", -1)
+		checkItemText = strings.Replace(command.Arguments.Raw, params[3]+" ", "", -1)
 		checkListStatus = true
 		debugMessage += " checkListStatus "
 	}
@@ -115,18 +115,19 @@ func (d data) addCheckItem(msg *tgbotapi.Message, commandName string, param stri
 
 	if err := d.DB.Write("checkList", itemCode, checkListItem); err != nil {
 		fmt.Println("add command error", err)
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
-	return tgCommands.Simple(msg.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
+	return tgModel.Simple(msg.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
 }
 
-func (d data) updateCheckItem(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) updateCheckItem(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) <= 1 {
-		return tgCommands.Simple(msg.Chat.ID, "set list name")
+		return tgModel.Simple(msg.Chat.ID, "set list name")
 	}
 	checkListGroup := params[1]
 	if checkListGroup == "" {
-		return tgCommands.Simple(msg.Chat.ID, "need more info, read /commands")
+		return tgModel.Simple(msg.Chat.ID, "need more info, read /commands")
 	}
 
 	records, err := d.DB.ReadAll("checkList")
@@ -139,7 +140,7 @@ func (d data) updateCheckItem(msg *tgbotapi.Message, commandName string, param s
 		newStatus = true
 	}
 
-	checkItemText := strings.Replace(param, params[1]+" ", "", -1)
+	checkItemText := strings.Replace(command.Arguments.Raw, params[1]+" ", "", -1)
 	updatedItems := 0
 
 	for _, f := range records {
@@ -159,16 +160,17 @@ func (d data) updateCheckItem(msg *tgbotapi.Message, commandName string, param s
 			}
 		}
 	}
-	return tgCommands.Simple(msg.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
+	return tgModel.Simple(msg.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
 }
 
-func (d data) сheckList(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) сheckList(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) <= 1 {
-		return tgCommands.Simple(msg.Chat.ID, "set list name")
+		return tgModel.Simple(msg.Chat.ID, "set list name")
 	}
 	checkListGroup := params[1]
 	if checkListGroup == "" {
-		return tgCommands.Simple(msg.Chat.ID, "need more info, read /commands")
+		return tgModel.Simple(msg.Chat.ID, "need more info, read /commands")
 	}
 
 	records, err := d.DB.ReadAll("сheckList")
@@ -197,27 +199,27 @@ func (d data) сheckList(msg *tgbotapi.Message, commandName string, param string
 			checkListFull += " " + commandFound.Text + "\n"
 		}
 	}
-	return tgCommands.Simple(msg.Chat.ID, checkListFull)
+	return tgModel.Simple(msg.Chat.ID, checkListFull)
 }
 
-func (d data) addSaveCommand(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	command := tgCommands.Command{
-		Command:     param,
+func (d data) addSaveCommand(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	commandDB := tgModel.Command{
+		Command:     command.Arguments.Raw,
 		CommandType: "SaveCommand",
-		Permissions: tgCommands.CommandPermissions{
+		Permissions: tgModel.CommandPermissions{
 			UserPermissions: "",
 			ChatPermissions: "",
 		},
 	}
 
-	if err := d.DB.Write("command", param, command); err != nil {
+	if err := d.DB.Write("command", command.Arguments.Raw, commandDB); err != nil {
 		fmt.Println("add command error", err)
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
-	return tgCommands.Simple(msg.Chat.ID, "Added "+param)
+	return tgModel.Simple(msg.Chat.ID, "Added "+command.Arguments.Raw)
 }
 
-func (d data) SaveCommandsList(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) SaveCommandsList(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	records, err := d.DB.ReadAll("command")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -225,17 +227,17 @@ func (d data) SaveCommandsList(msg *tgbotapi.Message, commandName string, param 
 
 	commands := []string{}
 	for _, f := range records {
-		commandFound := tgCommands.Command{}
+		commandFound := tgModel.Command{}
 		if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
 			fmt.Println("Error", err)
-			return tgCommands.EmptyCommand()
+			return tgModel.EmptyCommand()
 		}
 		commands = append(commands, commandFound.Command)
 	}
-	return tgCommands.SimpleReply(msg.Chat.ID, strings.Join(commands, ", "), msg.MessageID)
+	return tgModel.SimpleReply(msg.Chat.ID, strings.Join(commands, ", "), msg.MessageID)
 }
 
-func (d data) listOf(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) listOf(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	records, err := d.DB.ReadAll("saved")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -246,9 +248,9 @@ func (d data) listOf(msg *tgbotapi.Message, commandName string, param string, pa
 		if err := json.Unmarshal([]byte(f), &commandFound); err != nil {
 			fmt.Println("Error", err)
 		}
-		if commandFound.Group == param && commandFound.User == strconv.FormatInt(msg.Chat.ID, 10) {
+		if commandFound.Group == command.Arguments.Raw && commandFound.User == strconv.FormatInt(msg.Chat.ID, 10) {
 			commands = append(commands, commandFound.Text)
 		}
 	}
-	return tgCommands.Simple(msg.Chat.ID, param+":\n-"+strings.Join(commands, "\n-"))
+	return tgModel.Simple(msg.Chat.ID, command.Arguments.Raw+":\n-"+strings.Join(commands, "\n-"))
 }

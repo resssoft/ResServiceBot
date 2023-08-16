@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"fun-coice/config"
 	"fun-coice/internal/application/services/adminNotifer"
@@ -13,21 +14,28 @@ import (
 	"fun-coice/internal/application/services/images"
 	"fun-coice/internal/application/services/lists"
 	"fun-coice/internal/application/services/money"
+	"fun-coice/internal/application/services/msgStore"
 	"fun-coice/internal/application/services/qrcodes"
 	"fun-coice/internal/application/services/text"
 	"fun-coice/internal/application/services/translate"
 	"fun-coice/internal/application/services/transliter"
 	"fun-coice/internal/application/services/weather"
 	"fun-coice/internal/application/tgbot"
+	tgmessage "fun-coice/internal/repositories/telegram/message"
 	"fun-coice/pkg/scribble"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var DB *scribble.Driver
+
+var dbFile = "./tg-sqlite3.db"
 
 func main() {
 	var err error
@@ -35,7 +43,32 @@ func main() {
 	fmt.Print("Load configuration... ")
 	config.Configure()
 
-	fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
+	//TODO: add falgs for version and config test
+	///fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
+
+	if _, err = os.Stat(dbFile); err != nil {
+		log.Println("Creating sqlite-database.db...")
+		file, err := os.Create(dbFile)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		file.Close()
+		dbFilePath, _ := filepath.Abs(dbFile)
+		log.Println("sqlite-database.db created", dbFilePath)
+	}
+	dbFilePath, _ := filepath.Abs(dbFile)
+	log.Println("sqlite-database.db ", dbFilePath)
+
+	sqliteDatabase, err := sql.Open("sqlite3", dbFile) // or file::memory:?cache=shared //:memory:
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer sqliteDatabase.Close()
+
+	msgRepo, err := tgmessage.New(sqliteDatabase)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	multiBot, err := tgbot.New("multybot")
 	if err != nil {
@@ -101,6 +134,9 @@ func main() {
 		//last init for command list
 		adminService := admins.New(multiBot.Bot, DB, multiBot.Commands, "multybot") // TODO: provide Bot var to commandHandler
 		multiBot.AddCommands(adminService.Commands())
+
+		msgStoreService := msgStore.New(msgRepo, multiBot.Bot.Self.UserName)
+		multiBot.AddCommands(msgStoreService.Commands())
 
 		weatherTokens := map[string]string{
 			"yandex":   config.Str("plugins.yandex_weather.token"),

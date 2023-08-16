@@ -1,4 +1,4 @@
-package tgCommands
+package tgModel
 
 import (
 	"bufio"
@@ -26,12 +26,13 @@ type Command struct {
 	CommandType string
 	ListExclude bool
 	Permissions CommandPermissions
-	Handler     HandlerFunc //TODO: REMOVE params []string and fix in the implements
+	Handler     HandlerFunc
+	Arguments   CommandArguments
 	//Service string  // set in the bot only
 }
 
-//OLD func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool) tgCommands.HandlerResult tgCommands.PreparedCommand( tgCommands.PreparedCommand
-// tgCommands.PreparedCommand(tgbotapi.NewMessage ->  tgCommands.Simple
+//OLD func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool) tgModel.HandlerResult tgModel.PreparedCommand( tgModel.PreparedCommand
+// tgModel.PreparedCommand(tgbotapi.NewMessage ->  tgModel.Simple
 //TODO: Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, HandlerResult)
 
 type HandlerResult struct {
@@ -42,8 +43,7 @@ type HandlerResult struct {
 	Events   []Event
 }
 
-// TODO: REMOVE params []string and fix in the implements
-type HandlerFunc func(*tgbotapi.Message, string, string, []string) HandlerResult
+type HandlerFunc func(*tgbotapi.Message, *Command) HandlerResult
 
 func EmptyCommand() HandlerResult {
 	return HandlerResult{
@@ -150,8 +150,33 @@ func IsCommand(command, msg, botName string) bool {
 	return msg == command || msg == fmt.Sprintf("%s@%s", command, botName)
 }
 
-func (t *Command) ParsedArgs(args string) []string {
-	return strings.Split(args, " ")
+func (t *Command) SetArgs(args string) *Command {
+	t.Arguments = CommandArguments{
+		Raw: args,
+	}
+	return t
+}
+
+func (t *Command) ParsedArgs() []string {
+	return t.Arguments.Parse()
+}
+
+type CommandArguments struct {
+	Raw    string
+	Parsed bool
+	List   []string
+}
+
+func (ca *CommandArguments) Parse() []string {
+	if ca.Raw == "" {
+		return nil
+	}
+	if ca.Parsed {
+		return ca.List
+	}
+	ca.List = strings.Split(ca.Raw, " ")
+	ca.Parsed = true
+	return ca.List
 }
 
 func (tgp *CommandPermissions) Check(user *tgbotapi.User, adminId int64) bool {
@@ -366,3 +391,14 @@ func ChatInfo(chat *tgbotapi.Chat) string {
 }
 
 type SentMessages chan<- tgbotapi.Chattable
+
+type Message struct {
+	TgMsg        *tgbotapi.Message
+	BotName      string
+	ID           int
+	MsgType      string //text, file, images, new_member...
+	MsgDirection int    // 0 from user, 1 from bot
+	MsgJson      string
+}
+
+//TODO: remove TgMsg and provide fields

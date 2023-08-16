@@ -3,16 +3,17 @@ package financy
 import (
 	"encoding/json"
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type data struct {
-	list  tgCommands.Commands
+	list  tgModel.Commands
 	token string
 }
 
@@ -32,17 +33,17 @@ type converterResult struct {
 // https://rate.am/calculator/rates.ashx?cr1=USD&hcr=AMD&cr2=RUR&orgId=466fe84c-197f-4174-bc97-e1dc7960edc7&rtype=1&tp=0&l=lang3&r=
 // https://github.com/zaikin-andrew/rate-am-extension/search?q=rate.am
 
-func New(token string) tgCommands.Service {
+func New(token string) tgModel.Service {
 	result := data{
 		token: token,
 	}
-	commandsList := tgCommands.NewCommands()
-	commandsList["fiat"] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["fiat"] = tgModel.Command{
 		Command:     "/fiat",
 		Synonyms:    []string{"сколько будет", "фиат"},
 		Description: "Convert one fiat to others (usd, rub, amd)",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.fiat,
 	}
 
@@ -50,11 +51,12 @@ func New(token string) tgCommands.Service {
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) fiat(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) fiat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	params := strings.Split(command.Arguments.Raw, " ")
 	convertFrom := "AMD"
 	convertTo1 := "RUB"
 	convertTo2 := "USD"
@@ -86,7 +88,7 @@ func (d data) fiat(msg *tgbotapi.Message, commandName string, param string, para
 			time.Now().Format(dbDateFormatMonth))
 	}
 
-	return tgCommands.SimpleReply(msg.Chat.ID, msgText, msg.MessageID)
+	return tgModel.SimpleReply(msg.Chat.ID, msgText, msg.MessageID)
 }
 
 func (d data) fiatConvert(from, to, amount string) string {

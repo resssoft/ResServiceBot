@@ -2,7 +2,7 @@ package datatimes
 
 import (
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hako/durafmt"
 	"github.com/pawelszydlo/humanize"
@@ -13,7 +13,7 @@ import (
 )
 
 type data struct {
-	list       tgCommands.Commands
+	list       tgModel.Commands
 	humanTimes map[string]*humanize.Humanizer
 }
 
@@ -34,7 +34,7 @@ const (
 	Year        timeType = 1024
 )
 
-func New() tgCommands.Service {
+func New() tgModel.Service {
 	var err error
 	humanTimes := make(map[string]*humanize.Humanizer)
 	for _, lang := range languages {
@@ -46,30 +46,30 @@ func New() tgCommands.Service {
 	result := data{
 		humanTimes: humanTimes,
 	}
-	commandsList := tgCommands.NewCommands()
-	commandsList["tm"] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["tm"] = tgModel.Command{
 		Command:     "/tm",
 		Synonyms:    []string{"time", "timestamp", "datetime", "date", "время"},
 		Description: "Get date time info or convert",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.getInfo,
 	}
-	commandsList["tmdu"] = tgCommands.Command{
+	commandsList["tmdu"] = tgModel.Command{
 		Command:     "/tmdu",
 		Synonyms:    []string{"timeDur", "timeDuration", "timeOf", "duration", "продолжительность"},
 		Templates:   []string{`^\d[\d\s\+\\\-\*\(\)\.]+$`},
 		Description: "Get date time info or convert",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.getDuration,
 	}
-	commandsList["timeconvert"] = tgCommands.Command{
+	commandsList["timeconvert"] = tgModel.Command{
 		Command:     "/timeconvert",
 		Templates:   []string{`^\d+\s[^\d\s]+\s[i]{0,1}[n]{0,1}[в]{0,1}\s[^\d\s]+$`},
 		Description: "convert time, format: /timeconvert <digit> <timeType: seconds, days, years> <digit> <timeType: seconds, days, years>",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.timeConvert,
 	}
 
@@ -77,17 +77,17 @@ func New() tgCommands.Service {
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) getDuration(msg *tgbotapi.Message, commandName string, commandValue string, params []string) tgCommands.HandlerResult {
-	msgText := fmt.Sprintf("Input: %s\n\n", commandValue)
+func (d data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	msgText := fmt.Sprintf("Input: %s\n\n", command.Arguments.Raw)
 	duration := time.Second
 	var err error
 	if ht, ok := d.humanTimes["en"]; ok {
 		if ht != nil {
-			duration, err = d.humanTimes["en"].ParseDuration(commandValue)
+			duration, err = d.humanTimes["en"].ParseDuration(command.Arguments.Raw)
 			if err != nil {
 				fmt.Println("Error init humanize for lang", err.Error())
 			}
@@ -98,13 +98,15 @@ func (d data) getDuration(msg *tgbotapi.Message, commandName string, commandValu
 		fmt.Println("humanize for en is not exist")
 	}
 	msgText += dateFormat(time.Now().Add(duration))
-	return tgCommands.Simple(msg.Chat.ID, msgText)
+	return tgModel.Simple(msg.Chat.ID, msgText)
 }
 
-func (d data) getInfo(msg *tgbotapi.Message, commandName string, commandValue string, params []string) tgCommands.HandlerResult {
+func (d data) getInfo(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	params := strings.Split(command.Arguments.Raw, " ")
+	commandValue := command.Arguments.Raw
 	var err error
 	if len(params) == 0 {
-		return tgCommands.Simple(msg.Chat.ID, time.Now().Format("2006-01-02 15:04:05 -0700"))
+		return tgModel.Simple(msg.Chat.ID, time.Now().Format("2006-01-02 15:04:05 -0700"))
 	}
 	msgText := fmt.Sprintf("Input: %s\n\n", commandValue)
 	timestampConvert, _ := regexp.MatchString(`^\d\d\d\d\d\d+$`, commandValue)
@@ -227,7 +229,7 @@ func (d data) getInfo(msg *tgbotapi.Message, commandName string, commandValue st
 		}
 	}
 	//time.Parse(commandValue, commandValue)
-	return tgCommands.Simple(msg.Chat.ID, msgText)
+	return tgModel.Simple(msg.Chat.ID, msgText)
 }
 
 func byTimezone(value string) *time.Location {
@@ -287,8 +289,8 @@ func durationFormat(val string) string {
 	return msgText
 }
 
-func (d data) timeConvert(msg *tgbotapi.Message, commandName string, commandValue string, params []string) tgCommands.HandlerResult {
-	commandValue = strings.ToLower(commandValue)
+func (d data) timeConvert(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	commandValue := strings.ToLower(command.Arguments.Raw)
 	fromType := Nanosecond
 	toType := Nanosecond
 	from := int64(1)
@@ -297,7 +299,7 @@ func (d data) timeConvert(msg *tgbotapi.Message, commandName string, commandValu
 	fromVal, fromName, toName := d.parseTimeCovert(commandValue)
 	if fromName == "" || fromVal == "" {
 		fmt.Println("not parsed", commandValue) // DEBUG
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
 	switch fromName {
 	case "second", "seconds", "секунд", "секунда", "секунды", "секундах":
@@ -334,7 +336,7 @@ func (d data) timeConvert(msg *tgbotapi.Message, commandName string, commandValu
 	from, _ = strconv.ParseInt(fromVal, 10, 64)
 	fmt.Println(fmt.Sprintf("fromName[%s]%v toName[%s]%v val: %v", fromName, fromType, toName, toType, from)) // DEBUG
 	result := d.convert(from, fromType, toType)
-	return tgCommands.Simple(msg.Chat.ID, fmt.Sprintf("%v %s", result, resultName))
+	return tgModel.Simple(msg.Chat.ID, fmt.Sprintf("%v %s", result, resultName))
 }
 
 func (d data) parseTimeCovert(val string) (string, string, string) {

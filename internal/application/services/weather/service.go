@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
@@ -16,25 +16,25 @@ import (
 	zlog "github.com/rs/zerolog/log"
 )
 
-var _ = (tgCommands.Service)(&data{})
+var _ = (tgModel.Service)(&data{})
 
 type data struct {
-	events  tgCommands.Commands
-	sentMsg tgCommands.SentMessages
+	events  tgModel.Commands
+	sentMsg tgModel.SentMessages
 	DB      *scribble.Driver
 	items   []item
 	ctx     context.Context
 	tokens  map[string]string
 }
 
-func New(sentMsg tgCommands.SentMessages, DB *scribble.Driver, tokens map[string]string) tgCommands.Service {
+func New(sentMsg tgModel.SentMessages, DB *scribble.Driver, tokens map[string]string) tgModel.Service {
 	result := data{
 		sentMsg: sentMsg,
 		DB:      DB,
 		ctx:     context.Background(),
 		tokens:  tokens,
 	}
-	commandsList := tgCommands.NewCommands()
+	commandsList := tgModel.NewCommands()
 	commandsList.AddSimple("weather_add_chat", "Add weather notifier to chat", result.addWeatherChat)
 	commandsList.AddSimple("weather_show", "Show weather", result.showWeatherToChat)
 	commandsList.AddSimple("weather_test", "Show weather", result.showWeatherChatEvents)
@@ -44,17 +44,18 @@ func New(sentMsg tgCommands.SentMessages, DB *scribble.Driver, tokens map[string
 	return &result
 }
 
-func (d *data) Commands() tgCommands.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.events
 }
 
-func (d *data) addWeatherChat(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	params := strings.Split(command.Arguments.Raw, " ")
 	chatId := fmt.Sprintf("%v", msg.Chat.ID)
 	hour := time.Now().Hour()
 	min := time.Now().Minute()
 	var err error
 	if len(params) == 1 {
-		partsTime := strings.Split(param, ":")
+		partsTime := strings.Split(command.Arguments.Raw, ":")
 		if len(partsTime) == 2 {
 			hour, err = strconv.Atoi(partsTime[0])
 			if err != nil {
@@ -75,22 +76,22 @@ func (d *data) addWeatherChat(msg *tgbotapi.Message, commandName string, param s
 	})
 	if err := d.DB.Write("weather_chats", chatId, weatherItem); err != nil {
 		fmt.Println("add command error", err)
-		return tgCommands.Simple(msg.Chat.ID, "Cant do that, sorry")
+		return tgModel.Simple(msg.Chat.ID, "Cant do that, sorry")
 	} else {
-		return tgCommands.Simple(msg.Chat.ID, "saved!")
+		return tgModel.Simple(msg.Chat.ID, "saved!")
 	}
 }
 
-func (d *data) showWeatherChatEvents(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(msg.Chat.ID, "qq") //////////////////////////////
+func (d *data) showWeatherChatEvents(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	return tgModel.Simple(msg.Chat.ID, "qq") //////////////////////////////
 }
 
-func (d *data) showWeatherToChat(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(msg.Chat.ID, d.GetGismeteoForecast()) //////////////////////////////
+func (d *data) showWeatherToChat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	return tgModel.Simple(msg.Chat.ID, d.GetGismeteoForecast()) //////////////////////////////
 }
 
-func (d *data) delWeatherChatEvents(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(msg.Chat.ID, "qq") //////////////////////////////
+func (d *data) delWeatherChatEvents(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	return tgModel.Simple(msg.Chat.ID, "qq") //////////////////////////////
 }
 
 func (d *data) Configure() {
@@ -176,7 +177,7 @@ func (d *data) worker() {
 }
 
 func (d *data) SendWeather(chatId int64) {
-	d.sentMsg <- tgCommands.Simple(chatId, "User Leave Chant:\n").Messages[0]
+	d.sentMsg <- tgModel.Simple(chatId, "User Leave Chant:\n").Messages[0]
 }
 
 func (d *data) GetGismeteoForecast() string {

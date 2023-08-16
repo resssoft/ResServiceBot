@@ -19,3 +19,4 @@ vendor/
 .idea/
 data/
 bin/
+*.db

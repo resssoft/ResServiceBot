@@ -3,7 +3,7 @@ package tgbot
 import (
 	"fmt"
 	"fun-coice/config"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	zlog "github.com/rs/zerolog/log"
@@ -25,7 +25,7 @@ type Data struct {
 	Token          string
 	StartMsg       bool
 	WebMode        bool
-	Commands       tgCommands.Commands
+	Commands       tgModel.Commands
 	Bot            *tgbotapi.BotAPI
 	WorkersCount   int
 	Deferred       map[int64]string
@@ -105,7 +105,7 @@ func (d *Data) SetWebMode(val bool) {
 	d.WebMode = val
 }
 
-func (d *Data) GetSentMessages() tgCommands.SentMessages {
+func (d *Data) GetSentMessages() tgModel.SentMessages {
 	return d.messagesChan
 }
 
@@ -124,8 +124,11 @@ func (d *Data) CheckDeferred(user int64) string {
 	return founded
 }
 
-func (d *Data) RunCommand(command tgCommands.Command, msg *tgbotapi.Message, commandName string, param string, params []string) bool {
-	result := command.Handler(msg, command.Command, param, params)
+func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
+	if command.Arguments.Raw == "" {
+		command.SetArgs(msg.CommandArguments())
+	}
+	result := command.Handler(msg, &command)
 	if result.Prepared {
 		//fmt.Println("COMMAND PREPAERD") //DEVMODE
 		log.Println("result.Messages", len(result.Messages))
@@ -144,7 +147,8 @@ func (d *Data) RunCommand(command tgCommands.Command, msg *tgbotapi.Message, com
 				log.Println("eventCommands", eventCommands)
 				for _, eventCommand := range eventCommands {
 					log.Println("eventCommands", eventCommand)
-					d.RunCommand(eventCommand, msg, commandName, param, params)
+					eventCommand.SetArgs(msg.CommandArguments())
+					d.RunCommand(eventCommand, msg)
 				}
 			}
 		}
@@ -192,19 +196,18 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 				zlog.Info().Any("callback query data", update.CallbackQuery.Data).Send()
 			}
 			eventName := update.CallbackQuery.Data
-			eventData := update.CallbackQuery.Data
+			//eventData := update.CallbackQuery.Data
 			separatedData := strings.Split(eventName, ":")
 			if len(separatedData) > 1 {
 				eventName = separatedData[0]
-				eventData = separatedData[1]
+				//eventData = separatedData[1] // ????????????????????????
 			}
 			if commandDeferred, ok := d.GetCommand(eventName); ok {
+
+				commandDeferred.SetArgs(update.CallbackQuery.Message.CommandArguments())
 				if d.RunCommand(
 					commandDeferred,
-					update.CallbackQuery.Message,
-					commandDeferred.Command,
-					eventData,
-					strings.Split(update.CallbackQuery.Data, ":")) {
+					update.CallbackQuery.Message) {
 					break
 				}
 			}
@@ -218,11 +221,11 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 			Send()
 
 		if update.Message.LeftChatMember != nil {
-			go d.RunEvents(tgCommands.UserLeaveChantEvent.String(), update.Message, "", "")
+			go d.RunEvents(tgModel.UserLeaveChantEvent.String(), update.Message, new(tgModel.Command))
 		}
 
 		if update.Message.NewChatMembers != nil {
-			go d.RunEvents(tgCommands.UserJoinedChantEvent.String(), update.Message, "", "")
+			go d.RunEvents(tgModel.UserJoinedChantEvent.String(), update.Message, new(tgModel.Command))
 		}
 
 		if update.EditedMessage != nil {
@@ -239,10 +242,16 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 			commandName = msg.Command()
 		}
 		if commandName == "start" {
-			go d.RunEvents(tgCommands.StartBotEvent.String(), msg, "start", msg.CommandArguments())
+			startCommand := tgModel.Command{
+				Command: "start",
+				Arguments: tgModel.CommandArguments{
+					Raw: msg.CommandArguments(),
+				},
+			}
+			go d.RunEvents(tgModel.StartBotEvent.String(), msg, &startCommand)
 		}
 		if msg.Text != "" {
-			go d.RunEvents(tgCommands.TextMsgBotEvent.String(), msg, "", "")
+			go d.RunEvents(tgModel.TextMsgBotEvent.String(), msg, new(tgModel.Command))
 		}
 
 		zlog.Info().Any("update FULL", update).Send() //TODO: MOVE TO DEBUG MODE
@@ -250,23 +259,22 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 		if founded := d.CheckDeferred(update.Message.From.ID); founded != "" {
 			if commandDeferred, ok := d.GetCommand(founded); ok {
 				log.Println("Deferred RunCommand")
+				commandDeferred.SetArgs(update.Message.Text)
+				zlog.Info().Any("commandDeferred", commandDeferred.Arguments).Send()
 				if d.RunCommand(
 					commandDeferred,
-					update.Message,
-					commandDeferred.Command,
-					update.Message.Text,
-					strings.Split(update.Message.Text, " ")) {
+					update.Message) {
 					break
 				}
 			}
 		}
 		sended := false
 		command, founded := d.GetCommand(commandName)
-
 		if founded {
 			sended = true
 			log.Println("run founded Command")
-			d.RunCommand(command, update.Message, command.Command, msg.CommandArguments(), nil)
+			command.SetArgs(msg.CommandArguments())
+			d.RunCommand(command, update.Message)
 		} else {
 			for _, command := range d.Commands {
 				if !command.Permission(update.Message, d.AdminId) || command.Handler == nil {
@@ -285,13 +293,14 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 					if command.IsMatched(update.Message.Text, d.Bot.Self.UserName) {
 						commandValue = update.Message.Text
 					} else {
-						log.Println("!IsMatched")
+						//log.Println("!IsMatched")
 						continue
 					}
 				}
 				sended = true
 				log.Println("just RunCommand")
-				if d.RunCommand(command, update.Message, command.Command, commandValue, splitCommands) {
+				command.SetArgs(commandValue)
+				if d.RunCommand(command, update.Message) {
 					break
 				}
 			}
@@ -301,12 +310,8 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 			fmt.Println("default command:", d.DefaultCommand)
 			if commandDeferred, ok := d.GetCommand(d.DefaultCommand); ok {
 				log.Println("default RunCommand")
-				if d.RunCommand(
-					commandDeferred,
-					update.Message,
-					commandDeferred.Command,
-					update.Message.Text,
-					strings.Split(update.Message.Text, " ")) {
+				commandDeferred.SetArgs(update.Message.Text)
+				if d.RunCommand(commandDeferred, update.Message) {
 					break
 				}
 			}
@@ -323,8 +328,8 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 	}
 }
 
-func (d *Data) GetSubCommands(subName string) []tgCommands.Command {
-	var founded []tgCommands.Command
+func (d *Data) GetSubCommands(subName string) []tgModel.Command {
+	var founded []tgModel.Command
 	for key, command := range d.Commands {
 		results := strings.Split(key, ":")
 		//fmt.Println(key, results, len(results))
@@ -339,24 +344,25 @@ func (d *Data) GetSubCommands(subName string) []tgCommands.Command {
 	return founded
 }
 
-func (d *Data) GetCommand(name string) (tgCommands.Command, bool) {
+func (d *Data) GetCommand(name string) (tgModel.Command, bool) {
 	d.mutexCommands.Lock()
 	item, ok := d.Commands[name]
 	d.mutexCommands.Unlock()
 	return item, ok
 }
 
-func (d *Data) AddCommands(newItems tgCommands.Commands) {
+func (d *Data) AddCommands(newItems tgModel.Commands) {
 	d.mutexCommands.Lock()
 	d.Commands = d.Commands.Merge(newItems)
 	d.mutexCommands.Unlock()
 }
 
-func (d *Data) RunEvents(event string, msg *tgbotapi.Message, commandName string, param string) {
+func (d *Data) RunEvents(event string, msg *tgbotapi.Message, command *tgModel.Command) {
 	eventCommands := d.GetSubCommands(event)
 	log.Println("RunEvents", eventCommands)
 	for _, eventCommand := range eventCommands {
-		log.Println("tg event RunCommand", eventCommand)
-		d.RunCommand(eventCommand, msg, commandName, param, nil)
+		log.Println("tg event", eventCommand.Command)
+		eventCommand.SetArgs(command.Arguments.Raw)
+		d.RunCommand(eventCommand, msg)
 	}
 }

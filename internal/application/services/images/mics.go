@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"fun-coice/config"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	"gopkg.in/gographics/imagick.v2/imagick"
 	"math"
 	"net/http"
@@ -24,7 +24,7 @@ func getTgFile(fileId string, botName string) (*bytes.Buffer, error) {
 		return nil, errors.New("read file Body err")
 	}
 	result := buf.String()
-	fileInfo := tgCommands.TgFileInfo{}
+	fileInfo := tgModel.TgFileInfo{}
 	err = json.Unmarshal([]byte(result), &fileInfo)
 	if err != nil {
 		return nil, errors.New("decode fileInfo err")

@@ -4,8 +4,10 @@ go 1.18
 
 require (
 	github.com/bas24/googletranslatefree v0.0.0-20220326200502-05ed9e639439
+	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
+	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/mnogu/go-calculator v0.0.1
 	github.com/pawelszydlo/humanize v0.0.0-20200522003854-142c3fe71478
 	github.com/rs/zerolog v1.29.0

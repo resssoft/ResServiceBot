@@ -3,7 +3,7 @@ package funs
 import (
 	"encoding/json"
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"math/rand"
@@ -14,7 +14,7 @@ import (
 )
 
 type data struct {
-	list tgCommands.Commands
+	list tgModel.Commands
 	DB   *scribble.Driver
 }
 
@@ -22,7 +22,7 @@ var errorCommandMsg = "Error, sorry! Write to admin or send command /bug with co
 
 type FunCommand struct {
 	Name      string
-	TgCommand tgCommands.Command
+	TgCommand tgModel.Command
 	List1     []string
 	List2     []string
 }
@@ -34,17 +34,17 @@ var funCommandType = "funcommand"
 
 // New TODO: move to aplication folder
 // New TODO: add list commands and remove (by admin)
-func New(DB *scribble.Driver) tgCommands.Service {
+func New(DB *scribble.Driver) tgModel.Service {
 	result := data{
 		DB: DB,
 	}
-	commandsList := tgCommands.NewCommands()
-	commandsList["addfan"] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["addfan"] = tgModel.Command{
 		Command:     "/addfan",
 		Synonyms:    []string{"addfan", "добавитьфан"},
 		Description: "Добавить генератор фанов",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.add,
 	}
 
@@ -80,11 +80,12 @@ func New(DB *scribble.Driver) tgCommands.Service {
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) add(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) add(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	params := strings.Split(command.Arguments.Raw, " ")
 	fmt.Println(params)
 	text := ""
 	if len(params) != 4 {
@@ -94,20 +95,20 @@ func (d data) add(msg *tgbotapi.Message, commandName string, param string, param
 	} else {
 		text = d.addFunCommand(params[1], params[2], params[3])
 	}
-	return tgCommands.Simple(msg.Chat.ID, text)
+	return tgModel.Simple(msg.Chat.ID, text)
 }
 
-func (d data) run(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	if commandData, exist := isFunCommand(commandName); exist {
+func (d data) run(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	if commandData, exist := isFunCommand(command.Command); exist {
 		s1 := rand.NewSource(time.Now().UnixNano())
 		r1 := rand.New(s1)
 		time.Sleep(time.Millisecond * time.Duration(r1.Int63n(200)))
 		r2 := rand.New(s1)
-		return tgCommands.SimpleReply(msg.Chat.ID,
+		return tgModel.SimpleReply(msg.Chat.ID,
 			commandData.List1[r1.Intn(len(commandData.List1))]+" "+commandData.List2[r2.Intn(len(commandData.List2))],
 			msg.MessageID)
 	}
-	return tgCommands.Simple(msg.Chat.ID, "Something wrong! Write to admin")
+	return tgModel.Simple(msg.Chat.ID, "Something wrong! Write to admin")
 }
 
 func isFunCommand(name string) (FunCommand, bool) {
@@ -132,12 +133,12 @@ func appendFunCommand(name string, command FunCommand) {
 }
 
 func (d data) addFunCommand(name, list1, list2 string) string {
-	command := tgCommands.Command{
+	command := tgModel.Command{
 		Command:     "/" + name,
 		Synonyms:    nil,
 		Description: "Get random fanny words!",
 		CommandType: funCommandType,
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     d.run,
 	}
 	funCommand := FunCommand{

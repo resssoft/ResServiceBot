@@ -1,78 +1,79 @@
 package adminNotifer
 
 import (
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type data struct {
-	events  tgCommands.Commands
+	events  tgModel.Commands
 	adminId int64
 }
 
-var _ = (tgCommands.Service)(&data{})
+var _ = (tgModel.Service)(&data{})
 
-func New(adminId int64) tgCommands.Service {
+func New(adminId int64) tgModel.Service {
 	result := data{
 		adminId: adminId,
 	}
-	commandsList := tgCommands.NewCommands()
-	commandsList["event:"+tgCommands.StartBotEvent.String()] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["event:"+tgModel.StartBotEvent.String()] = tgModel.Command{
 		CommandType: "event",
 		Handler:     result.startEvent,
 	}
-	commandsList["event:"+tgCommands.UserLeaveChantEvent.String()] = tgCommands.Command{
-		Command:     "/event:" + tgCommands.UserLeaveChantEvent.String(),
+	commandsList["event:"+tgModel.UserLeaveChantEvent.String()] = tgModel.Command{
+		Command:     "/event:" + tgModel.UserLeaveChantEvent.String(),
 		CommandType: "event",
 		Handler:     result.UserLeaveChantEvent,
 	}
-	commandsList["event:"+tgCommands.UserJoinedChantEvent.String()] = tgCommands.Command{
+	commandsList["event:"+tgModel.UserJoinedChantEvent.String()] = tgModel.Command{
 		CommandType: "event",
 		Handler:     result.UserJoinedChantEvent,
 	}
+	//TODO: configure notify chat (admin is default)
 
 	result.events = commandsList
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d data) Commands() tgModel.Commands {
 	return d.events
 }
 
-func (d data) startEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	return tgCommands.Simple(d.adminId, "New bot start:\n"+tgCommands.UserInfo(msg.From))
+func (d data) startEvent(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	return tgModel.Simple(d.adminId, "New bot start:\n"+tgModel.UserInfo(msg.From))
 }
 
-func (d data) UserLeaveChantEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) UserLeaveChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
 	if msg == nil {
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
 	if msg.LeftChatMember == nil {
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
 	var info string
 
-	info += tgCommands.UserAndChatInfo(msg.LeftChatMember, msg.Chat)
+	info += tgModel.UserAndChatInfo(msg.LeftChatMember, msg.Chat)
 	if msg.From.ID != msg.LeftChatMember.ID {
-		info += "\nBy " + tgCommands.UserInfo(msg.From)
+		info += "\nBy " + tgModel.UserInfo(msg.From)
 	}
-	return tgCommands.Simple(d.adminId, "User Leave Chant:\n"+info)
+	return tgModel.Simple(d.adminId, "User Leave Chat:\n"+info)
 }
 
-func (d data) UserJoinedChantEvent(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
+func (d data) UserJoinedChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
 	if msg == nil {
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
 	if len(msg.NewChatMembers) == 0 {
-		return tgCommands.EmptyCommand()
+		return tgModel.EmptyCommand()
 	}
 	var info string
 	for _, user := range msg.NewChatMembers {
-		info += tgCommands.UserAndChatInfo(&user, msg.Chat)
+		info += tgModel.UserAndChatInfo(&user, msg.Chat)
 		if msg.From.ID != user.ID {
-			info += "\nBy " + tgCommands.UserInfo(msg.From)
+			info += "\nBy " + tgModel.UserInfo(msg.From)
 		}
 		info += "\n"
 	}
-	return tgCommands.Simple(d.adminId, "Users Joined Chant:\n"+info)
+	return tgModel.Simple(d.adminId, "Users Joined Chant:\n"+info)
 }

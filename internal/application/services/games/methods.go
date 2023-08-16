@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"math/rand"
@@ -165,14 +165,14 @@ func getChannelUser(contentType string, chatId int64, userId int64) (ChatUser, e
 }
 
 func getUsersButtons(chatUsers []ChatUser, chatID int64, code string) tgbotapi.InlineKeyboardMarkup {
-	var rows []tgCommands.KeyBoardRowTG
+	var rows []tgModel.KeyBoardRowTG
 	for _, chatUser := range chatUsers {
-		rows = append(rows, KBButs(tgCommands.KeyBoardButtonTG{
+		rows = append(rows, KBButs(tgModel.KeyBoardButtonTG{
 			Text: chatUser.User.Name + " (" + strconv.Itoa(chatUser.VoteCount) + ")",
 			Data: strconv.FormatInt(chatUser.User.UserID, 10) + "|" + strconv.FormatInt(chatID, 10) + "#" + code,
 		}))
 	}
-	return getTGButtons(tgCommands.KeyBoardTG{rows})
+	return getTGButtons(tgModel.KeyBoardTG{rows})
 }
 
 func sendRoleToUser(bot *tgbotapi.BotAPI, chatID int64, contentType string) {
@@ -297,16 +297,16 @@ func readLines(path string, resultLimit int) (error, string) {
 	return nil, ""
 }
 
-func KBRows(KBrows ...tgCommands.KeyBoardRowTG) tgCommands.KeyBoardTG {
-	var rows []tgCommands.KeyBoardRowTG
+func KBRows(KBrows ...tgModel.KeyBoardRowTG) tgModel.KeyBoardTG {
+	var rows []tgModel.KeyBoardRowTG
 	rows = append(rows, KBrows...)
-	return tgCommands.KeyBoardTG{rows}
+	return tgModel.KeyBoardTG{rows}
 }
 
-func KBButs(KBrows ...tgCommands.KeyBoardButtonTG) tgCommands.KeyBoardRowTG {
-	var rows []tgCommands.KeyBoardButtonTG
+func KBButs(KBrows ...tgModel.KeyBoardButtonTG) tgModel.KeyBoardRowTG {
+	var rows []tgModel.KeyBoardButtonTG
 	rows = append(rows, KBrows...)
-	return tgCommands.KeyBoardRowTG{rows}
+	return tgModel.KeyBoardRowTG{rows}
 }
 
 func getSimpleTGButton(text, data string) tgbotapi.InlineKeyboardMarkup {
@@ -317,7 +317,7 @@ func getSimpleTGButton(text, data string) tgbotapi.InlineKeyboardMarkup {
 	)
 }
 
-func getTGButtons(params tgCommands.KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
+func getTGButtons(params tgModel.KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
 	var row []tgbotapi.InlineKeyboardButton
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, rowsData := range params.Rows {

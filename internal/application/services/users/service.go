@@ -2,27 +2,27 @@ package users
 
 import (
 	"fmt"
-	tgCommands "fun-coice/internal/domain/commands/tg"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/scribble"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"strconv"
 )
 
 type data struct {
-	list tgCommands.Commands
+	list tgModel.Commands
 	DB   *scribble.Driver
 }
 
-func New(DB *scribble.Driver) tgCommands.Service {
+func New(DB *scribble.Driver) tgModel.Service {
 	result := data{
 		DB: DB,
 	}
-	commandsList := tgCommands.NewCommands()
-	commandsList["start"] = tgCommands.Command{
+	commandsList := tgModel.NewCommands()
+	commandsList["start"] = tgModel.Command{
 		Command:     "/start",
 		Description: "start info",
 		CommandType: "text",
-		Permissions: tgCommands.FreePerms,
+		Permissions: tgModel.FreePerms,
 		Handler:     result.startBot,
 	}
 
@@ -32,12 +32,12 @@ func New(DB *scribble.Driver) tgCommands.Service {
 	return &result
 }
 
-func (d data) Commands() tgCommands.Commands {
+func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) startBot(msg *tgbotapi.Message, commandName string, param string, params []string) tgCommands.HandlerResult {
-	user := tgCommands.User{
+func (d data) startBot(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+	user := tgModel.User{
 		UserID: msg.From.ID,
 		ChatId: msg.Chat.ID,
 		Login:  msg.From.UserName,
@@ -48,5 +48,5 @@ func (d data) startBot(msg *tgbotapi.Message, commandName string, param string, 
 		fmt.Println("add command error", err)
 	}
 
-	return tgCommands.Simple(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome! See by /commands")
+	return tgModel.Simple(msg.Chat.ID, "Hi "+msg.From.String()+" and welcome! See by /commands")
 }
