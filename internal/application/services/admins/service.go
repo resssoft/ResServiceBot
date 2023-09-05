@@ -16,6 +16,7 @@ import (
 	"time"
 )
 
+// TODO: rename admins to administration
 type data struct {
 	admin   tgModel.Commands
 	user    tgModel.Commands
@@ -143,6 +144,10 @@ func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgModel.Command
 
 func (d data) Commands() tgModel.Commands {
 	return d.admin
+}
+
+func (d data) Name() string {
+	return "admins"
 }
 
 func (d data) commandInfo(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {

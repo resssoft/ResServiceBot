@@ -48,6 +48,10 @@ func (d *data) Commands() tgModel.Commands {
 	return d.events
 }
 
+func (d data) Name() string {
+	return "weather"
+}
+
 func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	chatId := fmt.Sprintf("%v", msg.Chat.ID)

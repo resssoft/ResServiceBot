@@ -84,6 +84,10 @@ func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
+func (d data) Name() string {
+	return "funs"
+}
+
 func (d data) add(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	fmt.Println(params)

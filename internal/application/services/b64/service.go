@@ -38,6 +38,10 @@ func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
+func (d data) Name() string {
+	return "b64"
+}
+
 func (d data) decode(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	b64result, _ := base64.StdEncoding.DecodeString(command.Arguments.Raw)
 	return tgModel.SimpleReply(msg.Chat.ID, string(b64result), msg.MessageID)

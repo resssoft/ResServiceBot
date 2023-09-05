@@ -55,6 +55,10 @@ func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
+func (d data) Name() string {
+	return "money"
+}
+
 func (d data) fiat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	convertFrom := "AMD"

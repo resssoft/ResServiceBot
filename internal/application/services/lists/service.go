@@ -74,6 +74,10 @@ func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
+func (d data) Name() string {
+	return "lists"
+}
+
 func (d data) addCheckItem(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) <= 1 {

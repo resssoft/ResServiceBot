@@ -91,6 +91,10 @@ func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
+func (d data) Name() string {
+	return "examples"
+}
+
 func (d *data) Counter() int {
 	//safe with goroutines counter
 	d.mutex.Lock()

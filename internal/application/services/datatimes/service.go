@@ -81,6 +81,10 @@ func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
+func (d data) Name() string {
+	return "datatimes"
+}
+
 func (d data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	msgText := fmt.Sprintf("Input: %s\n\n", command.Arguments.Raw)
 	duration := time.Second

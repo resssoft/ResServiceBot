@@ -36,6 +36,10 @@ func (d data) Commands() tgModel.Commands {
 	return d.list
 }
 
+func (d data) Name() string {
+	return "qr"
+}
+
 func (d data) qr(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	var qr []byte
 	qr, err := qrcode.Encode(command.Arguments.Raw, qrcode.Medium, 1024)
