@@ -22,11 +22,11 @@ func (d data) help(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Hand
 	return tgModel.Simple(msg.Chat.ID, commandsList)
 }
 
-func (d data) resize(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
-	return tgModel.WaitingWithText(msg.Chat.ID, "Send image, use text commands format '300'", "resizeImage")
+func (d data) resize(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
+	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '300'", "resizeImage", nil)
 }
 
-func (d data) resizeImage(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
+func (d data) resizeImage(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
 	var err error
 	var size = 100
 	if msg.Photo == nil {
@@ -36,7 +36,7 @@ func (d data) resizeImage(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.Han
 	for _, photoItem := range msg.Photo {
 		fileId = photoItem.FileID
 	}
-	buf, err := getTgFile(fileId, d.botName) //TODO:get data from bot, middleware?
+	buf, err := getTgFile(fileId, command.BotName)
 	if err != nil {
 		log.Println(err.Error())
 		return tgModel.Simple(msg.Chat.ID, err.Error())
@@ -57,7 +57,7 @@ func (d data) resizeImage(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.Han
 }
 
 func (d data) rotate(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
-	return tgModel.WaitingWithText(msg.Chat.ID, "Send image, use text commands format '90' or '180'", "rotateImage")
+	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '90' or '180'", "rotateImage", nil)
 }
 
 func (d data) rotateImage(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
@@ -70,7 +70,7 @@ func (d data) rotateImage(msg *tgbotapi.Message, command *tgModel.Command) tgMod
 	for _, photoItem := range msg.Photo {
 		fileId = photoItem.FileID
 	}
-	buf, err := getTgFile(fileId, d.botName) //TODO:get data from bot, middleware?
+	buf, err := getTgFile(fileId, command.BotName) //TODO:get data from bot, middleware?
 	if err != nil {
 		log.Println(err.Error())
 		return tgModel.Simple(msg.Chat.ID, err.Error())
