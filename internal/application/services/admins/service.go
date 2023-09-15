@@ -126,18 +126,6 @@ func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgModel.Command
 		Permissions: tgModel.AdminPerms,
 		Handler:     result.scanChat,
 	}
-	/*
-		commandsList["scanChat"] = tgModel.Command{
-			Command:     "/scanChat",
-			Description: "scan Chat",
-			CommandType: "text",
-			Permissions: tgModel.AdminPerms,
-			Handler:     result.scanChat,
-		}
-		/*
-	*/
-	// "/vars"
-
 	result.admin = commandsList
 	return &result
 }
@@ -148,6 +136,13 @@ func (d data) Commands() tgModel.Commands {
 
 func (d data) Name() string {
 	return "admins"
+}
+
+func (d data) Configure() error {
+	//set bot name, channels, etc
+
+	//get commands list from bot by channel
+	return nil
 }
 
 func (d data) commandInfo(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
