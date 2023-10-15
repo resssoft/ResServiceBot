@@ -42,12 +42,12 @@ func (d data) Name() string {
 	return "b64"
 }
 
-func (d data) decode(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) decode(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	b64result, _ := base64.StdEncoding.DecodeString(command.Arguments.Raw)
 	return tgModel.SimpleReply(msg.Chat.ID, string(b64result), msg.MessageID)
 }
 
-func (d data) encode(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) encode(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	b64result := base64.StdEncoding.EncodeToString([]byte(command.Arguments.Raw))
 	return tgModel.SimpleReply(msg.Chat.ID, b64result, msg.MessageID)
 }

@@ -59,7 +59,7 @@ func (d data) Name() string {
 	return "money"
 }
 
-func (d data) fiat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) fiat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	convertFrom := "AMD"
 	convertTo1 := "RUB"

@@ -12,16 +12,14 @@ import (
 type data struct {
 	list    tgModel.Commands
 	msgRepo tgModel.MsgRepository
-	botNAme string
 }
 
-func New(msgRepo tgModel.MsgRepository, botNAme string) tgModel.Service {
+func New(msgRepo tgModel.MsgRepository) tgModel.Service {
 	result := data{
 		msgRepo: msgRepo,
-		botNAme: botNAme,
 	}
 	commandsList := tgModel.NewCommands()
-	commandsList["event:"+tgModel.TextMsgBotEvent.String()] = tgModel.Command{
+	commandsList["event:"+tgModel.TextMsgBotEvent] = tgModel.Command{
 		CommandType: "event",
 		Handler:     result.msgEvent,
 	}
@@ -53,7 +51,11 @@ func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d *data) msgEvent(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
+func (d data) Name() string {
+	return "msgStore"
+}
+
+func (d *data) msgEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	//fmt.Println("msgEvent")
 	msgJson, err := json.Marshal(msg)
 	if err != nil {
@@ -61,7 +63,7 @@ func (d *data) msgEvent(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.Handl
 	}
 	err = d.msgRepo.Create(context.Background(), &tgModel.Message{
 		TgMsg:        msg,
-		BotName:      d.botNAme,
+		BotName:      command.BotName,
 		MsgType:      "text",
 		MsgDirection: 0,
 		MsgJson:      string(msgJson),
@@ -72,7 +74,7 @@ func (d *data) msgEvent(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.Handl
 	return tgModel.EmptyCommand()
 }
 
-func (d *data) msgCount(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
+func (d *data) msgCount(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	items, err := d.msgRepo.List(context.Background(), nil)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -80,13 +82,13 @@ func (d *data) msgCount(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.Handl
 	return tgModel.Simple(msg.Chat.ID, fmt.Sprintf("Messages: %v", len(items)))
 }
 
-func (d *data) msgGetDB(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
+func (d *data) msgGetDB(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(msg.Chat.ID, "Not implemented")
 }
 
-func (d *data) msgImport(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d *data) msgImport(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if len(command.Arguments.Parse()) == 0 {
-		return tgModel.WaitingWithText(msg.Chat.ID, "Send file or json text", "msgImport")
+		return tgModel.DeferredWithText(msg.Chat.ID, "Send file or json text", "msgImport", nil)
 	}
 	var result = MsgData{}
 	err := json.Unmarshal([]byte(msg.Text), &result)

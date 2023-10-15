@@ -88,7 +88,7 @@ func (d data) Name() string {
 	return "funs"
 }
 
-func (d data) add(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) add(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	fmt.Println(params)
 	text := ""
@@ -102,7 +102,7 @@ func (d data) add(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Handl
 	return tgModel.Simple(msg.Chat.ID, text)
 }
 
-func (d data) run(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) run(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if commandData, exist := isFunCommand(command.Command); exist {
 		s1 := rand.NewSource(time.Now().UnixNano())
 		r1 := rand.New(s1)

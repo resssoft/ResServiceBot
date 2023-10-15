@@ -2,6 +2,7 @@ package tgModel
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"os"
@@ -18,17 +19,57 @@ type User struct {
 }
 
 type Command struct {
-	Command     string
-	Synonyms    []string
-	Triggers    []string
-	Templates   []string
-	Description string
-	CommandType string
-	ListExclude bool
-	Permissions CommandPermissions
-	Handler     HandlerFunc
-	Arguments   CommandArguments
-	//Service string  // set in the bot only
+	Command       string //TODO: check for needles field
+	Synonyms      []string
+	Triggers      []string
+	Templates     []string
+	Description   string
+	CommandType   string //deprecated
+	IsEvent       bool
+	ListExclude   bool
+	Permissions   CommandPermissions
+	Handler       HandlerFunc
+	Arguments     CommandArguments
+	Service       string // set in the bot only
+	FileTypes     FileTypes
+	BotName       string //command author
+	Deferred      bool   // send by Deferred method
+	FilesCallback FileHandlerFunc
+	//State       string //offline or online, service can be down
+	//WithFiles   bool // Files need prepare
+}
+
+type FileHandlerFunc func(FileCallbackData) (*bytes.Buffer, error)
+
+type FileCallback interface {
+	GetFile(FileCallbackData)
+}
+
+type FileCallbackData struct {
+	FileID  string `json:"file_id"`
+	FileUID string `json:"file_unique_id"`
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
+	Size    int    `json:"file_size"`
+}
+
+var PhotoMediaTypes = []string{
+	"image/png", "image/jpg", "image/jpeg",
+	"image/pjpeg", "image/svg+xml",
+	"image/tiff", "image/vnd.microsoft.icon",
+	"image/icon", "image/webp",
+	"photo", //tg type
+}
+
+type FileTypes []string
+
+func (ft FileTypes) Has(fType string) bool {
+	for _, item := range ft {
+		if item == fType {
+			return true
+		}
+	}
+	return false
 }
 
 //OLD func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, bool) tgModel.HandlerResult tgModel.PreparedCommand( tgModel.PreparedCommand
@@ -36,70 +77,108 @@ type Command struct {
 //TODO: Handler     func(*tgbotapi.Message, string, string, []string) (tgbotapi.Chattable, HandlerResult)
 
 type HandlerResult struct {
-	Prepared bool   // command is prepared for sending
-	Wait     bool   // wait next command
-	Next     string // next command
+	Prepared bool              // command is prepared for sending
+	Deferred bool              // wait next message for handled by next command
+	Resend   *tgbotapi.Message // message for resend
+	Next     string            // next command
+	Redirect *Redirect         //
 	Messages []tgbotapi.Chattable
-	Events   []Event
+	Events   []Event // run some events (or commands) after processing the current command
 }
 
-type HandlerFunc func(*tgbotapi.Message, *Command) HandlerResult
+type Redirect struct {
+	CommandName string
+	Message     *tgbotapi.Message
+	Step        int
+}
 
-func EmptyCommand() HandlerResult {
-	return HandlerResult{
+type HandlerFunc func(*tgbotapi.Message, *Command) *HandlerResult
+
+func EmptyCommand() *HandlerResult {
+	return &HandlerResult{
 		Messages: nil,
 	}
 }
 
-func PreparedCommand(chatEvents ...tgbotapi.Chattable) HandlerResult {
-	return HandlerResult{
+func PreparedCommand(chatEvents ...tgbotapi.Chattable) *HandlerResult {
+	return &HandlerResult{
 		Prepared: true,
 		Messages: chatEvents,
 	}
 }
 
-func Simple(chatId int64, text string) HandlerResult {
+func Simple(chatId int64, text string) *HandlerResult {
 	return PreparedCommand(tgbotapi.NewMessage(chatId, text))
 }
 
-func SimpleReply(chatId int64, text string, replyTo int) HandlerResult {
+func SimpleReply(chatId int64, text string, replyTo int) *HandlerResult {
 	newMsg := tgbotapi.NewMessage(chatId, text)
 	newMsg.ReplyToMessageID = replyTo
 	return PreparedCommand(newMsg)
 }
 
-func UnPreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
-	return HandlerResult{
+func UnPreparedCommand(chatEvent tgbotapi.Chattable) *HandlerResult {
+	return &HandlerResult{
 		Messages: []tgbotapi.Chattable{chatEvent},
 	}
 }
 
-func WaitingCommand(command string) HandlerResult {
-	return HandlerResult{
-		Wait: true,
-		Next: command,
+func DeferredCommand(command string, msg *tgbotapi.Message) *HandlerResult {
+	return &HandlerResult{
+		Deferred: true,
+		Next:     command,
+		Resend:   msg,
 	}
 }
 
-func WaitingWithText(chatId int64, text, command string) HandlerResult {
-	return HandlerResult{
-		Wait:     true,
+func DeferredWithText(chatId int64, text, command string, msg *tgbotapi.Message) *HandlerResult {
+	return &HandlerResult{
+		Deferred: true,
 		Prepared: true,
 		Messages: []tgbotapi.Chattable{tgbotapi.NewMessage(chatId, text)},
 		Next:     command,
+		Resend:   msg,
 	}
 }
 
-func WaitingPreparedCommand(chatEvent tgbotapi.Chattable) HandlerResult {
-	return HandlerResult{
-		Wait:     true,
+func WaitingPreparedCommand(chatEvent tgbotapi.Chattable) *HandlerResult {
+	return &HandlerResult{
+		Deferred: true,
 		Prepared: true,
 		Messages: []tgbotapi.Chattable{chatEvent},
 	}
 }
 
-func (hr HandlerResult) WithEvent(newEvent Event) HandlerResult {
+func (hr *HandlerResult) SetEvent(newEvent Event) *HandlerResult {
 	hr.Events = append(hr.Events, newEvent)
+	return hr
+}
+
+func (hr *HandlerResult) WithEvent(name string, msg *tgbotapi.Message) *HandlerResult {
+	hr.Events = append(hr.Events, Event{
+		Name: "event:" + name,
+		Msg:  msg,
+	})
+	return hr
+}
+
+func (hr *HandlerResult) WithRedirect(name string, msg *tgbotapi.Message) *HandlerResult {
+	hr.Redirect = &Redirect{
+		CommandName: name,
+		Message:     msg,
+	}
+	return hr
+}
+
+func (hr *HandlerResult) WithDeferred(command string, msg *tgbotapi.Message) *HandlerResult {
+	hr.Deferred = true
+	hr.Next = command
+	hr.Resend = msg
+	return hr
+}
+
+func (hr *HandlerResult) WithText(chatId int64, text string) *HandlerResult {
+	hr.Messages = []tgbotapi.Chattable{tgbotapi.NewMessage(chatId, text)}
 	return hr
 }
 
@@ -127,6 +206,15 @@ func (t *Command) IsMatched(msg, botName string) bool {
 	return false
 }
 
+func NewCommand() *Command {
+	return &Command{}
+}
+
+func (t *Command) WithHandler(handler HandlerFunc) *Command {
+	t.Handler = handler
+	return t
+}
+
 func (t *Command) Permission(messageItem *tgbotapi.Message, adminId int64) bool {
 	if messageItem != nil {
 		if messageItem == nil {
@@ -147,7 +235,7 @@ func (t *Command) Permission(messageItem *tgbotapi.Message, adminId int64) bool 
 }
 
 func IsCommand(command, msg, botName string) bool {
-	return msg == command || msg == fmt.Sprintf("%s@%s", command, botName)
+	return msg == ("/"+command) || msg == fmt.Sprintf("%s@%s", command, botName)
 }
 
 func (t *Command) SetArgs(args string) *Command {
@@ -224,6 +312,15 @@ func (cs Commands) Merge(list Commands) Commands {
 		merged[key] = value
 	}
 	return merged
+}
+
+func (cs Commands) SetBotData(botName, serviceName string) Commands {
+	for key, value := range cs {
+		value.BotName = botName
+		value.Service = serviceName
+		cs[key] = value
+	}
+	return cs
 }
 
 func (cs Commands) Add(
@@ -331,29 +428,18 @@ type TGUser struct {
 }
 
 type Event struct {
-	Name ChatEvent
+	Name string
 	Msg  *tgbotapi.Message
-}
-
-func NewEvent(name ChatEvent, msg *tgbotapi.Message) Event {
-	return Event{
-		Name: name,
-		Msg:  msg,
-	}
 }
 
 type ChatEvent string
 
 const (
-	StartBotEvent        ChatEvent = "start" //triggered by /start command from the bot
-	UserLeaveChantEvent  ChatEvent = "user_leave_chat"
-	UserJoinedChantEvent ChatEvent = "user_joined_chat"
-	TextMsgBotEvent      ChatEvent = "text_msg" //triggered by /start command from the bot
+	StartBotEvent        = "start" //triggered by /start command from the bot
+	UserLeaveChantEvent  = "user_leave_chat"
+	UserJoinedChantEvent = "user_joined_chat"
+	TextMsgBotEvent      = "text_msg" //triggered by /start command from the bot
 )
-
-func (ce ChatEvent) String() string {
-	return string(ce)
-}
 
 func UserAndChatInfo(user *tgbotapi.User, chat *tgbotapi.Chat) string {
 	return UserInfo(user) + ChatInfo(chat)

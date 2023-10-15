@@ -1,45 +1,10 @@
 package images
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"fun-coice/config"
-	tgModel "fun-coice/internal/domain/commands/tg"
 	"gopkg.in/gographics/imagick.v2/imagick"
 	"math"
-	"net/http"
 )
-
-func getTgFile(fileId string, botName string) (*bytes.Buffer, error) {
-	buf := new(bytes.Buffer)
-	//response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(), fileId))
-	response, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", config.TelegramToken(botName), fileId))
-	if err != nil {
-		return nil, errors.New("download TG photo error")
-	}
-	_, err = buf.ReadFrom(response.Body)
-	if err != nil {
-		return nil, errors.New("read file Body err")
-	}
-	result := buf.String()
-	fileInfo := tgModel.TgFileInfo{}
-	err = json.Unmarshal([]byte(result), &fileInfo)
-	if err != nil {
-		return nil, errors.New("decode fileInfo err")
-	}
-	fileUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s",
-		config.TelegramToken(botName), fileInfo.Result.FilePath)
-
-	response, err = http.Get(fileUrl)
-	if err != nil {
-		return nil, errors.New("download TG import file error")
-	}
-	buf = new(bytes.Buffer)
-	buf.ReadFrom(response.Body)
-	return buf, nil
-}
 
 func getMagic(blob []byte, size int) ([]byte, error) {
 	imagick.Initialize()

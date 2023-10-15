@@ -1,0 +1,13 @@
+[Unit]
+Description=tg bot
+
+[Service]
+ExecStart=/opt/bot/ResServiceBot/resbot
+WorkingDirectory=/opt/bot/ResServiceBot/
+Restart=on-failure
+RestartSec=5s
+Environment=SERVER_URL=:8099
+Environment=DB_MYSQL_URL="root:xxx@tcp(127.0.0.1:3306)/vm-manager"
+
+[Install]
+WantedBy=multi-user.target

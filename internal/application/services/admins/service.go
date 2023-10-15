@@ -18,21 +18,23 @@ import (
 
 // TODO: rename admins to administration
 type data struct {
-	admin   tgModel.Commands
-	user    tgModel.Commands
-	bot     *tgbotapi.BotAPI
-	DB      *scribble.Driver
-	botName string
+	admin     tgModel.Commands
+	user      tgModel.Commands
+	bot       *tgbotapi.BotAPI
+	DB        *scribble.Driver
+	adminName string
 }
 
 var _ = (tgModel.Service)(&data{})
 
-func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgModel.Commands, botName string) tgModel.Service {
+func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgModel.Commands, adminName string) tgModel.Service {
+
+	//TODO: change parameters
 	result := data{
-		bot:     bot,
-		DB:      DB,
-		user:    userCommands,
-		botName: botName,
+		bot:       bot,
+		DB:        DB,
+		user:      userCommands,
+		adminName: adminName,
 	}
 	commandsList := tgModel.NewCommands()
 
@@ -145,7 +147,7 @@ func (d data) Configure() error {
 	return nil
 }
 
-func (d data) commandInfo(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) commandInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) < 2 {
 		return tgModel.Simple(msg.Chat.ID, "Not found")
@@ -154,7 +156,7 @@ func (d data) commandInfo(msg *tgbotapi.Message, command *tgModel.Command) tgMod
 	if !founded {
 		return tgModel.Simple(msg.Chat.ID, "Not found")
 	}
-	info := fmt.Sprintf("Command: %s\nSynonyms: %s\nTriggers: %s\n\n%s",
+	info := fmt.Sprintf("Command: /%s\nSynonyms: %s\nTriggers: %s\n\n%s",
 		currentCommand.Command,
 		strings.Join(currentCommand.Synonyms, ", "),
 		currentCommand.Triggers,
@@ -163,22 +165,23 @@ func (d data) commandInfo(msg *tgbotapi.Message, command *tgModel.Command) tgMod
 	return tgModel.Simple(msg.Chat.ID, info)
 }
 
-func (d data) commandsList(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) commandsList(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	fmt.Println("/commands/commands/commands/commands")
 	commandsList := "Commands:\n"
 	for _, commandsItem := range d.user {
 		if commandsItem.ListExclude {
 			continue
 		}
-		commandsList += commandsItem.Command + " - " + commandsItem.Description + "\n"
+		commandsList += "/" + commandsItem.Command + " - " + commandsItem.Description + "\n"
 	}
 	return tgModel.Simple(msg.Chat.ID, commandsList)
 }
 
-func (d data) info(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
-	return tgModel.Simple(msg.Chat.ID, "Admin is @"+config.TelegramAdminLogin(d.botName))
+func (d data) info(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	return tgModel.Simple(msg.Chat.ID, "Admin is @"+config.TelegramAdminLogin(d.adminName))
 }
 
-func (d data) vars(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) vars(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
@@ -187,7 +190,7 @@ func (d data) vars(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Hand
 	return tgModel.EmptyCommand()
 }
 
-func (d data) set(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) set(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
@@ -196,7 +199,7 @@ func (d data) set(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Handl
 	return tgModel.EmptyCommand()
 }
 
-func (d data) get(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) get(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
@@ -205,7 +208,7 @@ func (d data) get(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Handl
 	return tgModel.EmptyCommand()
 }
 
-func (d data) member(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) member(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	chatConfigWithUser := tgbotapi.ChatConfigWithUser{
 		ChatID: msg.Chat.ID,
 		UserID: msg.From.ID,
@@ -215,7 +218,7 @@ func (d data) member(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Ha
 	return tgModel.Simple(msg.Chat.ID, userInfo)
 }
 
-func (d data) rebuild(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) rebuild(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	dir, err := os.Getwd()
 	if err != nil {
 		log.Printf("Failed to get dir: %v", err)
@@ -232,7 +235,7 @@ func (d data) rebuild(msg *tgbotapi.Message, command *tgModel.Command) tgModel.H
 	return tgModel.EmptyCommand()
 }
 
-func (d data) users(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) users(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	records, err := d.DB.ReadAll("user")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -244,12 +247,12 @@ func (d data) users(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Han
 		if err := json.Unmarshal([]byte(f), &userFound); err != nil {
 			fmt.Println("Error", err)
 		}
-		userList = append(userList, "["+strconv.FormatInt(config.TelegramAdminId(d.botName), 10)+"] "+userFound.Name)
+		userList = append(userList, "["+strconv.FormatInt(180564250, 10)+"] "+userFound.Name) //TODO: get from bot config
 	}
 	return tgModel.Simple(msg.Chat.ID, strings.Join(userList, "\n"))
 }
 
-func (d data) addFeature(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) addFeature(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	formattedMessage := ""
 	d.DB.Read("features", "features", &formattedMessage)
 	currentTime := time.Now().Format(time.RFC3339)
@@ -262,13 +265,13 @@ func (d data) addFeature(msg *tgbotapi.Message, command *tgModel.Command) tgMode
 	return tgModel.Simple(msg.Chat.ID, "saved")
 }
 
-func (d data) features(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) features(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	formattedMessage := "-"
 	d.DB.Read("features", "features", &formattedMessage)
 	return tgModel.Simple(msg.Chat.ID, formattedMessage)
 }
 
-func (d data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	fmt.Println("commandName", command.Command)
 	fmt.Println("param", command.Arguments.Raw)
@@ -323,7 +326,7 @@ func (d data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.
 }
 
 // wait command
-func (d data) fillChatUsersInfo(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) fillChatUsersInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	var from int64
 	var fromChat int64
 	result := ""

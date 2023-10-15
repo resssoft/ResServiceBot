@@ -78,7 +78,7 @@ func (d data) Name() string {
 	return "lists"
 }
 
-func (d data) addCheckItem(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) addCheckItem(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) <= 1 {
 		return tgModel.Simple(msg.Chat.ID, "set list name")
@@ -124,7 +124,7 @@ func (d data) addCheckItem(msg *tgbotapi.Message, command *tgModel.Command) tgMo
 	return tgModel.Simple(msg.Chat.ID, "Added to "+checkListGroup+" debug:"+debugMessage)
 }
 
-func (d data) updateCheckItem(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) updateCheckItem(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) <= 1 {
 		return tgModel.Simple(msg.Chat.ID, "set list name")
@@ -167,7 +167,7 @@ func (d data) updateCheckItem(msg *tgbotapi.Message, command *tgModel.Command) t
 	return tgModel.Simple(msg.Chat.ID, "update "+strconv.Itoa(updatedItems)+"items")
 }
 
-func (d data) сheckList(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) сheckList(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) <= 1 {
 		return tgModel.Simple(msg.Chat.ID, "set list name")
@@ -206,7 +206,7 @@ func (d data) сheckList(msg *tgbotapi.Message, command *tgModel.Command) tgMode
 	return tgModel.Simple(msg.Chat.ID, checkListFull)
 }
 
-func (d data) addSaveCommand(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) addSaveCommand(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	commandDB := tgModel.Command{
 		Command:     command.Arguments.Raw,
 		CommandType: "SaveCommand",
@@ -223,7 +223,7 @@ func (d data) addSaveCommand(msg *tgbotapi.Message, command *tgModel.Command) tg
 	return tgModel.Simple(msg.Chat.ID, "Added "+command.Arguments.Raw)
 }
 
-func (d data) SaveCommandsList(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) SaveCommandsList(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	records, err := d.DB.ReadAll("command")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -236,12 +236,12 @@ func (d data) SaveCommandsList(msg *tgbotapi.Message, command *tgModel.Command) 
 			fmt.Println("Error", err)
 			return tgModel.EmptyCommand()
 		}
-		commands = append(commands, commandFound.Command)
+		commands = append(commands, "/"+commandFound.Command)
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, strings.Join(commands, ", "), msg.MessageID)
 }
 
-func (d data) listOf(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) listOf(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	records, err := d.DB.ReadAll("saved")
 	if err != nil {
 		fmt.Println("Error", err)

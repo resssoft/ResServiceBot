@@ -85,7 +85,7 @@ func (d data) Name() string {
 	return "datatimes"
 }
 
-func (d data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	msgText := fmt.Sprintf("Input: %s\n\n", command.Arguments.Raw)
 	duration := time.Second
 	var err error
@@ -105,7 +105,7 @@ func (d data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) tgMod
 	return tgModel.Simple(msg.Chat.ID, msgText)
 }
 
-func (d data) getInfo(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) getInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	commandValue := command.Arguments.Raw
 	var err error
@@ -293,7 +293,7 @@ func durationFormat(val string) string {
 	return msgText
 }
 
-func (d data) timeConvert(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) timeConvert(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	commandValue := strings.ToLower(command.Arguments.Raw)
 	fromType := Nanosecond
 	toType := Nanosecond

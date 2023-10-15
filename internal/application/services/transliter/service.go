@@ -139,7 +139,7 @@ func (d data) Name() string {
 	return "transliter"
 }
 
-func (d *data) transit(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d *data) transit(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	fmt.Println("transit command")
 	//TODO: TRANSLATE FROM RUSSIAN TO AM (DETECT RUS)
 	param := command.Arguments.Raw
@@ -168,7 +168,7 @@ func (d *data) transit(msg *tgbotapi.Message, command *tgModel.Command) tgModel.
 
 //translit site https://www.hayastan.com/translit/
 
-func (d *data) alphabet(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.HandlerResult {
+func (d *data) alphabet(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	//fmt.Println("alphabet") //TODO: send to statistic service
 
 	newMsg := tgbotapi.NewMessage(msg.Chat.ID, "_")
@@ -179,7 +179,7 @@ func (d *data) alphabet(msg *tgbotapi.Message, _ *tgModel.Command) tgModel.Handl
 	return tgModel.PreparedCommand(newMsg)
 }
 
-func (d *data) alphabetEvent(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d *data) alphabetEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	//TODO: fix saved data
 	from := msg.From.ID
 	_, ok := d.userStrings[from]

@@ -4,8 +4,12 @@ import (
 	tgModel "fun-coice/internal/domain/commands/tg"
 )
 
+const commandChoicer = "event:commandChoicer"
+const commandChoicerEvent = "commandChoicer"
+const commandRedirect = "commandRedirect"
+
 var defaultCommands = tgModel.Commands{
-	"start": {
+	"start": { //TODO: use add simple command
 		Command:     "/start",
 		Description: "start bot",
 		CommandType: "text",
@@ -42,5 +46,13 @@ var defaultCommands = tgModel.Commands{
 		CommandType: "text",
 		Permissions: tgModel.FreePerms,
 		Handler:     appVersion,
+	},
+	commandChoicer: {
+		CommandType: "event",
+		Handler:     setNextCommand,
+	},
+	commandRedirect: {
+		Command: commandRedirect,
+		Handler: setRedirectByCommand,
 	},
 }

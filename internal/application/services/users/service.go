@@ -40,7 +40,7 @@ func (d data) Name() string {
 	return "users"
 }
 
-func (d data) startBot(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) startBot(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	user := tgModel.User{
 		UserID: msg.From.ID,
 		ChatId: msg.Chat.ID,

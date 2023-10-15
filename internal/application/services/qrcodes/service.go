@@ -40,7 +40,7 @@ func (d data) Name() string {
 	return "qr"
 }
 
-func (d data) qr(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) qr(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	var qr []byte
 	qr, err := qrcode.Encode(command.Arguments.Raw, qrcode.Medium, 1024)
 	if err != nil {
@@ -52,7 +52,7 @@ func (d data) qr(msg *tgbotapi.Message, command *tgModel.Command) tgModel.Handle
 	return tgModel.PreparedCommand(message)
 }
 
-func (d data) qr256(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d data) qr256(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	var qr []byte
 	qr, err := qrcode.Encode(command.Arguments.Raw, qrcode.Medium, 256)
 	if err != nil {

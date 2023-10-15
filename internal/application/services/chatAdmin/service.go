@@ -1,4 +1,4 @@
-package adminNotifer
+package chatAdmin
 
 import (
 	tgModel "fun-coice/internal/domain/commands/tg"
@@ -10,6 +10,8 @@ type data struct {
 	adminId int64
 }
 
+//TODO: use messages service and other DB
+
 var _ = (tgModel.Service)(&data{})
 
 func New(adminId int64) tgModel.Service {
@@ -17,8 +19,14 @@ func New(adminId int64) tgModel.Service {
 		adminId: adminId,
 	}
 	commandsList := tgModel.NewCommands()
+
+	commandsList["getChatLink"] = tgModel.Command{
+		CommandType: "/getChatLink",
+
+		Handler: result.ChatLink,
+	}
 	commandsList["event:"+tgModel.StartBotEvent] = tgModel.Command{
-		CommandType: "event", //TODO: test without this field
+		CommandType: "event",
 		Handler:     result.startEvent,
 	}
 	commandsList["event:"+tgModel.UserLeaveChantEvent] = tgModel.Command{
@@ -41,7 +49,7 @@ func (d data) Commands() tgModel.Commands {
 }
 
 func (d data) Name() string {
-	return "adminNotifer"
+	return "chatAdmin"
 }
 
 func (d data) startEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
@@ -80,4 +88,8 @@ func (d data) UserJoinedChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) *t
 		info += "\n"
 	}
 	return tgModel.Simple(d.adminId, "Users Joined Chant:\n"+info)
+}
+
+func (d data) ChatLink(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+	return tgModel.Simple(d.adminId, "Users Joined Chant:\n") ////////////////////////////////////////////
 }

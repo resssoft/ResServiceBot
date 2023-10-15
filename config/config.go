@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
@@ -43,6 +44,27 @@ func Configure() {
 	}
 }
 
+func TgBots() map[string]TgBotConfig {
+	bots := make(map[string]TgBotConfig)
+	var botsRaw map[string]interface{} = viper.GetStringMap("telegram.bots")
+	for name, data := range botsRaw {
+		botData := TgBotConfig{}
+		botJson, err := json.Marshal(data)
+		if err != nil {
+			fmt.Println(name, "bot data is not parsed to json")
+			continue
+		}
+		err = json.Unmarshal(botJson, &botData)
+		if err != nil {
+			fmt.Println(name, "bot data is not parsed from json")
+			continue
+		}
+		bots[name] = botData
+		log.Info().Str("name", name).Any("bot", botData).Send()
+	}
+	return bots
+}
+
 func TelegramToken(botName string) string {
 	return viper.GetString("telegram.bots." + botName + ".token")
 }
@@ -69,4 +91,8 @@ func TelegramBotCommand(botName string) string {
 
 func WebServerAddr() string {
 	return viper.GetString("server.url")
+}
+
+func WebServerDomain() string {
+	return viper.GetString("server.domain")
 }

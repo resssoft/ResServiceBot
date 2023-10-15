@@ -52,7 +52,7 @@ func (d data) Name() string {
 	return "weather"
 }
 
-func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	chatId := fmt.Sprintf("%v", msg.Chat.ID)
 	hour := time.Now().Hour()
@@ -86,15 +86,15 @@ func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) t
 	}
 }
 
-func (d *data) showWeatherChatEvents(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d *data) showWeatherChatEvents(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(msg.Chat.ID, "qq") //////////////////////////////
 }
 
-func (d *data) showWeatherToChat(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d *data) showWeatherToChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(msg.Chat.ID, d.GetGismeteoForecast()) //////////////////////////////
 }
 
-func (d *data) delWeatherChatEvents(msg *tgbotapi.Message, command *tgModel.Command) tgModel.HandlerResult {
+func (d *data) delWeatherChatEvents(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(msg.Chat.ID, "qq") //////////////////////////////
 }
 

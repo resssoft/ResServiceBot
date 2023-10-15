@@ -2,12 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"fun-coice/config"
 	"fun-coice/internal/application/services/adminNotifer"
-	"fun-coice/internal/application/services/admins"
 	"fun-coice/internal/application/services/b64"
 	"fun-coice/internal/application/services/calculator"
+	"fun-coice/internal/application/services/chatAdmin"
 	"fun-coice/internal/application/services/datatimes"
 	"fun-coice/internal/application/services/examples"
 	"fun-coice/internal/application/services/funs"
@@ -19,10 +21,13 @@ import (
 	"fun-coice/internal/application/services/text"
 	"fun-coice/internal/application/services/translate"
 	"fun-coice/internal/application/services/transliter"
-	"fun-coice/internal/application/services/weather"
+	"fun-coice/internal/application/services/users"
 	"fun-coice/internal/application/tgbot"
+	tgModel "fun-coice/internal/domain/commands/tg"
 	tgmessage "fun-coice/internal/repositories/telegram/message"
+	"fun-coice/pkg/appStat"
 	"fun-coice/pkg/scribble"
+	"fun-coice/pkg/version"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"log"
@@ -38,10 +43,23 @@ var DB *scribble.Driver
 var dbFile = "./tg-sqlite3.db"
 
 func main() {
+	showVer := flag.Bool("v", false, "show version")
+	checkConfig := flag.Bool("c", false, "check config")
+	flag.Parse()
+	if *showVer {
+		fmt.Println("version", appStat.Version, "build date", version.Get())
+		return
+	}
+
 	var err error
 	zlog.Level(zerolog.DebugLevel)
 	fmt.Print("Load configuration... ")
 	config.Configure()
+	if *checkConfig {
+		botsConfigJson, err := json.MarshalIndent(config.TgBots(), "", "    ")
+		fmt.Println(err, string(botsConfigJson))
+		return
+	}
 
 	//TODO: add falgs for version and config test
 	///fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
@@ -50,7 +68,7 @@ func main() {
 		log.Println("Creating sqlite-database.db...")
 		file, err := os.Create(dbFile)
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Fatal(fmt.Errorf("cant create db sql3 file %w", err))
 		}
 		file.Close()
 		dbFilePath, _ := filepath.Abs(dbFile)
@@ -61,21 +79,15 @@ func main() {
 
 	sqliteDatabase, err := sql.Open("sqlite3", dbFile) // or file::memory:?cache=shared //:memory:
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("cant open db sql3 file %w", err))
 	}
 	defer sqliteDatabase.Close()
 
 	msgRepo, err := tgmessage.New(sqliteDatabase)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Errorf("cant create msg repo %w", err))
 	}
 
-	multiBot, err := tgbot.New("multybot")
-	if err != nil {
-		log.Fatal(err)
-	}
-	//multiBot.ADmin = config.TelegramAdminLogin()
-	//log.Printf("Admin is ..." + config.TelegramAdminLogin())
 	log.Printf("Work with DB...")
 	appPath, err := os.Getwd()
 	if err != nil {
@@ -92,87 +104,60 @@ func main() {
 		fmt.Println("Error", err)
 	}
 
-	if config.Bool("telegram.bots.multybot.active") {
-		fmt.Println("commands count", len(multiBot.Commands))
-		funCommandsService := funs.New(DB)
-		multiBot.AddCommands(funCommandsService.Commands())
+	_ = map[string]string{ //weatherTokens
+		"yandex":   config.Str("plugins.yandex_weather.token"),
+		"gismeteo": config.Str("plugins.gismeteo.token"),
+	}
 
-		b64Service := b64.New()
-		multiBot.AddCommands(b64Service.Commands())
-		fmt.Println("commands count", len(multiBot.Commands))
+	services := []tgModel.Service{
+		funs.New(DB),
+		b64.New(),
+		qrcodes.New(),
+		datatimes.New(),
+		translate.New(),
+		calculator.New(),
+		financy.New(config.Str("plugins.apilayer.token")), // TODO: plugins tokens to settings (send admin notify for set token from TG
+		lists.New(DB),
+		users.New(DB),
+		text.New(),
+		images.New(), // TODO: provide Bot var to commandHandler
+		examples.New(),
+		adminNotifer.New(config.TelegramAdminId("multybot")), // TODO: provide Bot var to commandHandler OR from configure method
+		chatAdmin.New(config.TelegramAdminId("multybot")),    // TODO: provide Bot var to commandHandler
+		//admins.New(DB), // TODO: provide Bot var to commandHandler use middleware channels
+		msgStore.New(msgRepo),
+		//weather.New(multiBot.GetSentMessages(), DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
+		transliter.New(),
+		//p2p.New(multiBot.GetSentMessages(), DB),  // TODO: plan
+	}
 
-		QrCodesService := qrcodes.New()
-		multiBot.AddCommands(QrCodesService.Commands())
-
-		dataTimesService := datatimes.New()
-		multiBot.AddCommands(dataTimesService.Commands())
-
-		trService := translate.New()
-		multiBot.AddCommands(trService.Commands())
-
-		calculatorService := calculator.New()
-		multiBot.AddCommands(calculatorService.Commands())
-
-		financeService := financy.New(config.Str("plugins.apilayer.token"))
-		multiBot.AddCommands(financeService.Commands())
-
-		listService := lists.New(DB)
-		multiBot.AddCommands(listService.Commands())
-
-		usersService := lists.New(DB)
-		multiBot.AddCommands(usersService.Commands())
-
-		textService := text.New()
-		multiBot.AddCommands(textService.Commands())
-
-		imageService := images.New("multybot")
-		multiBot.AddCommands(imageService.Commands())
-
-		exampleService := examples.New()
-		multiBot.AddCommands(exampleService.Commands())
-
-		//last init for command list
-		adminService := admins.New(multiBot.Bot, DB, multiBot.Commands, "multybot") // TODO: provide Bot var to commandHandler
-		multiBot.AddCommands(adminService.Commands())
-
-		msgStoreService := msgStore.New(msgRepo, multiBot.Bot.Self.UserName)
-		multiBot.AddCommands(msgStoreService.Commands())
-
-		weatherTokens := map[string]string{
-			"yandex":   config.Str("plugins.yandex_weather.token"),
-			"gismeteo": config.Str("plugins.gismeteo.token"),
-		}
-		if false { //TODO: FIX SERVICE AND REMOVE CONDITION
-			weatherService := weather.New(multiBot.GetSentMessages(), DB, weatherTokens)
-			multiBot.AddCommands(weatherService.Commands())
-		}
-		err = multiBot.Run()
-		if err != nil {
-			log.Panic(err)
+	for botName, tgBotConfig := range config.TgBots() {
+		if tgBotConfig.Active {
+			fmt.Print("\nPrepare bot " + botName + " with services: ")
+			tgBot, err := tgbot.New(botName, tgBotConfig)
+			if err != nil {
+				log.Println("Error: bot cant be started: ", botName, err)
+			}
+			for _, botService := range tgBotConfig.Services {
+				for _, serviceItem := range services {
+					if botService == serviceItem.Name() {
+						log.Print(", [" + serviceItem.Name() + "]")
+						tgBot.AddCommands(serviceItem.Commands(), serviceItem.Name())
+					}
+				}
+			}
+			tgBot.DefaultCommand = tgBotConfig.DefaultCommand //TODO: set method
+			log.Print(" Staring...\n")
+			err = tgBot.Run()
+			if err != nil {
+				log.Println(err.Error())
+			}
+		} else {
+			log.Println("Inactive bot: " + botName)
 		}
 	}
 
-	if config.Bool("telegram.bots.translitbot.active") {
-		translitBot, err := tgbot.New("translitbot")
-		if err != nil {
-			log.Fatal(err)
-		}
-		translitService := transliter.New()
-		translitBot.AddCommands(translitService.Commands())
-		translitBot.DefaultCommand = "translit"
-
-		adminService2 := admins.New(translitBot.Bot, DB, translitBot.Commands, "translitbot")
-		translitBot.AddCommands(adminService2.Commands())
-
-		notiferEventsService := adminNotifer.New(config.TelegramAdminId("translitbot"))
-		translitBot.AddCommands(notiferEventsService.Commands())
-		err = translitBot.Run()
-		if err != nil {
-			log.Panic(err)
-		}
-	}
-
-	fmt.Println("Start web server by" + config.WebServerAddr())
+	fmt.Println("Start web server by " + config.WebServerAddr())
 	err = http.ListenAndServe(config.WebServerAddr(), nil)
 	if err != nil {
 		fmt.Println("Error", err)
