@@ -2,6 +2,24 @@ package tgModel
 
 import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+type KeyBoardTG struct {
+	Rows []KeyBoardRowTG
+}
+
+type KeyBoardRowTG struct {
+	Buttons []KeyBoardButtonTG
+}
+
+type KeyBoardButtonTG struct {
+	Text string
+	Data string
+}
+
+type Event struct {
+	Name string
+	Msg  *tgbotapi.Message
+}
+
 func KBRows(KBrows ...KeyBoardRowTG) KeyBoardTG {
 	var rows []KeyBoardRowTG
 	rows = append(rows, KBrows...)

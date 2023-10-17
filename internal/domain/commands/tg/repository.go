@@ -1,6 +1,9 @@
 package tgModel
 
-import "context"
+import (
+	"context"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
 
 type MsgFilter struct {
 	ID            int64  `json:"id"`
@@ -12,6 +15,15 @@ type MsgFilter struct {
 	SortDirection string `json:"sort_dir"`
 }
 
+type Message struct {
+	TgMsg        *tgbotapi.Message
+	BotName      string
+	ID           int
+	MsgType      string //text, file, images, new_member...
+	MsgDirection int    // 0 from user, 1 from bot
+	MsgJson      string
+}
+
 type MsgRepository interface {
 	Create(ctx context.Context, item *Message) error
 	Update(ctx context.Context, item *Message) error
@@ -21,3 +33,5 @@ type MsgRepository interface {
 }
 
 type Messages []*Message
+
+//TODO: remove TgMsg and provide fields
