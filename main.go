@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"fun-coice/config"
 	"fun-coice/internal/application/services/adminNotifer"
+	"fun-coice/internal/application/services/admins"
 	"fun-coice/internal/application/services/b64"
 	"fun-coice/internal/application/services/calculator"
 	"fun-coice/internal/application/services/chatAdmin"
@@ -124,7 +125,7 @@ func main() {
 		examples.New(),
 		adminNotifer.New(config.TelegramAdminId("multybot")), // TODO: provide Bot var to commandHandler OR from configure method
 		chatAdmin.New(config.TelegramAdminId("multybot")),    // TODO: provide Bot var to commandHandler
-		//admins.New(DB), // TODO: provide Bot var to commandHandler use middleware channels
+		admins.New(DB), // TODO: provide Bot var to commandHandler use middleware channels
 		msgStore.New(msgRepo),
 		//weather.New(multiBot.GetSentMessages(), DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
 		transliter.New(),

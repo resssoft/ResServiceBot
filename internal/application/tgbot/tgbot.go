@@ -73,12 +73,10 @@ func New(name string, botConfig config.TgBotConfig) (*Data, error) {
 	}, nil
 }
 
-func (d *Data) help(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.Simple(msg.Chat.ID, d.config.Description)
-}
-
 func (d *Data) setDefaults() {
-	d.Commands.AddSimple("help", "About bot", d.help)
+	d.Commands.AddSimple("about", "About bot", d.about, "help")
+	d.Commands.AddSimple("admin", "Bot admin info", d.admin, "админ", "кто админ")
+	d.Commands.AddSimple("commands", "Show bot commands", d.commandsList, "список комманд", "команды")
 }
 
 func (d *Data) Run() error {

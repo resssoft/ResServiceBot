@@ -18,23 +18,18 @@ import (
 
 // TODO: rename admins to administration
 type data struct {
-	admin     tgModel.Commands
-	user      tgModel.Commands
-	bot       *tgbotapi.BotAPI
+	list      tgModel.Commands
 	DB        *scribble.Driver
 	adminName string
 }
 
 var _ = (tgModel.Service)(&data{})
 
-func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgModel.Commands, adminName string) tgModel.Service {
+func New(DB *scribble.Driver) tgModel.Service {
 
 	//TODO: change parameters
 	result := data{
-		bot:       bot,
-		DB:        DB,
-		user:      userCommands,
-		adminName: adminName,
+		DB: DB,
 	}
 	commandsList := tgModel.NewCommands()
 
@@ -51,13 +46,6 @@ func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgModel.Command
 		CommandType: "text",
 		Permissions: tgModel.AdminPerms,
 		Handler:     result.get,
-	}
-	commandsList["member"] = tgModel.Command{
-		Command:     "/member",
-		Description: "member info",
-		CommandType: "text",
-		Permissions: tgModel.AdminPerms,
-		Handler:     result.member,
 	}
 	commandsList["rebuild"] = tgModel.Command{
 		Command:     "/rebuild",
@@ -97,43 +85,11 @@ func New(bot *tgbotapi.BotAPI, DB *scribble.Driver, userCommands tgModel.Command
 		Permissions: tgModel.AdminPerms,
 		Handler:     result.features,
 	}
-
-	commandsList["admin"] = tgModel.Command{
-		Command:     "/admin",
-		Synonyms:    []string{"admins"},
-		Description: "Admin info",
-		CommandType: "text",
-		Permissions: tgModel.FreePerms,
-		Handler:     result.info,
-	}
-	commandsList["command"] = tgModel.Command{
-		Command:     "/command",
-		Description: "Command info",
-		CommandType: "text",
-		Permissions: tgModel.FreePerms,
-		Handler:     result.commandInfo,
-	}
-	commandsList["commands"] = tgModel.Command{
-		Command:     "/commands",
-		Synonyms:    []string{"help"},
-		Description: "Список комманд",
-		CommandType: "text",
-		Permissions: tgModel.FreePerms,
-		Handler:     result.commandsList,
-	}
-	commandsList["scanChat"] = tgModel.Command{
-		Command:     "/scanChat",
-		Description: "scan Chat",
-		CommandType: "text",
-		Permissions: tgModel.AdminPerms,
-		Handler:     result.scanChat,
-	}
-	result.admin = commandsList
 	return &result
 }
 
 func (d data) Commands() tgModel.Commands {
-	return d.admin
+	return d.list
 }
 
 func (d data) Name() string {
@@ -145,40 +101,6 @@ func (d data) Configure() error {
 
 	//get commands list from bot by channel
 	return nil
-}
-
-func (d data) commandInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	params := strings.Split(command.Arguments.Raw, " ")
-	if len(params) < 2 {
-		return tgModel.Simple(msg.Chat.ID, "Not found")
-	}
-	currentCommand, founded := d.user[params[1]]
-	if !founded {
-		return tgModel.Simple(msg.Chat.ID, "Not found")
-	}
-	info := fmt.Sprintf("Command: /%s\nSynonyms: %s\nTriggers: %s\n\n%s",
-		currentCommand.Command,
-		strings.Join(currentCommand.Synonyms, ", "),
-		currentCommand.Triggers,
-		currentCommand.Description,
-	)
-	return tgModel.Simple(msg.Chat.ID, info)
-}
-
-func (d data) commandsList(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	fmt.Println("/commands/commands/commands/commands")
-	commandsList := "Commands:\n"
-	for _, commandsItem := range d.user {
-		if commandsItem.ListExclude {
-			continue
-		}
-		commandsList += "/" + commandsItem.Command + " - " + commandsItem.Description + "\n"
-	}
-	return tgModel.Simple(msg.Chat.ID, commandsList)
-}
-
-func (d data) info(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.Simple(msg.Chat.ID, "Admin is @"+config.TelegramAdminLogin(d.adminName))
 }
 
 func (d data) vars(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
@@ -206,16 +128,6 @@ func (d data) get(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Hand
 		return tgModel.Simple(msg.Chat.ID, "set "+params[1]+""+params[2])
 	}
 	return tgModel.EmptyCommand()
-}
-
-func (d data) member(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	chatConfigWithUser := tgbotapi.ChatConfigWithUser{
-		ChatID: msg.Chat.ID,
-		UserID: msg.From.ID,
-	}
-	chatMember, _ := d.bot.GetChatMember(tgbotapi.GetChatMemberConfig{chatConfigWithUser})
-	userInfo := tgModel.UserAndChatInfo(msg.From, msg.Chat) + fmt.Sprintf("\nMemberStatus: %s", chatMember.Status)
-	return tgModel.Simple(msg.Chat.ID, userInfo)
 }
 
 func (d data) rebuild(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
@@ -271,6 +183,7 @@ func (d data) features(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	return tgModel.Simple(msg.Chat.ID, formattedMessage)
 }
 
+/* //TODO: move to client api
 func (d data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	fmt.Println("commandName", command.Command)
@@ -324,8 +237,9 @@ func (d data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	}
 	return tgModel.Simple(msg.Chat.ID, result)
 }
+*/
 
-// wait command
+/*
 func (d data) fillChatUsersInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	var from int64
 	var fromChat int64
@@ -354,3 +268,5 @@ func (d data) fillChatUsersInfo(msg *tgbotapi.Message, command *tgModel.Command)
 	}
 	return tgModel.Simple(msg.Chat.ID, result)
 }
+
+*/

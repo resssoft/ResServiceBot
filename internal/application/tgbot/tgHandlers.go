@@ -2,6 +2,7 @@ package tgbot
 
 import (
 	"encoding/json"
+	"fmt"
 	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -56,4 +57,26 @@ func setRedirectByCommand(msg *tgbotapi.Message, command *tgModel.Command) *tgMo
 		Send()
 	//return tgModel.DeferredWithText(msg.Chat.ID, mstText, commandChoicer, message)
 	return tgModel.EmptyCommand().WithRedirect(string(redirectToStr), msg)
+}
+
+func (d *Data) commandsList(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+	commandsList := "Commands:\n"
+	for _, item := range d.Commands {
+		if item.ListExclude {
+			continue
+		}
+		if !item.Permission(msg, d.AdminId) {
+			continue
+		}
+		commandsList += "/" + item.Command + " - " + item.Description + "\n"
+	}
+	return tgModel.Simple(msg.Chat.ID, commandsList)
+}
+
+func (d *Data) about(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+	return tgModel.Simple(msg.Chat.ID, d.config.Description)
+}
+
+func (d *Data) admin(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+	return tgModel.Simple(msg.Chat.ID, fmt.Sprintf("Bot Admin is @%v", d.AdminId)) //TODO: admin login from bot config
 }
