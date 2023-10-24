@@ -1,5 +1,9 @@
 package tgModel
 
+import (
+	"fmt"
+)
+
 type Commands map[string]Command
 
 func NewCommands() Commands {
@@ -9,10 +13,17 @@ func NewCommands() Commands {
 func (cs Commands) Merge(list Commands) Commands {
 	merged := make(Commands)
 	for key, value := range cs {
+		fmt.Println("1===== ", key, value.Command, value.Service) // TODO temporary
+		//zlog.Info().Any("===== "+key, value.Service).Send()
 		merged[key] = value
 	}
 	for key, value := range list {
+		fmt.Println("2===== ", key, value.Command, value.Service) // TODO temporary
+		//zlog.Info().Any("===== "+key, value.Service).Send()
 		merged[key] = value
+	}
+	for key, value := range merged {
+		fmt.Println("3-==== ", key, value.Command, value.Service) // TODO temporary
 	}
 	return merged
 }
@@ -67,6 +78,15 @@ func (cs Commands) AddSimple(
 		cs = make(Commands)
 	}
 	item := FreeCommand().Simple(name, description, handler, synonyms...)
+	cs[name] = *item
+	return cs
+}
+
+func (cs Commands) AddEvent(name string, handler HandlerFunc) Commands {
+	if cs == nil {
+		cs = make(Commands)
+	}
+	item := NewEvent(name, handler)
 	cs[name] = *item
 	return cs
 }

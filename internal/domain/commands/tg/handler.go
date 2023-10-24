@@ -9,6 +9,8 @@ type HandlerResult struct {
 	Next     string            // next command
 	Redirect *Redirect         //
 	Messages []tgbotapi.Chattable
+	Data     string
+	Buttons  *tgbotapi.InlineKeyboardMarkup
 	Events   []Event // run some events (or commands) after processing the current command
 }
 
@@ -37,26 +39,36 @@ func SimpleReply(chatId int64, text string, replyTo int) *HandlerResult {
 	return PreparedCommand(newMsg)
 }
 
+func SimpleWithButtons(chatId int64, text string, bts *tgbotapi.InlineKeyboardMarkup) *HandlerResult {
+	mewMsg := tgbotapi.NewMessage(chatId, text)
+	if bts != nil {
+		mewMsg.ReplyMarkup = bts
+	}
+	return PreparedCommand(mewMsg)
+}
+
 func UnPreparedCommand(chatEvent tgbotapi.Chattable) *HandlerResult {
 	return &HandlerResult{
 		Messages: []tgbotapi.Chattable{chatEvent},
 	}
 }
 
-func DeferredCommand(command string, msg *tgbotapi.Message) *HandlerResult {
+func DeferredCommand(command, data string, msg *tgbotapi.Message) *HandlerResult {
 	return &HandlerResult{
 		Deferred: true,
 		Next:     command,
+		Data:     data,
 		Resend:   msg,
 	}
 }
 
-func DeferredWithText(chatId int64, text, command string, msg *tgbotapi.Message) *HandlerResult {
+func DeferredWithText(chatId int64, text, command, data string, msg *tgbotapi.Message) *HandlerResult {
 	return &HandlerResult{
 		Deferred: true,
 		Prepared: true,
 		Messages: []tgbotapi.Chattable{tgbotapi.NewMessage(chatId, text)},
 		Next:     command,
+		Data:     data,
 		Resend:   msg,
 	}
 }
@@ -99,6 +111,11 @@ func (hr *HandlerResult) WithDeferred(command string, msg *tgbotapi.Message) *Ha
 
 func (hr *HandlerResult) WithText(chatId int64, text string) *HandlerResult {
 	hr.Messages = []tgbotapi.Chattable{tgbotapi.NewMessage(chatId, text)}
+	return hr
+}
+
+func (hr *HandlerResult) AddSimple(chatId int64, text string) *HandlerResult {
+	hr.Messages = append(hr.Messages, tgbotapi.NewMessage(chatId, text))
 	return hr
 }
 

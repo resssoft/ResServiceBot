@@ -7,22 +7,25 @@ import (
 )
 
 type Command struct {
-	Command       string //TODO: check for needles field
-	Synonyms      []string
-	Triggers      []string
-	Templates     []string
-	Description   string
-	CommandType   string //deprecated
-	IsEvent       bool
-	ListExclude   bool
-	Permissions   CommandPermissions
-	Handler       HandlerFunc
+	Command     string //TODO: check for needles field
+	Synonyms    []string
+	Triggers    []string
+	Templates   []string
+	Description string
+	CommandType string //deprecated
+	IsEvent     bool
+	ListExclude bool
+	Permissions CommandPermissions
+	Handler     HandlerFunc
+	// Arguments: parsed before use, actual in the raw field
 	Arguments     CommandArguments
 	Service       string // set in the bot only
 	FileTypes     FileTypes
 	BotName       string //command author
 	Deferred      bool   // send by Deferred method
 	FilesCallback FileHandlerFunc
+	ParamCallback ParamHandlerFunc
+	Data          string
 	//State       string //offline or online, service can be down
 	//WithFiles   bool // Files need prepare
 }
@@ -53,6 +56,14 @@ func (t *Command) Simple(
 		Permissions: FreePerms,
 		Handler:     handler,
 		Synonyms:    synonyms,
+	}
+}
+
+func NewEvent(name string, handler HandlerFunc) *Command {
+	return &Command{
+		Command: "event:" + name,
+		IsEvent: true,
+		Handler: handler,
 	}
 }
 

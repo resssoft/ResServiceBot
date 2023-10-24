@@ -18,17 +18,17 @@ func New(adminId int64) tgModel.Service {
 	}
 	commandsList := tgModel.NewCommands()
 	commandsList["event:"+tgModel.StartBotEvent] = tgModel.Command{
-		CommandType: "event", //TODO: test without this field
-		Handler:     result.startEvent,
+		IsEvent: true,
+		Handler: result.startEvent,
 	}
 	commandsList["event:"+tgModel.UserLeaveChantEvent] = tgModel.Command{
-		Command:     "/event:" + tgModel.UserLeaveChantEvent,
-		CommandType: "event",
-		Handler:     result.UserLeaveChantEvent,
+		Command: "/event:" + tgModel.UserLeaveChantEvent,
+		IsEvent: true,
+		Handler: result.UserLeaveChantEvent,
 	}
 	commandsList["event:"+tgModel.UserJoinedChantEvent] = tgModel.Command{
-		CommandType: "event",
-		Handler:     result.UserJoinedChantEvent,
+		IsEvent: true,
+		Handler: result.UserJoinedChantEvent,
 	}
 	//TODO: configure notify chat (admin is default)
 

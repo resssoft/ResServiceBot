@@ -84,7 +84,7 @@ func (d data) tr(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Handl
 	params := command.Arguments.Parse()
 	if len(params) == 0 {
 		//TODO: add settings by user for default translate (choice 2 langs OR choice old translates options) OR BUTTONS
-		return tgModel.DeferredWithText(msg.Chat.ID, "Enter for translate from EN to RU (default for /tr_settings)", "tr_en_ru", nil)
+		return tgModel.DeferredWithText(msg.Chat.ID, "Enter for translate from EN to RU (default for /tr_settings)", "tr_en_ru", "", nil)
 	}
 	result, err := gt.Translate(command.Arguments.Raw, params[1], params[2])
 	if err != nil {
@@ -147,5 +147,5 @@ func (d data) tr_en_ru(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 }
 
 func (d data) trNext(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.DeferredWithText(msg.Chat.ID, "Enter for translate from EN to RU", "tr_en_ru", nil)
+	return tgModel.DeferredWithText(msg.Chat.ID, "Enter for translate from EN to RU", "tr_en_ru", "", nil)
 }

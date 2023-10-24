@@ -38,7 +38,7 @@ func (d *data) exampleEditInlineButtons(msg *tgbotapi.Message, _ *tgModel.Comman
 	newMsg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 		msg.Chat.ID,
 		msg.MessageID,
-		tgModel.GetTGButtons(tgModel.KBRows(tgModel.KBButs(
+		*tgModel.GetTGButtons(tgModel.KBRows(tgModel.KBButs(
 			tgModel.KeyBoardButtonTG{Text: fmt.Sprintf("Counter (%v)", d.Counter()), Data: "example_button_counter"},
 			tgModel.KeyBoardButtonTG{Text: "Remove this message", Data: "example_remove_buttons_trigger"},
 		)))).ReplyMarkup
@@ -62,7 +62,7 @@ func (d *data) exampleCounterIncrement(msg *tgbotapi.Message, _ *tgModel.Command
 	newMsg.ReplyMarkup = tgbotapi.NewEditMessageReplyMarkup(
 		msg.Chat.ID,
 		msg.MessageID,
-		tgModel.GetTGButtons(tgModel.KBRows(tgModel.KBButs(
+		*tgModel.GetTGButtons(tgModel.KBRows(tgModel.KBButs(
 			tgModel.KeyBoardButtonTG{Text: fmt.Sprintf("Counter (%v)", d.Counter()), Data: "example_button_counter"},
 			tgModel.KeyBoardButtonTG{Text: "Action test", Data: "example_notify"},
 			tgModel.KeyBoardButtonTG{Text: "Remove this message", Data: "example_remove_buttons_trigger"},

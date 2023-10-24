@@ -36,6 +36,7 @@ type Data struct {
 	lastMsgTime    time.Time
 	Name           string
 	AdminId        int64
+	AdminLogin     string
 	mutexCommands  *sync.Mutex
 	Ran            bool
 	config         config.TgBotConfig
@@ -43,6 +44,7 @@ type Data struct {
 
 type Deferred struct {
 	Command string
+	Data    string
 	Message *tgbotapi.Message
 }
 
@@ -53,20 +55,33 @@ func New(name string, botConfig config.TgBotConfig) (*Data, error) {
 	}
 	//TODO: replace config.TelegramToken(name) to botConfig
 
+	zlog.Info().
+		Any("AdminLogin", botConfig.AdminLogin).
+		Any("AdminId", botConfig.AdminId).
+		Any("Login", botConfig.Login).
+		Any("DefaultCommand", botConfig.DefaultCommand).
+		Any("bot.Self.UserName", bot.Self.UserName).
+		Any("bot.Self", bot.Self).
+		Any("WebMode", botConfig.WebMode).
+		Any("Uri", botConfig.Uri).
+		Any("Token", botConfig.Token).
+		Send() // TODO temporary
+
 	return &Data{
 		config:         botConfig,
-		Token:          config.TelegramToken(name),
-		WebUri:         config.TelegramBotUrl(name),
+		Token:          botConfig.Token,
+		WebUri:         botConfig.Uri,
 		Commands:       defaultCommands,
 		Bot:            bot,
 		WorkersCount:   defaultWorkersCount,
 		StartMsg:       true,
-		WebMode:        config.TelegramIsWebMode(name),
+		WebMode:        botConfig.WebMode,
 		Name:           bot.Self.UserName,
 		Deferred:       make(map[int64]Deferred),
 		mutexDeferred:  &sync.Mutex{},
-		DefaultCommand: config.TelegramBotCommand(name),
-		AdminId:        config.TelegramAdminId(name),
+		DefaultCommand: botConfig.DefaultCommand,
+		AdminId:        botConfig.AdminId,
+		AdminLogin:     botConfig.AdminLogin,
 		messagesChan:   make(chan tgbotapi.Chattable, messagesChanLimit),
 		mutexCommands:  &sync.Mutex{},
 		Ran:            false,
@@ -172,11 +187,12 @@ func (d *Data) GetSentMessages() tgModel.SentMessages {
 	return d.messagesChan
 }
 
-func (d *Data) AppendDeferred(user int64, command string, msg *tgbotapi.Message) {
+func (d *Data) AppendDeferred(user int64, command, data string, msg *tgbotapi.Message) {
 	d.mutexDeferred.Lock()
 	defer d.mutexDeferred.Unlock()
 	d.Deferred[user] = Deferred{
 		Command: command,
+		Data:    data,
 		Message: msg,
 	}
 }
@@ -195,6 +211,8 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 		command.SetArgs(msg.CommandArguments())
 	}
 	command.FilesCallback = d.getTgFile
+	command.ParamCallback = d.getParam
+
 	command.BotName = d.Name                                              // TODO: check if set is needle (bot local name or login)
 	zlog.Info().Any("RunCommand command.Command", command.Command).Send() // WHy EMPTY?
 	result := command.Handler(msg, &command)
@@ -204,6 +222,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 		log.Println("result.Messages", len(result.Messages))
 		for _, chantEvent := range result.Messages {
 			log.Println("chatEvent", chantEvent)
+
 			msgRes, err := d.Bot.Send(chantEvent) //TODO: check limits by this package method
 			if err != nil {
 				fmt.Println(err.Error())
@@ -248,9 +267,13 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 		zlog.Info().Msg("Empty redirect")
 	}
 	if result.Deferred {
-		fmt.Println("COMMAND Wait", msg.From.ID, result.Next) //DEVMODE
+		defBy := msg.From.ID
+		if msg.From.IsBot {
+			defBy = msg.Chat.ID
+		}
+		fmt.Println("COMMAND Wait", defBy, result.Next) //DEVMODE
 		zlog.Info().Any("msg resend", result.Resend).Send()
-		d.AppendDeferred(msg.From.ID, result.Next, result.Resend)
+		d.AppendDeferred(defBy, result.Next, result.Data, result.Resend)
 		return true
 	}
 	return false
@@ -305,12 +328,13 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 			//eventData := update.CallbackQuery.Data
 			separatedData := strings.Split(eventName, ":")
 			if len(separatedData) > 1 {
-				eventName = separatedData[0]
+				eventName = separatedData[1]
 				//eventData = separatedData[1] // ????????????????????????
 			}
 			if commandDeferred, ok := d.GetCommand(eventName); ok {
 
 				commandDeferred.SetArgs(update.CallbackQuery.Message.CommandArguments())
+				commandDeferred.Data = update.CallbackQuery.Data
 				if d.RunCommand(
 					commandDeferred,
 					update.CallbackQuery.Message) {
@@ -374,7 +398,7 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 
 		//check waited commands
 		if founded := d.CheckDeferred(msg.From.ID); founded.Command != "" {
-			log.Println("Deferred RunCommand")
+			log.Println("Deferred RunCommand", founded.Command)
 			if commandDeferred, ok := d.GetCommand(founded.Command); ok {
 				deferredMsg := msg
 				log.Println("Deferred RunCommand")
@@ -389,6 +413,7 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 				if founded.Message != nil {
 					deferredMsg = founded.Message
 				}
+				commandDeferred.Data = founded.Data
 				commandDeferred.Deferred = true
 				if d.RunCommand(
 					commandDeferred,
@@ -499,7 +524,7 @@ func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string)
 			}
 			newCommand := tgModel.NewCommand().WithHandler(
 				func(message *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-					return tgModel.DeferredWithText(msg.Chat.ID, mstText, commandRedirect, message)
+					return tgModel.DeferredWithText(msg.Chat.ID, mstText, commandRedirect, "", message)
 				})
 			if d.RunCommand(*newCommand, msg) {
 				continue
@@ -524,6 +549,7 @@ func (d *Data) GetSubCommands(subName string) []tgModel.Command {
 			founded = append(founded, command)
 			continue
 		}
+
 		results := strings.Split(key, ":") //deprecated
 		if len(results) < 2 {
 			continue
@@ -574,6 +600,20 @@ func (d *Data) RunEvents(event string, msg *tgbotapi.Message, command *tgModel.C
 	}
 }
 
-func (d *Data) Send(chattable tgbotapi.Chattable) {
+func (d *Data) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 	//TODO: check send limits per second
+	return d.Bot.Send(c)
+}
+
+func (d *Data) getParam(name tgModel.BotParamRequest) tgModel.BotParamResponse {
+	switch name {
+	case tgModel.BotNameParam:
+		return tgModel.BotParamStr(d.Name)
+	case tgModel.BotAdminLoginParam:
+		return tgModel.BotParamStr(d.AdminLogin)
+	case tgModel.BotNAdminIdParam:
+		return tgModel.BotParamInt64(d.AdminId)
+	default:
+		return tgModel.BotParamNotFound()
+	}
 }

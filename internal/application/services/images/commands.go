@@ -23,7 +23,7 @@ func (d data) help(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Han
 }
 
 func (d data) resize(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '300'", "resizeImage", nil)
+	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '300'", "resizeImage", "", nil)
 }
 
 func (d data) resizeImage(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
@@ -61,7 +61,7 @@ func (d data) resizeImage(msg *tgbotapi.Message, command *tgModel.Command) *tgMo
 }
 
 func (d data) rotate(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '90' or '180'", "rotateImage", nil)
+	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '90' or '180'", "rotateImage", "", nil)
 }
 
 func (d data) rotateImage(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

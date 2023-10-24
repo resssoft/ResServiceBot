@@ -18,6 +18,7 @@ import (
 	"fun-coice/internal/application/services/lists"
 	"fun-coice/internal/application/services/money"
 	"fun-coice/internal/application/services/msgStore"
+	"fun-coice/internal/application/services/p2p"
 	"fun-coice/internal/application/services/qrcodes"
 	"fun-coice/internal/application/services/text"
 	"fun-coice/internal/application/services/translate"
@@ -78,13 +79,13 @@ func main() {
 	dbFilePath, _ := filepath.Abs(dbFile)
 	log.Println("sqlite-database.db ", dbFilePath)
 
-	sqliteDatabase, err := sql.Open("sqlite3", dbFile) // or file::memory:?cache=shared //:memory:
+	db, err := sql.Open("sqlite3", dbFile) // or file::memory:?cache=shared //:memory:
 	if err != nil {
 		log.Fatal(fmt.Errorf("cant open db sql3 file %w", err))
 	}
-	defer sqliteDatabase.Close()
+	defer db.Close()
 
-	msgRepo, err := tgmessage.New(sqliteDatabase)
+	msgRepo, err := tgmessage.New(db)
 	if err != nil {
 		log.Fatal(fmt.Errorf("cant create msg repo %w", err))
 	}
@@ -110,6 +111,8 @@ func main() {
 		"gismeteo": config.Str("plugins.gismeteo.token"),
 	}
 
+	//add configure or bot register for
+
 	services := []tgModel.Service{
 		funs.New(DB),
 		b64.New(),
@@ -129,10 +132,11 @@ func main() {
 		msgStore.New(msgRepo),
 		//weather.New(multiBot.GetSentMessages(), DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
 		transliter.New(),
-		//p2p.New(multiBot.GetSentMessages(), DB),  // TODO: plan
+		p2p.New(db), // TODO: plan
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {
+		fmt.Print("Found bot [" + botName + "]\n")
 		if tgBotConfig.Active {
 			fmt.Print("\nPrepare bot " + botName + " with services: ")
 			tgBot, err := tgbot.New(botName, tgBotConfig)

@@ -32,7 +32,7 @@ func KBButs(KBrows ...KeyBoardButtonTG) KeyBoardRowTG {
 	return KeyBoardRowTG{rows}
 }
 
-func GetTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
+func GetTGButtons(params KeyBoardTG) *tgbotapi.InlineKeyboardMarkup {
 	var row []tgbotapi.InlineKeyboardButton
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, rowsData := range params.Rows {
@@ -42,7 +42,7 @@ func GetTGButtons(params KeyBoardTG) tgbotapi.InlineKeyboardMarkup {
 		rows = append(rows, row)
 		row = nil
 	}
-	return tgbotapi.InlineKeyboardMarkup{
+	return &tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: rows,
 	}
 }

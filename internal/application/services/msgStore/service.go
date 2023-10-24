@@ -88,7 +88,7 @@ func (d *data) msgGetDB(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.Hand
 
 func (d *data) msgImport(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if len(command.Arguments.Parse()) == 0 {
-		return tgModel.DeferredWithText(msg.Chat.ID, "Send file or json text", "msgImport", nil)
+		return tgModel.DeferredWithText(msg.Chat.ID, "Send file or json text", "msgImport", "", nil)
 	}
 	var result = MsgData{}
 	err := json.Unmarshal([]byte(msg.Text), &result)
