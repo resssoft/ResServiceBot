@@ -44,39 +44,48 @@ func New(DB *sql.DB) tgModel.Service {
 	commandsList.AddEvent(StoppedTaskButtonEvent, result.StoppedTaskButtonEventHandler)
 	commandsList.AddEvent(stopBreakButtonEvent, result.stopBreakButtonEventHandler)
 
-	//TODO: add workers for active tasks for update text time (check type buttons)
+	//TODO: add workers for active trackers for update time info (check type buttons before edit message)
+	//TODO set tasks text labels and duration (like as breaks) - some tasks by active tracker
+	//TODO some trackers per day by user - feature: set random or user traker name
 	//TODO: add user break type buttons (coffe break for example) - settings
 	//TODO: add set user GMT - settings
 	//TODO save info to db
-
 	result.list = commandsList
+
+	//TODO: read from db to RAM active tasks(rename task to traker)
+	go result.tracking()
+
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
-	return "workTrack"
+func (d *data) Name() string {
+	return "timeTraker" //workTrack
 }
 
-func (d data) timeTrack(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) tracking() {
+	//TODO: implement
+}
+
+func (d *data) timeTrack(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.SimpleWithButtons(msg.Chat.ID, timeTrackTitle, d.trackButtons())
 }
 
-func (d data) startTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) startTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	log.Info().Msg("startTaskButtonEventHandler")
 	task := d.AddTask(msg.Chat.ID, msg.MessageID)
 	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTaskButtons())
 }
 
-func (d data) settingsButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) settingsButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	log.Info().Msg("settingsButtonEventHandler")
 	return tgModel.SimpleReply(msg.Chat.ID, "Not implement", msg.MessageID)
 }
 
-func (d data) takeBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) takeBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	log.Info().Msg("takeBreakButtonEventHandler")
 	task, exist := d.SetTaskBreak(msg.Chat.ID)
 	if !exist {
@@ -85,7 +94,7 @@ func (d data) takeBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Comm
 	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.breakTaskButtons())
 }
 
-func (d data) stopBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) stopBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	log.Info().Msg("stopBreakButtonEventHandler")
 	task, exist := d.StopTaskBreak(msg.Chat.ID)
 	if !exist {
@@ -94,16 +103,11 @@ func (d data) stopBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Comm
 	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTaskButtons())
 }
 
-func (d data) StoppedTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) StoppedTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	log.Info().Msg("StoppedTaskButtonEventHandler")
-	task, exist := d.GetTask(msg.Chat.ID)
+	task, exist := d.StopTask(msg.Chat.ID)
 	if !exist {
 		return tgModel.SimpleReply(msg.Chat.ID, "Task not found, sorry, create new by /timeTrack", msg.MessageID)
 	}
 	return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, task.Title)
-}
-
-func (d data) startTask(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	task := d.AddTask(msg.Chat.ID, 2)
-	return tgModel.SimpleWithButtons(msg.Chat.ID, task.Title, d.activeTaskButtons())
 }
