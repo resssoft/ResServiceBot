@@ -24,6 +24,7 @@ import (
 	"fun-coice/internal/application/services/translate"
 	"fun-coice/internal/application/services/transliter"
 	"fun-coice/internal/application/services/users"
+	"fun-coice/internal/application/services/workTasks"
 	"fun-coice/internal/application/tgbot"
 	tgModel "fun-coice/internal/domain/commands/tg"
 	tgmessage "fun-coice/internal/repositories/telegram/message"
@@ -132,7 +133,8 @@ func main() {
 		msgStore.New(msgRepo),
 		//weather.New(multiBot.GetSentMessages(), DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
 		transliter.New(),
-		p2p.New(db), // TODO: plan
+		p2p.New(db),
+		workTasks.New(db), // TODO: plan
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {

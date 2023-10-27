@@ -33,6 +33,10 @@ func Simple(chatId int64, text string) *HandlerResult {
 	return PreparedCommand(tgbotapi.NewMessage(chatId, text))
 }
 
+func SimpleEdit(chatId int64, msgId int, text string) *HandlerResult {
+	return PreparedCommand(tgbotapi.NewEditMessageText(chatId, msgId, text))
+}
+
 func SimpleReply(chatId int64, text string, replyTo int) *HandlerResult {
 	newMsg := tgbotapi.NewMessage(chatId, text)
 	newMsg.ReplyToMessageID = replyTo
@@ -44,6 +48,14 @@ func SimpleWithButtons(chatId int64, text string, bts *tgbotapi.InlineKeyboardMa
 	if bts != nil {
 		mewMsg.ReplyMarkup = bts
 	}
+	return PreparedCommand(mewMsg)
+}
+
+func SimpleEditWithButtons(chatId int64, msgId int, text string, bts *tgbotapi.InlineKeyboardMarkup) *HandlerResult {
+	if bts == nil {
+		return EmptyCommand()
+	}
+	mewMsg := tgbotapi.NewEditMessageTextAndMarkup(chatId, msgId, text, *bts)
 	return PreparedCommand(mewMsg)
 }
 
