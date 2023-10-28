@@ -15,10 +15,10 @@ import (
 )
 
 var (
-	defaultWorkersCount   = 10
-	messagesChanLimit     = 300
-	FilesHandlerChanLimit = 100
-	messageTimeLimit      = time.Millisecond * 100
+	defaultWorkersCount      = 10
+	messagesChanLimit        = 300
+	CommandsHandlerChanLimit = 100
+	messageTimeLimit         = time.Millisecond * 100
 )
 
 type Data struct {
@@ -33,6 +33,7 @@ type Data struct {
 	mutexDeferred  *sync.Mutex
 	DefaultCommand string
 	messagesChan   chan tgbotapi.Chattable
+	commandResults chan *tgModel.HandlerResult
 	lastMsgTime    time.Time
 	Name           string
 	AdminId        int64
@@ -83,6 +84,7 @@ func New(name string, botConfig config.TgBotConfig) (*Data, error) {
 		AdminId:        botConfig.AdminId,
 		AdminLogin:     botConfig.AdminLogin,
 		messagesChan:   make(chan tgbotapi.Chattable, messagesChanLimit),
+		commandResults: make(chan *tgModel.HandlerResult, CommandsHandlerChanLimit),
 		mutexCommands:  &sync.Mutex{},
 		Ran:            false,
 	}, nil
@@ -153,7 +155,7 @@ func (d *Data) Run() error {
 		fmt.Println("tg bot WebMode", d.Bot.Self.UserName, d.WebUri)
 		webUpdates := d.Bot.ListenForWebhook(d.WebUri)
 		for i := 0; i < d.WorkersCount; i++ {
-			go d.CommandsHandler(webUpdates, strconv.Itoa(i)+" "+d.Bot.Self.UserName)
+			go d.UpdatesHandler(webUpdates, strconv.Itoa(i)+" "+d.Bot.Self.UserName)
 		}
 	} else { //web updates mode
 		if whInfo.URL != "" {
@@ -172,19 +174,24 @@ func (d *Data) Run() error {
 		fmt.Println("tg bot UpdateMode", d.Bot.Self.UserName)
 		updates := d.Bot.GetUpdatesChan(u)
 		for i := 0; i < d.WorkersCount; i++ {
-			go d.CommandsHandler(updates, strconv.Itoa(i)+" "+d.Bot.Self.UserName)
+			go d.UpdatesHandler(updates, strconv.Itoa(i)+" "+d.Bot.Self.UserName)
 		}
+	}
+	for i := 0; i < d.WorkersCount; i++ {
+		go d.commandsHandler()
 	}
 	d.Ran = true
 	return nil
 }
 
-func (d *Data) SetWebMode(val bool) {
-	d.WebMode = val
+func (d *Data) commandsHandler() {
+	for result := range d.commandResults {
+		d.SendCommandResult(result, nil)
+	}
 }
 
-func (d *Data) GetSentMessages() tgModel.SentMessages {
-	return d.messagesChan
+func (d *Data) SetWebMode(val bool) {
+	d.WebMode = val
 }
 
 func (d *Data) AppendDeferred(user int64, command, data string, msg *tgbotapi.Message) {
@@ -217,6 +224,11 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 	zlog.Info().Any("RunCommand command.Command", command.Command).Send() // WHy EMPTY?
 	result := command.Handler(msg, &command)
 	zlog.Info().Any("result handler", result).Send()
+	return d.SendCommandResult(result, msg)
+}
+
+func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Message) bool {
+	fmt.Println("SendCommandResult")
 	if result.Prepared {
 		//fmt.Println("COMMAND PREPAERD") //DEVMODE
 		log.Println("result.Messages", len(result.Messages))
@@ -231,7 +243,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 			}
 		}
 		//set differ with event
-		if len(result.Events) > 0 {
+		if len(result.Events) > 0 && msg != nil {
 			log.Println("len(result.Events) > 0")
 			for _, chatEvent := range result.Events {
 				eventCommands := d.GetSubCommands(chatEvent.Name)
@@ -251,7 +263,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 			return true
 		}
 	}
-	if result.Redirect != nil {
+	if result.Redirect != nil && msg != nil {
 		//TODO: check redirect step limit
 		zlog.Info().Any("redirect", result.Redirect).Send()
 		redirectCommand, founded := d.GetCommand(result.Redirect.CommandName)
@@ -266,7 +278,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 	} else {
 		zlog.Info().Msg("Empty redirect")
 	}
-	if result.Deferred {
+	if result.Deferred && msg != nil {
 		defBy := msg.From.ID
 		if msg.From.IsBot {
 			defBy = msg.Chat.ID
@@ -283,19 +295,18 @@ func (d *Data) MessagesHandler() {
 	for msg := range d.messagesChan {
 		msgRes, err := d.Bot.Send(msg)
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("Send tg message error", err.Error())
 		} else {
-			fmt.Println("Send message by", msgRes.MessageID)
+			fmt.Println("Sent message ", msgRes.MessageID)
 		}
 	}
 }
 
-func (d *Data) CommandsHandler(updates tgbotapi.UpdatesChannel, workerID string) {
-	//log.Println("start worker CommandsHandler", workerID) // TODO: to debug
+func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) {
+	//log.Println("start worker UpdatesHandler", workerID) // TODO: to debug
 	isCommand := false
 	commandName := ""
 	for update := range updates {
-
 		d.mutexDeferred.Lock() ////////////////////////
 		d.mutexDeferred.Unlock()
 		zlog.Info().Any("d.Deferred", d.Deferred).Send() //////////////////
@@ -600,11 +611,6 @@ func (d *Data) RunEvents(event string, msg *tgbotapi.Message, command *tgModel.C
 	}
 }
 
-func (d *Data) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
-	//TODO: check send limits per second
-	return d.Bot.Send(c)
-}
-
 func (d *Data) getParam(name tgModel.BotParamRequest) tgModel.BotParamResponse {
 	switch name {
 	case tgModel.BotNameParam:
@@ -616,4 +622,16 @@ func (d *Data) getParam(name tgModel.BotParamRequest) tgModel.BotParamResponse {
 	default:
 		return tgModel.BotParamNotFound()
 	}
+}
+
+func (d *Data) PushMessage() chan<- tgbotapi.Chattable {
+	return d.messagesChan
+}
+
+func (d *Data) PushHandleResult() chan<- *tgModel.HandlerResult {
+	return d.commandResults
+}
+
+func (d *Data) BotName() string {
+	return d.Name
 }

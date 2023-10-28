@@ -19,20 +19,19 @@ import (
 var _ = (tgModel.Service)(&data{})
 
 type data struct {
-	events  tgModel.Commands
-	sentMsg tgModel.SentMessages
-	DB      *scribble.Driver
-	items   []item
-	ctx     context.Context
-	tokens  map[string]string
+	events        tgModel.Commands
+	messageSender tgModel.MessageSender
+	DB            *scribble.Driver
+	items         []item
+	ctx           context.Context
+	tokens        map[string]string
 }
 
-func New(sentMsg tgModel.SentMessages, DB *scribble.Driver, tokens map[string]string) tgModel.Service {
+func New(DB *scribble.Driver, tokens map[string]string) tgModel.Service {
 	result := data{
-		sentMsg: sentMsg,
-		DB:      DB,
-		ctx:     context.Background(),
-		tokens:  tokens,
+		DB:     DB,
+		ctx:    context.Background(),
+		tokens: tokens,
 	}
 	commandsList := tgModel.NewCommands()
 	commandsList.AddSimple("weather_add_chat", "Add weather notifier to chat", result.addWeatherChat)
@@ -52,8 +51,8 @@ func (d *data) Name() string {
 	return "weather"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
-
+func (d *data) Configure(botData tgModel.ServiceConfig) {
+	d.messageSender = botData.MessageSender
 }
 
 func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
@@ -185,7 +184,9 @@ func (d *data) worker() {
 }
 
 func (d *data) SendWeather(chatId int64) {
-	d.sentMsg <- tgModel.Simple(chatId, "User Leave Chant:\n").Messages[0]
+	if d.messageSender != nil {
+		d.messageSender.PushHandleResult() <- tgModel.Simple(chatId, "Send weather")
+	}
 }
 
 func (d *data) GetGismeteoForecast() string {

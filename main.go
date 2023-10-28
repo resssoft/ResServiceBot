@@ -131,7 +131,7 @@ func main() {
 		chatAdmin.New(config.TelegramAdminId("multybot")),    // TODO: provide Bot var to commandHandler
 		admins.New(DB), // TODO: provide Bot var to commandHandler use middleware channels
 		msgStore.New(msgRepo),
-		//weather.New(multiBot.GetSentMessages(), DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
+		//weather.New(DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
 		transliter.New(),
 		p2p.New(db),
 		workTasks.New(db), // TODO: plan
@@ -150,6 +150,9 @@ func main() {
 					if botService == serviceItem.Name() {
 						log.Print(", [" + serviceItem.Name() + "]")
 						tgBot.AddCommands(serviceItem.Commands(), serviceItem.Name())
+						serviceItem.Configure(tgModel.ServiceConfig{
+							MessageSender: tgBot,
+						})
 					}
 				}
 			}

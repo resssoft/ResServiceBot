@@ -17,6 +17,7 @@ func (d *data) AddTrack(uid int64, msgId int) Track {
 		Start:  time.Now(),
 		UserId: uid,
 		MsgId:  msgId,
+		Status: StatusProgress,
 	}
 	userTrack.Title = userTrack.GetTitle()
 	log.Info().Any("AddTrack", userTrack).Send()
@@ -59,7 +60,7 @@ func (d *data) StopTrack(uid int64) (Track, bool) {
 	defer d.mutex.Unlock()
 	userTrack, exist := d.tracks[uid]
 	if exist {
-		d.tracks[uid] = userTrack.StopTask()
+		d.tracks[uid] = userTrack.StopTrack()
 	}
 	log.Info().Any("StopTrack", d.tracks[uid]).Send()
 	return userTrack, exist
@@ -100,6 +101,7 @@ func (t *Track) SetBreak() Track {
 	breakTime := time.Now()
 	t.Break = breakTime
 	t.Pause = true
+	t.Status = StatusPause
 	log.Info().Any("task SetBreak", t).Send()
 	return *t
 }
@@ -112,11 +114,12 @@ func (t *Track) StopBreak() Track {
 	t.add(BreakName, t.Break, breakStopTime)
 	t.Pause = false
 	t.Title = t.GetTitle()
+	t.Status = StatusProgress
 	log.Info().Any("task StopBreak", t).Send()
 	return *t
 }
 
-func (t *Track) StopTask() Track {
+func (t *Track) StopTrack() Track {
 	log.Info().Any("task STARTFUN StopTask", t).Send()
 	if t == nil {
 		return Track{}
@@ -124,6 +127,7 @@ func (t *Track) StopTask() Track {
 	if t.Pause {
 		withoutBreak := t.StopBreak()
 		t = &withoutBreak
+		t.Status = StatusStopped
 
 		log.Info().Any("task StopTask withoutBreak", t).Send()
 	}
@@ -147,6 +151,7 @@ func (t *Track) GetTitle() string {
 	}
 	if t.Pause {
 		breaks += fmt.Sprintf("\n %s : %s - ", BreakName, t.Break.Format(timeFormat))
+		fullDuration -= time.Now().Sub(t.Break)
 	}
 	return fmt.Sprintf(
 		taskTitleTmp,

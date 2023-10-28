@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	taskTitleTmp = "[%s] Трэкинг GMT %s.  \n\nНачало: %s\nКонец: %s \nОбщее время: %s\n\n%s"
+	taskTitleTmp = "[%s GMT %s] %s - %s \n🕐 Общее время: %s\n\n%s"
+	//taskTitleTmp = "[%s] Трэкинг GMT %s.  \n\nНачало: %s Конец: %s \nОбщее время: %s\n\n%s"
 
 	timeFormat = "15:04" // "15:04:05"
 
@@ -25,6 +26,9 @@ const (
 	showProfileEvent  = "showProfile"
 	setBreakNameEvent = "setBreakName"
 )
+
+//💳📝📝💬💬✏️💬
+//📅➕➖➗✖️✔️🕐🏁
 
 type User struct {
 	tgUser tgbotapi.User
@@ -50,7 +54,23 @@ type Track struct {
 	MsgId  int
 	Breaks []timeItem
 	Tasks  []timeItem
+	Status Status
 	//GMT    string use for time show
+}
+
+type Status int
+
+const (
+	StatusStart = iota
+	StatusProgress
+	StatusPause
+	StatusStopped
+	StatusProfile
+	StatusSettings
+)
+
+func (s Status) Is(status Status) bool {
+	return s == status
 }
 
 type Tracks map[int64]Track

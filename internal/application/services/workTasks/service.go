@@ -1,23 +1,28 @@
 package workTasks
 
 import (
+	"context"
 	"database/sql"
 	tgModel "fun-coice/internal/domain/commands/tg"
 	"github.com/doug-martin/goqu/v9"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
 	"sync"
+	"time"
 )
 
 type data struct {
-	list    tgModel.Commands
-	users   map[int64]User //temporary
-	storage *sql.DB
-	builder goqu.DialectWrapper
-	tracks  Tracks
-	mutex   *sync.Mutex
-	buttons map[string]Button
+	list          tgModel.Commands
+	users         map[int64]User //temporary
+	storage       *sql.DB
+	builder       goqu.DialectWrapper
+	tracks        Tracks
+	mutex         *sync.Mutex
+	buttons       map[string]Button
+	messageSender tgModel.MessageSender
 }
+
+const trackingDuration = time.Second * 10
 
 func New(DB *sql.DB) tgModel.Service {
 	result := data{
@@ -35,14 +40,14 @@ func New(DB *sql.DB) tgModel.Service {
 
 	result.addButton("🚗 Начать трэкинг", startTrackEvent, result.startTrackButtonEventHandler)
 	result.addButton("⚙️", settingsEvent, result.settingsButtonEventHandler)
-	result.addButton("⏸ перерыв", takeBreakEvent, result.takeBreakButtonEventHandler)
-	result.addButton("⏹ возобновить", stopBreakEvent, result.stopBreakButtonEventHandler)
-	result.addButton("▶️ остановить трэкинг", StoppedTaskEvent, result.StoppedTaskButtonEventHandler)
+	result.addButton("⏸", takeBreakEvent, result.takeBreakButtonEventHandler)
+	result.addButton("▶️", stopBreakEvent, result.stopBreakButtonEventHandler)
+	result.addButton("🏁", StoppedTaskEvent, result.StoppedTaskButtonEventHandler)
 
-	result.addButton("💬 Задать имя активной задачи", setTaskNameEvent, result.NotImplementHandler)
+	result.addButton("📝 Задать имя активной задачи", setTaskNameEvent, result.NotImplementHandler)
 	result.addButton("➕ Добавить задачу", startTaskEvent, result.NotImplementHandler)
 	result.addButton("👤 Профиль", showProfileEvent, result.NotImplementHandler)
-	result.addButton("💬 Задать имя перерыву", setBreakNameEvent, result.NotImplementHandler)
+	result.addButton("📝 Задать имя перерыву", setBreakNameEvent, result.NotImplementHandler)
 
 	//TODO: add workers for active trackers for update time info (check type buttons before edit message)
 	//TODO set tasks text labels and duration (like as breaks) - some tasks by active tracker
@@ -55,7 +60,7 @@ func New(DB *sql.DB) tgModel.Service {
 	//TODO change/correct current time of tracker task or break
 
 	//TODO: read from db to RAM active tasks(rename task to traker)
-	go result.tracking()
+	go result.tracking(context.Background())
 
 	return &result
 }
@@ -103,12 +108,41 @@ func (d *data) Name() string {
 	return "timeTraker" //workTrack
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
-
+func (d *data) Configure(botData tgModel.ServiceConfig) {
+	d.messageSender = botData.MessageSender
 }
 
-func (d *data) tracking() {
-	//TODO: implement
+func (d *data) tracking(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.NewTimer(trackingDuration).C:
+			d.mutex.Lock()
+			for _, track := range d.tracks {
+				if !track.Close && (track.Status.Is(StatusProgress) || track.Status.Is(StatusPause)) {
+					var keyboard *tgbotapi.InlineKeyboardMarkup
+					switch track.Status {
+					case StatusProgress:
+
+						keyboard = d.activeTrackButtons()
+					case StatusPause:
+						keyboard = d.breakTrackButtons()
+					default:
+					}
+					newTitle := track.GetTitle()
+					if newTitle == track.Title {
+						continue
+					}
+					track.Title = newTitle
+					if d.messageSender != nil {
+						d.messageSender.PushHandleResult() <- tgModel.SimpleEditWithButtons(track.UserId, track.MsgId, track.Title, keyboard)
+					}
+				}
+			}
+			d.mutex.Unlock()
+		}
+	}
 }
 
 func (d *data) timeTrack(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
