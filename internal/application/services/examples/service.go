@@ -95,6 +95,10 @@ func (d *data) Name() string {
 	return "examples"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) Counter() int {
 	//safe with goroutines counter
 	d.mutex.Lock()

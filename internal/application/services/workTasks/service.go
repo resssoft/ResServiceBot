@@ -103,6 +103,10 @@ func (d *data) Name() string {
 	return "timeTraker" //workTrack
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) tracking() {
 	//TODO: implement
 }

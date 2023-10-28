@@ -26,3 +26,11 @@ func New() tgModel.Service {
 func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
+
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
+func (d *data) Name() string {
+	return "games"
+}

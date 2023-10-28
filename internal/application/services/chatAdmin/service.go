@@ -52,6 +52,10 @@ func (d *data) Name() string {
 	return "chatAdmin"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) startEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(d.adminId, "New bot start:\n"+tgModel.UserInfo(msg.From))
 }

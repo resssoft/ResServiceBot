@@ -96,11 +96,10 @@ func (d *data) Name() string {
 	return "admins"
 }
 
-func (d *data) Configure() error {
+func (d *data) Configure(_ tgModel.ServiceConfig) {
 	//set bot name, channels, etc
 
 	//get commands list from bot by channel
-	return nil
 }
 
 func (d *data) vars(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

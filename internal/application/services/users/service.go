@@ -40,6 +40,10 @@ func (d *data) Name() string {
 	return "users"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) startBot(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	user := tgModel.User{
 		UserID: msg.From.ID,

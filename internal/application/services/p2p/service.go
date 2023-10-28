@@ -56,6 +56,10 @@ func (d *data) Name() string {
 	return "p2p"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) start(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	command.Arguments.Parse()
 	log.Info().Any("args", command.Arguments).Send()

@@ -40,6 +40,10 @@ func (d *data) Name() string {
 	return "text"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) ToLower(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(msg.Chat.ID, strings.ToLower(command.Arguments.Raw))
 }

@@ -38,7 +38,7 @@ func New(sentMsg tgModel.SentMessages, DB *scribble.Driver, tokens map[string]st
 	commandsList.AddSimple("weather_add_chat", "Add weather notifier to chat", result.addWeatherChat)
 	commandsList.AddSimple("weather_show", "Show weather", result.showWeatherToChat)
 	commandsList.AddSimple("weather_test", "Show weather", result.showWeatherChatEvents)
-	result.Configure()
+	result.FillChatsData()
 	go result.worker()
 	result.events = commandsList
 	return &result
@@ -50,6 +50,10 @@ func (d *data) Commands() tgModel.Commands {
 
 func (d *data) Name() string {
 	return "weather"
+}
+
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
 }
 
 func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
@@ -98,7 +102,7 @@ func (d *data) delWeatherChatEvents(msg *tgbotapi.Message, command *tgModel.Comm
 	return tgModel.Simple(msg.Chat.ID, "qq") //////////////////////////////
 }
 
-func (d *data) Configure() {
+func (d *data) FillChatsData() {
 	records, err := d.DB.ReadAll("weather_chats")
 	if err != nil {
 		fmt.Println("db read error", err)

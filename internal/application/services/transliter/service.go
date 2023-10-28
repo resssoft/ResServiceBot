@@ -139,6 +139,10 @@ func (d *data) Name() string {
 	return "transliter"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) transit(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	fmt.Println("transit command")
 	//TODO: TRANSLATE FROM RUSSIAN TO AM (DETECT RUS)

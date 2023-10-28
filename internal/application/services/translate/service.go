@@ -80,6 +80,10 @@ func (d *data) Name() string {
 	return "translate"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) tr(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := command.Arguments.Parse()
 	if len(params) == 0 {

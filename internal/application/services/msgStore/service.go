@@ -55,6 +55,10 @@ func (d *data) Name() string {
 	return "msgStore"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 func (d *data) msgEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	//fmt.Println("msgEvent")
 	msgJson, err := json.Marshal(msg)

@@ -66,6 +66,10 @@ func (d *data) Name() string {
 	return "images"
 }
 
+func (d *data) Configure(_ tgModel.ServiceConfig) {
+
+}
+
 // add ramka
 // split to X parts
 //with text
