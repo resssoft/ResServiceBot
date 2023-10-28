@@ -67,6 +67,23 @@ func NewEvent(name string, handler HandlerFunc) *Command {
 	}
 }
 
+func q(handler HandlerFunc) {
+	//change add commands method
+	//commandsList.AddEvent(startTaskButtonEvent, result.startTaskButtonEventHandler)
+	NewEvent("name", handler).Push(nil)
+}
+
+func (t *Command) Push(cs Commands) Commands {
+	if cs == nil {
+		cs = make(Commands)
+	}
+	if t == nil {
+		return cs
+	}
+	cs[t.Command] = *t
+	return cs
+}
+
 func (t *Command) WithPerm(perm CommandPermissions) *Command {
 	t.Permissions = perm
 	return t

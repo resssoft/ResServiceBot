@@ -1,6 +1,7 @@
 package workTasks
 
 import (
+	tgModel "fun-coice/internal/domain/commands/tg"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"time"
 )
@@ -12,27 +13,17 @@ const (
 
 	BreakName = "Перерыв" //"Break"
 
-	timeTrackTitle         = "Выберете действие"
-	addTaskButtonTitle     = "Начать трэкинг"
-	settingsButtonTitle    = "Настройки"
-	takeBreakButtonTitle   = "Перерыв"
-	stopBreakButtonTitle   = "Возобновить"
-	StoppedTaskButtonTitle = "Завершить"
+	timeTrackTitle = "Выберете действие"
 
-	startTaskButtonAction = "event:timeTraker_startTask"
-	startTaskButtonEvent  = "timeTraker_startTask"
-
-	settingsButtonAction = "event:timeTraker_settings"
-	settingsButtonEvent  = "timeTraker_settings"
-
-	takeBreakButtonAction = "event:timeTraker_break"
-	takeBreakButtonEvent  = "timeTraker_break"
-
-	stopBreakButtonAction = "event:timeTraker_stop_break"
-	stopBreakButtonEvent  = "timeTraker_stop_break"
-
-	StoppedTaskButtonAction = "event:timeTraker_stop"
-	StoppedTaskButtonEvent  = "timeTraker_stop"
+	startTrackEvent   = "startTrack"
+	settingsEvent     = "settings"
+	takeBreakEvent    = "pause_track"
+	stopBreakEvent    = "stop_break"
+	StoppedTaskEvent  = "stop_task"
+	setTaskNameEvent  = "setTaskName"
+	startTaskEvent    = "startTask"
+	showProfileEvent  = "showProfile"
+	setBreakNameEvent = "setBreakName"
 )
 
 type User struct {
@@ -48,7 +39,7 @@ type timeItem struct {
 	Duration time.Duration
 }
 
-type Task struct {
+type Track struct {
 	Start  time.Time
 	End    time.Time
 	Break  time.Time
@@ -57,8 +48,16 @@ type Task struct {
 	Title  string
 	UserId int64
 	MsgId  int
-	Items  []timeItem
+	Breaks []timeItem
+	Tasks  []timeItem
 	//GMT    string use for time show
 }
 
-type Tasks map[int64]Task
+type Tracks map[int64]Track
+
+type Button struct {
+	Text   string
+	Action string
+	Event  string
+	Data   tgModel.KeyBoardButtonTG
+}
