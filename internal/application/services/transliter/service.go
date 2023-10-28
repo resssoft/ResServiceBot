@@ -135,7 +135,7 @@ func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "transliter"
 }
 

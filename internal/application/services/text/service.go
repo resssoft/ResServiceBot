@@ -32,18 +32,18 @@ func New() tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "text"
 }
 
-func (d data) ToLower(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) ToLower(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(msg.Chat.ID, strings.ToLower(command.Arguments.Raw))
 }
 
-func (d data) toUpper(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) toUpper(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(msg.Chat.ID, strings.ToUpper(command.Arguments.Raw))
 }

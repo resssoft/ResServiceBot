@@ -32,15 +32,15 @@ func New(DB *scribble.Driver) tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "users"
 }
 
-func (d data) startBot(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) startBot(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	user := tgModel.User{
 		UserID: msg.From.ID,
 		ChatId: msg.Chat.ID,

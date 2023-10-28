@@ -23,6 +23,6 @@ func New() tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }

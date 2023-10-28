@@ -88,22 +88,22 @@ func New(DB *scribble.Driver) tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "admins"
 }
 
-func (d data) Configure() error {
+func (d *data) Configure() error {
 	//set bot name, channels, etc
 
 	//get commands list from bot by channel
 	return nil
 }
 
-func (d data) vars(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) vars(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
@@ -112,7 +112,7 @@ func (d data) vars(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Han
 	return tgModel.EmptyCommand()
 }
 
-func (d data) set(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) set(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
@@ -121,7 +121,7 @@ func (d data) set(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Hand
 	return tgModel.EmptyCommand()
 }
 
-func (d data) get(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) get(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	if len(params) >= 3 {
 		config.Set(params[1], params[2])
@@ -130,7 +130,7 @@ func (d data) get(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Hand
 	return tgModel.EmptyCommand()
 }
 
-func (d data) rebuild(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) rebuild(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	dir, err := os.Getwd()
 	if err != nil {
 		log.Printf("Failed to get dir: %v", err)
@@ -147,7 +147,7 @@ func (d data) rebuild(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.
 	return tgModel.EmptyCommand()
 }
 
-func (d data) users(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) users(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	records, err := d.DB.ReadAll("user")
 	if err != nil {
 		fmt.Println("Error", err)
@@ -164,7 +164,7 @@ func (d data) users(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Ha
 	return tgModel.Simple(msg.Chat.ID, strings.Join(userList, "\n"))
 }
 
-func (d data) addFeature(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) addFeature(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	formattedMessage := ""
 	d.DB.Read("features", "features", &formattedMessage)
 	currentTime := time.Now().Format(time.RFC3339)
@@ -177,14 +177,14 @@ func (d data) addFeature(msg *tgbotapi.Message, command *tgModel.Command) *tgMod
 	return tgModel.Simple(msg.Chat.ID, "saved")
 }
 
-func (d data) features(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) features(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	formattedMessage := "-"
 	d.DB.Read("features", "features", &formattedMessage)
 	return tgModel.Simple(msg.Chat.ID, formattedMessage)
 }
 
 /* //TODO: move to client api
-func (d data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	fmt.Println("commandName", command.Command)
 	fmt.Println("param", command.Arguments.Raw)
@@ -240,7 +240,7 @@ func (d data) scanChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 */
 
 /*
-func (d data) fillChatUsersInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) fillChatUsersInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	var from int64
 	var fromChat int64
 	result := ""

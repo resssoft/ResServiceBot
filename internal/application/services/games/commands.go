@@ -5,7 +5,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func (d data) games(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) games(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	newMsg := tgbotapi.NewMessage(msg.Chat.ID, "Games list")
 	newMsg.ReplyMarkup = gamesListKeyboard
 	return tgModel.PreparedCommand(newMsg)

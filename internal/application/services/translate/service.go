@@ -72,15 +72,15 @@ func New() tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "translate"
 }
 
-func (d data) tr(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) tr(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := command.Arguments.Parse()
 	if len(params) == 0 {
 		//TODO: add settings by user for default translate (choice 2 langs OR choice old translates options) OR BUTTONS
@@ -94,11 +94,11 @@ func (d data) tr(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Handl
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) trSettings(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) trSettings(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.SimpleReply(msg.Chat.ID, "Not implemented, it will be later", msg.MessageID)
 }
 
-func (d data) tr_hy_ru(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) tr_hy_ru(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if command.Arguments.Raw == "" {
 		return tgModel.SimpleReply(msg.Chat.ID, "Error: empty message!", msg.MessageID)
 	}
@@ -110,7 +110,7 @@ func (d data) tr_hy_ru(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) tr_ru_hy(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) tr_ru_hy(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if command.Arguments.Raw == "" {
 		return tgModel.SimpleReply(msg.Chat.ID, "Error: empty message!", msg.MessageID)
 	}
@@ -122,7 +122,7 @@ func (d data) tr_ru_hy(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) tr_ru_en(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) tr_ru_en(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if command.Arguments.Raw == "" {
 		return tgModel.SimpleReply(msg.Chat.ID, "Error: empty message!", msg.MessageID)
 	}
@@ -134,7 +134,7 @@ func (d data) tr_ru_en(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) tr_en_ru(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) tr_en_ru(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if command.Arguments.Raw == "" {
 		return tgModel.SimpleReply(msg.Chat.ID, "Error: empty message!", msg.MessageID)
 	}
@@ -146,6 +146,6 @@ func (d data) tr_en_ru(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
-func (d data) trNext(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) trNext(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.DeferredWithText(msg.Chat.ID, "Enter for translate from EN to RU", "tr_en_ru", "", nil)
 }

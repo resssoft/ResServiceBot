@@ -77,15 +77,15 @@ func New() tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "datatimes"
 }
 
-func (d data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	msgText := fmt.Sprintf("Input: %s\n\n", command.Arguments.Raw)
 	duration := time.Second
 	var err error
@@ -105,7 +105,7 @@ func (d data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) *tgMo
 	return tgModel.Simple(msg.Chat.ID, msgText)
 }
 
-func (d data) getInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) getInfo(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	commandValue := command.Arguments.Raw
 	var err error
@@ -293,7 +293,7 @@ func durationFormat(val string) string {
 	return msgText
 }
 
-func (d data) timeConvert(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) timeConvert(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	commandValue := strings.ToLower(command.Arguments.Raw)
 	fromType := Nanosecond
 	toType := Nanosecond
@@ -343,7 +343,7 @@ func (d data) timeConvert(msg *tgbotapi.Message, command *tgModel.Command) *tgMo
 	return tgModel.Simple(msg.Chat.ID, fmt.Sprintf("%v %s", result, resultName))
 }
 
-func (d data) parseTimeCovert(val string) (string, string, string) {
+func (d *data) parseTimeCovert(val string) (string, string, string) {
 	r, _ := regexp.Compile(`^\s{0,1}(\d+)\s([^\d\s]+)\s{0,1}in\s([^\d\s]+)\s{0,1}`)
 	parsedItems := r.FindStringSubmatch(val)
 	if len(parsedItems) == 4 {
@@ -371,7 +371,7 @@ func (d data) parseTimeCovert(val string) (string, string, string) {
 	return "", "", ""
 }
 
-func (d data) convert(fromVal int64, fromType, toType timeType) int64 {
+func (d *data) convert(fromVal int64, fromType, toType timeType) int64 {
 	from := int64(1)
 	to := int64(1)
 	result := int64(1)

@@ -48,7 +48,7 @@ func (d *data) Commands() tgModel.Commands {
 	return d.events
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "weather"
 }
 

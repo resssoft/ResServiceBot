@@ -80,15 +80,15 @@ func New(DB *scribble.Driver) tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "funs"
 }
 
-func (d data) add(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) add(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	fmt.Println(params)
 	text := ""
@@ -102,7 +102,7 @@ func (d data) add(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Hand
 	return tgModel.Simple(msg.Chat.ID, text)
 }
 
-func (d data) run(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) run(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if commandData, exist := isFunCommand(command.Command); exist {
 		s1 := rand.NewSource(time.Now().UnixNano())
 		r1 := rand.New(s1)
@@ -136,7 +136,7 @@ func appendFunCommand(name string, command FunCommand) {
 	syncMap.Unlock()
 }
 
-func (d data) addFunCommand(name, list1, list2 string) string {
+func (d *data) addFunCommand(name, list1, list2 string) string {
 	command := tgModel.Command{
 		Command:     "/" + name,
 		Synonyms:    nil,

@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func (d data) userInfo(u *tgbotapi.User) (User, error) {
+func (d *data) userInfo(u *tgbotapi.User) (User, error) {
 	if u == nil {
 		return User{}, errors.New("user is nil")
 	}
@@ -24,13 +24,13 @@ func (d data) userInfo(u *tgbotapi.User) (User, error) {
 	return newUser, nil
 }
 
-func (d data) userSave(u User) error {
+func (d *data) userSave(u User) error {
 	//TODO: save to DB
 	d.users[u.tgUser.ID] = u
 	return nil
 }
 
-func (d data) userInfoByID(id int64) (User, error) {
+func (d *data) userInfoByID(id int64) (User, error) {
 	//TODO: get from db
 	existed, exist := d.users[id]
 	if exist {
@@ -39,7 +39,7 @@ func (d data) userInfoByID(id int64) (User, error) {
 	return User{}, errors.New(fmt.Sprintf("user not found by id %v", id))
 }
 
-func (d data) userRegistered(by string) bool {
+func (d *data) userRegistered(by string) bool {
 	intval, err := strconv.ParseInt(by, 10, 64)
 	if err != nil {
 		return false

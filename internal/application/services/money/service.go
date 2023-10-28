@@ -51,15 +51,15 @@ func New(token string) tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "money"
 }
 
-func (d data) fiat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) fiat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	params := strings.Split(command.Arguments.Raw, " ")
 	convertFrom := "AMD"
 	convertTo1 := "RUB"
@@ -95,7 +95,7 @@ func (d data) fiat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Han
 	return tgModel.SimpleReply(msg.Chat.ID, msgText, msg.MessageID)
 }
 
-func (d data) fiatConvert(from, to, amount string) string {
+func (d *data) fiatConvert(from, to, amount string) string {
 	time.Sleep(time.Millisecond * 100)
 	url := fmt.Sprintf(urlTmp, to, from, amount)
 	client := &http.Client{}

@@ -48,15 +48,15 @@ func New(DB *sql.DB) tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "p2p"
 }
 
-func (d data) start(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) start(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	command.Arguments.Parse()
 	log.Info().Any("args", command.Arguments).Send()
 	user, err := d.userInfo(msg.From)
@@ -92,11 +92,11 @@ func (d data) start(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Ha
 	return tgModel.EmptyCommand()
 }
 
-func (d data) defaultHandler(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) defaultHandler(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.SimpleReply(msg.Chat.ID, "xe-xe", msg.MessageID)
 }
 
-func (d data) prepareMessage(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) prepareMessage(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	fmt.Println("data", c.Data, msg.Chat.ID)
 	return tgModel.DeferredWithText(
 		msg.Chat.ID,
@@ -106,7 +106,7 @@ func (d data) prepareMessage(msg *tgbotapi.Message, c *tgModel.Command) *tgModel
 		nil)
 }
 
-func (d data) sendAnonMessage(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) sendAnonMessage(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	anonId := int64(0)
 	separated := strings.Split(c.Data, ":")
 	if len(separated) == 3 {
@@ -118,16 +118,16 @@ func (d data) sendAnonMessage(msg *tgbotapi.Message, c *tgModel.Command) *tgMode
 		AddSimple(msg.Chat.ID, "✅ Сообщение отправлено!") // translate
 }
 
-func (d data) delSelf(msg *tgbotapi.Message, с *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) delSelf(msg *tgbotapi.Message, с *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.SimpleReply(msg.Chat.ID, "Not implemented", msg.MessageID)
 }
 
-func (d data) getLink(uid int64, botName string) string {
+func (d *data) getLink(uid int64, botName string) string {
 	//TODO: create and save hash
 	return fmt.Sprintf(linkTmp, botName, uid)
 }
 
-func (d data) sendButtonsForMessage(chat int64, to User, name string) *tgModel.HandlerResult {
+func (d *data) sendButtonsForMessage(chat int64, to User, name string) *tgModel.HandlerResult {
 	if name == "" {
 		name = "this user" // translate
 	}

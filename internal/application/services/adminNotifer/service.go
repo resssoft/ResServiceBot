@@ -36,19 +36,19 @@ func New(adminId int64) tgModel.Service {
 	return &result
 }
 
-func (d data) Commands() tgModel.Commands {
+func (d *data) Commands() tgModel.Commands {
 	return d.events
 }
 
-func (d data) Name() string {
+func (d *data) Name() string {
 	return "adminNotifer"
 }
 
-func (d data) startEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) startEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.Simple(d.adminId, "New bot start:\n"+tgModel.UserInfo(msg.From))
 }
 
-func (d data) UserLeaveChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) UserLeaveChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	if msg == nil {
 		return tgModel.EmptyCommand()
 	}
@@ -64,7 +64,7 @@ func (d data) UserLeaveChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) *tg
 	return tgModel.Simple(d.adminId, "User Leave Chat:\n"+info)
 }
 
-func (d data) UserJoinedChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) UserJoinedChantEvent(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	if msg == nil {
 		return tgModel.EmptyCommand()
 	}

@@ -10,7 +10,7 @@ import (
 
 //TODO: add images buffer, imageMergeVertical, imageMergeHorizontal,
 
-func (d data) help(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) help(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	commandsList := "Image processing\n"
 	commandsList += "Commands:\n"
 	for _, commandsItem := range d.Commands() {
@@ -22,11 +22,11 @@ func (d data) help(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.Han
 	return tgModel.Simple(msg.Chat.ID, commandsList)
 }
 
-func (d data) resize(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) resize(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '300'", "resizeImage", "", nil)
 }
 
-func (d data) resizeImage(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) resizeImage(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	var err error
 	var size = 100
 	if msg.Photo == nil {
@@ -60,11 +60,11 @@ func (d data) resizeImage(msg *tgbotapi.Message, command *tgModel.Command) *tgMo
 	return tgModel.PreparedCommand(tgbotapi.NewPhoto(msg.Chat.ID, tgNewfile))
 }
 
-func (d data) rotate(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) rotate(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	return tgModel.DeferredWithText(msg.Chat.ID, "Send image, use text commands format '90' or '180'", "rotateImage", "", nil)
 }
 
-func (d data) rotateImage(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) rotateImage(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	//fmt.Println("start rotateImage by service", msg)
 	//zlog.Info().Any("msg", msg).Any("command", command).Send()
 	var err error
