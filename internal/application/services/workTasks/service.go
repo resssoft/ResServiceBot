@@ -7,29 +7,32 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
-	"sync"
+	"github.com/sasha-s/go-deadlock"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type data struct {
-	list          tgModel.Commands
-	users         map[int64]User //temporary
-	storage       *sql.DB
-	builder       goqu.DialectWrapper
-	tracks        Tracks
-	mutex         *sync.Mutex
+	list    tgModel.Commands
+	users   map[int64]User //temporary
+	storage *sql.DB
+	builder goqu.DialectWrapper
+	tracks  Tracks
+	//mutex         *sync.Mutex
+	mutex         deadlock.Mutex
 	buttons       map[string]Button
 	messageSender tgModel.MessageSender
 }
 
-const trackingDuration = time.Second * 31
+const trackingDuration = time.Second * 131
 
 func New(DB *sql.DB) tgModel.Service {
 	result := data{
 		storage: DB,
 		users:   make(map[int64]User), // temporary
 		builder: goqu.Dialect("sqlite3"),
-		mutex:   &sync.Mutex{},
+		//mutex:   &sync.Mutex{},
 		tracks:  make(Tracks),
 		buttons: make(map[string]Button),
 	}
@@ -38,6 +41,9 @@ func New(DB *sql.DB) tgModel.Service {
 	commandsList.AddSimple("timeTrack", "Show time track controls", result.timeTrack)
 	commandsList.AddSimple("timeTrack_add_task", "Add task to active track, need task name parameter", result.addTaskButtonEventHandler)
 	commandsList.AddSimple("timeTrack_set_task_name", "Add task to active track, need task name parameter", result.setTaskNameButtonEventHandler)
+
+	commandsList.AddEvent(SetTaskEvent, result.SetActiveTask)
+
 	result.list = commandsList
 
 	result.addButton("🚗 Начать трэкинг", startTrackEvent, result.startTrackButtonEventHandler)
@@ -52,6 +58,7 @@ func New(DB *sql.DB) tgModel.Service {
 	result.addButton("📝 Задать имя перерыву", setBreakNameEvent, result.NotImplementHandler)
 
 	//TODO rename task name, edit time, duration, start, end
+	//TODO buttons and task order
 
 	//TODO: add workers for active trackers for update time info (check type buttons before edit message)
 	//TODO set tasks text labels and duration (like as breaks) - some tasks by active tracker
@@ -125,6 +132,9 @@ func (d *data) tracking(ctx context.Context) {
 		case <-time.NewTimer(trackingDuration).C:
 			d.mutex.Lock()
 			for _, track := range d.tracks {
+				if track.GetTitle() == track.Title {
+					continue
+				}
 				d.updateTrackMessage(track)
 			}
 			d.mutex.Unlock()
@@ -138,15 +148,12 @@ func (d *data) updateTrackMessage(track Track) {
 	var keyboard *tgbotapi.InlineKeyboardMarkup
 	switch track.Status {
 	case StatusProgress:
-		keyboard = d.activeTrackButtons()
+		keyboard = d.activeTrackButtons(track.UserId)
 	case StatusPause:
-		keyboard = d.breakTrackButtons()
+		keyboard = d.breakTrackButtons(track.UserId)
 	default:
 	}
 	newTitle := track.GetTitle()
-	if newTitle == track.Title {
-		return
-	}
 	track.Title = newTitle
 	if d.messageSender != nil {
 		d.messageSender.PushHandleResult() <- tgModel.SimpleEditWithButtons(track.UserId, track.MsgId, track.Title, keyboard)
@@ -154,13 +161,13 @@ func (d *data) updateTrackMessage(track Track) {
 }
 
 func (d *data) timeTrack(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.SimpleWithButtons(msg.Chat.ID, timeTrackTitle, d.trackButtons())
+	return tgModel.SimpleWithButtons(msg.Chat.ID, timeTrackTitle, d.trackButtons(msg.Chat.ID))
 }
 
 func (d *data) startTrackButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	log.Info().Msg("startTaskButtonEventHandler")
 	task := d.AddTrack(msg.Chat.ID, msg.MessageID)
-	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTrackButtons())
+	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTrackButtons(msg.Chat.ID))
 }
 
 func (d *data) settingsButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
@@ -174,7 +181,7 @@ func (d *data) takeBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Com
 	if !exist {
 		return tgModel.SimpleReply(msg.Chat.ID, TrackNotFoundErrMsg, msg.MessageID)
 	}
-	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.breakTrackButtons())
+	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.breakTrackButtons(msg.Chat.ID))
 }
 
 func (d *data) stopBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
@@ -183,7 +190,7 @@ func (d *data) stopBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Com
 	if !exist {
 		return tgModel.SimpleReply(msg.Chat.ID, TrackNotFoundErrMsg, msg.MessageID)
 	}
-	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTrackButtons())
+	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTrackButtons(msg.Chat.ID))
 }
 
 func (d *data) StoppedTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
@@ -218,7 +225,23 @@ func (d *data) addTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Comma
 	}
 	d.updateTrackMessage(foundedTrack)
 	return tgModel.Simple(msg.Chat.ID, "Ok")
+	//TODO: EmptyCommand
 	//return tgModel.EmptyCommand()
+}
+
+func (d *data) SetActiveTask(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+	anonId := 0
+	separated := strings.Split(c.Data, ":")
+	if len(separated) == 3 {
+		anonId, _ = strconv.Atoi(separated[2])
+	}
+	d.setActiveTask(msg.Chat.ID, anonId)
+	userTrack, exist := d.GetTrack(msg.Chat.ID)
+	if !exist {
+		return tgModel.Simple(msg.Chat.ID, TrackNotFoundErrMsg)
+	}
+	d.updateTrackMessage(userTrack)
+	return tgModel.EmptyCommand()
 }
 
 func (d *data) NotImplementHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {

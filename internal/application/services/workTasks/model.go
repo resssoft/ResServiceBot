@@ -30,6 +30,9 @@ const (
 	startTaskEvent    = "startTask"
 	showProfileEvent  = "showProfile"
 	setBreakNameEvent = "setBreakName"
+
+	SetTaskEvent  = "timeTraker_set_task"
+	SetTaskAction = "event:timeTraker_set_task"
 )
 
 //💳📝📝💬💬✏️💬

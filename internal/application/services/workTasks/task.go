@@ -99,20 +99,48 @@ func (d *data) StopTrack(uid int64) (Track, bool) {
 	return userTrack, exist
 }
 
-func (d *data) activeTrackButtons() *tgbotapi.InlineKeyboardMarkup {
-	return tgModel.GetTGButtons(tgModel.KBRows(
-		d.ButtonRow(takeBreakEvent, StoppedTaskEvent, settingsEvent),
-		d.ButtonRow(setTaskNameEvent),
-		d.ButtonRow(startTaskEvent)))
+func (d *data) GetInactiveTasks(uid int64) (map[int]timeItem, bool) {
+	tasks := make(map[int]timeItem)
+	userTrack, exist := d.tracks[uid]
+	if !exist {
+		return tasks, false
+	}
+	for index, task := range userTrack.Tasks {
+		log.Info().Any("=====task ", task).Int("index", index).Send()
+		if index != userTrack.ActiveTask {
+			tasks[index] = task
+		}
+	}
+	return tasks, true
 }
 
-func (d *data) breakTrackButtons() *tgbotapi.InlineKeyboardMarkup {
+func (d *data) activeTrackButtons(uid int64) *tgbotapi.InlineKeyboardMarkup {
+	tasks, _ := d.GetInactiveTasks(uid)
+	var taskRows []tgModel.KeyBoardRowTG
+	taskRows = append(taskRows,
+		d.ButtonRow(takeBreakEvent, StoppedTaskEvent, settingsEvent),
+		d.ButtonRow(setTaskNameEvent))
+	for index, task := range tasks {
+		taskRows = append(
+			taskRows,
+			tgModel.KBButs(
+				tgModel.KeyBoardButtonTG{
+					Text: fmt.Sprintf("▶️ " + task.Name),
+					Data: fmt.Sprintf("%s:%v", SetTaskAction, index),
+				}))
+	}
+	taskRows = append(taskRows, d.ButtonRow(startTaskEvent))
+
+	return tgModel.GetTGButtons(tgModel.KBRows(taskRows...))
+}
+
+func (d *data) breakTrackButtons(_ int64) *tgbotapi.InlineKeyboardMarkup {
 	return tgModel.GetTGButtons(tgModel.KBRows(
 		d.ButtonRow(stopBreakEvent, StoppedTaskEvent, settingsEvent),
 		d.ButtonRow(setBreakNameEvent)))
 }
 
-func (d *data) trackButtons() *tgbotapi.InlineKeyboardMarkup {
+func (d *data) trackButtons(_ int64) *tgbotapi.InlineKeyboardMarkup {
 	return tgModel.GetTGButtons(tgModel.KBRows(d.ButtonRow(startTrackEvent, showProfileEvent)))
 }
 
@@ -265,6 +293,7 @@ func (d *data) setActiveTask(uid int64, id int) bool {
 		return false
 	}
 	userTrack.ActiveTask = id
+	userTrack.Title = userTrack.GetTitle()
 	d.tracks[uid] = userTrack
 	return true
 }
