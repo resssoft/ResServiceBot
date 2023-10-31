@@ -18,11 +18,44 @@ func (d *data) AddTrack(uid int64, msgId int) Track {
 		UserId: uid,
 		MsgId:  msgId,
 		Status: StatusProgress,
+		Tasks:  make(map[int]timeItem),
 	}
-	userTrack.Title = userTrack.GetTitle()
+	userTrack.AddTask(DefaultTaskName)
 	log.Info().Any("AddTrack", userTrack).Send()
 	d.tracks[uid] = userTrack
 	return userTrack
+}
+
+func (d *data) AddTask(uid int64, name string) (Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
+	if !exist {
+		return userTrack, false
+	}
+	userTrack.AddTask(name)
+	d.tracks[uid] = userTrack
+	return userTrack, true
+}
+
+func (t *Track) AddTask(name string) timeItem {
+	id := len(t.Tasks)
+	newTaskItem := timeItem{
+		Name:  name,
+		Start: time.Now(),
+		Id:    id,
+	}
+	//stopped preview task
+	if id > 0 {
+		activeTask := t.Tasks[t.ActiveTask]
+		activeTask.End = time.Now()
+		activeTask.Duration = activeTask.End.Sub(t.Start)
+		t.Tasks[t.ActiveTask] = activeTask
+	}
+	t.ActiveTask = id
+	t.Tasks[id] = newTaskItem
+	t.Title = t.GetTitle()
+	return newTaskItem
 }
 
 func (d *data) GetTrack(uid int64) (Track, bool) {
@@ -111,7 +144,7 @@ func (t *Track) StopBreak() Track {
 		return Track{}
 	}
 	breakStopTime := time.Now()
-	t.add(BreakName, t.Break, breakStopTime)
+	t.add(DefaultBreakName, t.Break, breakStopTime)
 	t.Pause = false
 	t.Title = t.GetTitle()
 	t.Status = StatusProgress
@@ -141,6 +174,7 @@ func (t *Track) StopTrack() Track {
 }
 
 func (t *Track) GetTitle() string {
+	tasks := ""
 	breaks := ""
 	fullDuration := time.Now().Sub(t.Start)
 	for _, item := range t.Breaks {
@@ -149,8 +183,27 @@ func (t *Track) GetTitle() string {
 			Duration(item.Duration))
 		fullDuration -= item.Duration
 	}
+	for tIndex, task := range t.Tasks {
+		if t.ActiveTask == tIndex {
+			tasks += fmt.Sprintf(
+				"\n%s %s : %s",
+				activeTaskIcon,
+				task.Name,
+				Duration(task.Duration+time.Now().Sub(task.Start)))
+		} else {
+			tasks += fmt.Sprintf(
+				"\n%s %s : %s",
+				taskIcon,
+				task.Name,
+				Duration(task.Duration))
+		}
+	}
 	if t.Pause {
-		breaks += fmt.Sprintf("\n %s : %s - ", BreakName, t.Break.Format(timeFormat))
+		breaks += fmt.Sprintf(
+			"\n%s %s : %s - ",
+			breakIcon,
+			DefaultBreakName,
+			t.Break.Format(timeFormat))
 		fullDuration -= time.Now().Sub(t.Break)
 	}
 	return fmt.Sprintf(
@@ -160,6 +213,7 @@ func (t *Track) GetTitle() string {
 		t.Start.Format(timeFormat),
 		t.End.Format(timeFormat),
 		Duration(fullDuration),
+		tasks,
 		breaks)
 }
 
@@ -176,4 +230,39 @@ func Duration(dt time.Duration) string {
 	formatted = strings.ReplaceAll(formatted, "minutes", "минут")
 	formatted = strings.ReplaceAll(formatted, "hours", "часов")
 	return formatted
+}
+
+func (t *Track) updateTask(task timeItem) bool {
+	_, exist := t.Tasks[task.Id]
+	if !exist {
+		return false
+	}
+	t.Tasks[task.Id] = task
+	return true
+}
+
+func (d *data) updateActiveTaskName(uid int64, newName string) (Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
+	if !exist {
+		return userTrack, false
+	}
+	activeTask := userTrack.Tasks[userTrack.ActiveTask]
+	activeTask.Name = newName
+	userTrack.updateTask(activeTask)
+	d.tracks[uid] = userTrack
+	return userTrack, true
+}
+
+func (d *data) setActiveTask(uid int64, id int) bool {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
+	if !exist {
+		return false
+	}
+	userTrack.ActiveTask = id
+	d.tracks[uid] = userTrack
+	return true
 }

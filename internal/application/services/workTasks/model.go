@@ -7,14 +7,19 @@ import (
 )
 
 const (
-	taskTitleTmp = "[%s GMT %s] %s - %s \n🕐 Общее время: %s\n\n%s"
+	taskTitleTmp = "[%s GMT %s] %s - %s \n⏱ %s\nЗадачи:%s\n\n%s"
 	//taskTitleTmp = "[%s] Трэкинг GMT %s.  \n\nНачало: %s Конец: %s \nОбщее время: %s\n\n%s"
+	TrackNotFoundErrMsg = "Track not found, sorry, create new by /timeTrack"
+	activeTaskIcon      = "⏳"
+	taskIcon            = "🔸"
+	breakIcon           = "🔸"
 
 	timeFormat = "15:04" // "15:04:05"
 
-	BreakName = "Перерыв" //"Break"
+	DefaultBreakName = "Перерыв" //"Break"
+	DefaultTaskName  = "Работа"  //"Break"
 
-	timeTrackTitle = "Выберете действие"
+	timeTrackTitle = "Выберите действие"
 
 	startTrackEvent   = "startTrack"
 	settingsEvent     = "settings"
@@ -29,14 +34,18 @@ const (
 
 //💳📝📝💬💬✏️💬
 //📅➕➖➗✖️✔️🕐🏁
+//🆕▶️⏸⏯⏹➡️⬅️⬆️⬇️🔙
+//📝✏️🔎🗑🛠💾⏱⏰⏳🚩🏁➕➖➗✖️✔️🟠🟡🟢🔵🟣⚫️⚪️🔸🚧
 
 type User struct {
-	tgUser tgbotapi.User
-	IsNew  bool
-	IDStr  string
+	tgUser  tgbotapi.User
+	IsNew   bool
+	IDStr   string
+	LangISO string
 }
 
 type timeItem struct {
+	Id       int
 	Name     string
 	Start    time.Time
 	End      time.Time
@@ -44,17 +53,18 @@ type timeItem struct {
 }
 
 type Track struct {
-	Start  time.Time
-	End    time.Time
-	Break  time.Time
-	Pause  bool
-	Close  bool
-	Title  string
-	UserId int64
-	MsgId  int
-	Breaks []timeItem
-	Tasks  []timeItem
-	Status Status
+	Start      time.Time
+	End        time.Time
+	Break      time.Time
+	Pause      bool
+	Close      bool
+	Title      string
+	UserId     int64
+	MsgId      int
+	Breaks     []timeItem
+	Tasks      map[int]timeItem
+	Status     Status
+	ActiveTask int
 	//GMT    string use for time show
 }
 
