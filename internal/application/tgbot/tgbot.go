@@ -233,7 +233,7 @@ func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Me
 		//fmt.Println("COMMAND PREPAERD") //DEVMODE
 		log.Println("result.Messages", len(result.Messages))
 		for _, chantEvent := range result.Messages {
-			log.Println("chatEvent", chantEvent)
+			//log.Println("chatEvent", chantEvent)
 
 			msgRes, err := d.Bot.Send(chantEvent) //TODO: check limits by this package method
 			if err != nil {

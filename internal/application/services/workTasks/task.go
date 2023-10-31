@@ -248,10 +248,12 @@ func (d *data) updateActiveTaskName(uid int64, newName string) (Track, bool) {
 	if !exist {
 		return userTrack, false
 	}
-	activeTask := userTrack.Tasks[userTrack.ActiveTask]
+	activeTask, exist := userTrack.Tasks[userTrack.ActiveTask]
+	if !exist {
+		return userTrack, false
+	}
 	activeTask.Name = newName
 	userTrack.updateTask(activeTask)
-	d.tracks[uid] = userTrack
 	return userTrack, true
 }
 

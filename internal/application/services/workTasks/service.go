@@ -22,7 +22,7 @@ type data struct {
 	messageSender tgModel.MessageSender
 }
 
-const trackingDuration = time.Second * 10
+const trackingDuration = time.Second * 31
 
 func New(DB *sql.DB) tgModel.Service {
 	result := data{
@@ -37,6 +37,7 @@ func New(DB *sql.DB) tgModel.Service {
 	commandsList := tgModel.NewCommands()
 	commandsList.AddSimple("timeTrack", "Show time track controls", result.timeTrack)
 	commandsList.AddSimple("timeTrack_add_task", "Add task to active track, need task name parameter", result.addTaskButtonEventHandler)
+	commandsList.AddSimple("timeTrack_set_task_name", "Add task to active track, need task name parameter", result.setTaskNameButtonEventHandler)
 	result.list = commandsList
 
 	result.addButton("🚗 Начать трэкинг", startTrackEvent, result.startTrackButtonEventHandler)
@@ -49,6 +50,8 @@ func New(DB *sql.DB) tgModel.Service {
 	result.addButton("➕ Добавить задачу", startTaskEvent, result.addTaskButtonEventHandler)
 	result.addButton("👤 Профиль", showProfileEvent, result.NotImplementHandler)
 	result.addButton("📝 Задать имя перерыву", setBreakNameEvent, result.NotImplementHandler)
+
+	//TODO rename task name, edit time, duration, start, end
 
 	//TODO: add workers for active trackers for update time info (check type buttons before edit message)
 	//TODO set tasks text labels and duration (like as breaks) - some tasks by active tracker
@@ -194,7 +197,7 @@ func (d *data) StoppedTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.C
 
 func (d *data) setTaskNameButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
 	if c.Arguments.Raw == "" {
-		return tgModel.DeferredWithText(msg.Chat.ID, "Enter task name", "timeTrack_add_task", "", nil)
+		return tgModel.DeferredWithText(msg.Chat.ID, "Enter new task name", "timeTrack_set_task_name", "", nil)
 	}
 	foundedTrack, exist := d.updateActiveTaskName(msg.Chat.ID, c.Arguments.Raw)
 	if !exist {
