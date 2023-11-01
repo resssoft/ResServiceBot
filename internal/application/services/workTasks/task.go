@@ -6,6 +6,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hako/durafmt"
 	"github.com/rs/zerolog/log"
+	"sort"
 	"strings"
 	"time"
 )
@@ -99,34 +100,39 @@ func (d *data) StopTrack(uid int64) (Track, bool) {
 	return userTrack, exist
 }
 
-func (d *data) GetInactiveTasks(uid int64) (map[int]timeItem, bool) {
+func (t *Track) getTasks(inactive bool) (map[int]timeItem, []int) {
 	tasks := make(map[int]timeItem)
-	userTrack, exist := d.tracks[uid]
-	if !exist {
-		return tasks, false
-	}
-	for index, task := range userTrack.Tasks {
-		log.Info().Any("=====task ", task).Int("index", index).Send()
-		if index != userTrack.ActiveTask {
-			tasks[index] = task
+	for index, task := range t.Tasks {
+		if inactive && index == t.ActiveTask {
+			continue
 		}
+		tasks[index] = task
 	}
-	return tasks, true
+	keys := make([]int, 0, len(tasks))
+	for k := range tasks {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	return tasks, keys
 }
 
 func (d *data) activeTrackButtons(uid int64) *tgbotapi.InlineKeyboardMarkup {
-	tasks, _ := d.GetInactiveTasks(uid)
+	userTrack, exist := d.tracks[uid]
+	if !exist {
+		return tgModel.GetTGButtons(tgModel.KeyBoardTG{})
+	}
+	tasks, keys := userTrack.getTasks(true)
 	var taskRows []tgModel.KeyBoardRowTG
 	taskRows = append(taskRows,
 		d.ButtonRow(takeBreakEvent, StoppedTaskEvent, settingsEvent),
 		d.ButtonRow(setTaskNameEvent))
-	for index, task := range tasks {
+	for _, taskIndex := range keys {
 		taskRows = append(
 			taskRows,
 			tgModel.KBButs(
 				tgModel.KeyBoardButtonTG{
-					Text: fmt.Sprintf("▶️ " + task.Name),
-					Data: fmt.Sprintf("%s:%v", SetTaskAction, index),
+					Text: fmt.Sprintf("▶️ " + tasks[taskIndex].Name),
+					Data: fmt.Sprintf("%s:%v", SetTaskAction, taskIndex),
 				}))
 	}
 	taskRows = append(taskRows, d.ButtonRow(startTaskEvent))
@@ -202,7 +208,7 @@ func (t *Track) StopTrack() Track {
 }
 
 func (t *Track) GetTitle() string {
-	tasks := ""
+	tasksInfo := ""
 	breaks := ""
 	fullDuration := time.Now().Sub(t.Start)
 	for _, item := range t.Breaks {
@@ -211,19 +217,20 @@ func (t *Track) GetTitle() string {
 			Duration(item.Duration))
 		fullDuration -= item.Duration
 	}
-	for tIndex, task := range t.Tasks {
+	tasks, keys := t.getTasks(false)
+	for _, tIndex := range keys {
 		if t.ActiveTask == tIndex {
-			tasks += fmt.Sprintf(
+			tasksInfo += fmt.Sprintf(
 				"\n%s %s : %s",
 				activeTaskIcon,
-				task.Name,
-				Duration(task.Duration+time.Now().Sub(task.Start)))
+				tasks[tIndex].Name,
+				Duration(tasks[tIndex].Duration+time.Now().Sub(tasks[tIndex].Start)))
 		} else {
-			tasks += fmt.Sprintf(
+			tasksInfo += fmt.Sprintf(
 				"\n%s %s : %s",
 				taskIcon,
-				task.Name,
-				Duration(task.Duration))
+				tasks[tIndex].Name,
+				Duration(tasks[tIndex].Duration))
 		}
 	}
 	if t.Pause {
@@ -241,7 +248,7 @@ func (t *Track) GetTitle() string {
 		t.Start.Format(timeFormat),
 		t.End.Format(timeFormat),
 		Duration(fullDuration),
-		tasks,
+		tasksInfo,
 		breaks)
 }
 
