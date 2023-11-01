@@ -303,7 +303,7 @@ func (d *Data) MessagesHandler() {
 }
 
 func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) {
-	//log.Println("start worker UpdatesHandler", workerID) // TODO: to debug
+	log.Println("start worker UpdatesHandler", workerID) // TODO: to debug
 	isCommand := false
 	commandName := ""
 	for update := range updates {
@@ -349,10 +349,10 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 				if d.RunCommand(
 					commandDeferred,
 					update.CallbackQuery.Message) {
-					break
+					continue
 				}
 			}
-			break
+			continue
 		}
 		/*
 			zlog.Info().
@@ -467,7 +467,7 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 				log.Println("just RunCommand")
 				command.SetArgs(commandValue)
 				if d.RunCommand(command, msg) {
-					break
+					continue
 				}
 			}
 		}
@@ -551,6 +551,7 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 			fmt.Printf("inline query %+v\n", update.InlineQuery)
 		}
 	}
+	log.Println("stop worker UpdatesHandler", workerID)
 }
 
 func (d *Data) GetSubCommands(subName string) []tgModel.Command {
