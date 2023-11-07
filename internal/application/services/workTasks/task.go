@@ -47,10 +47,11 @@ func (t *Track) AddTask(name string) timeItem {
 		Id:    id,
 	}
 	//stopped preview task
-	if id > 0 {
-		activeTask := t.Tasks[t.ActiveTask]
+	activeTask, exist := t.Tasks[t.ActiveTask]
+	if exist {
 		activeTask.End = time.Now()
-		activeTask.Duration = activeTask.End.Sub(t.Start)
+		activeTask.Duration = activeTask.Duration + activeTask.End.Sub(activeTask.Start)
+		//activeTask.Duration = activeTask.Duration + activeTask.End.Sub(t.Start)
 		t.Tasks[t.ActiveTask] = activeTask
 	}
 	t.ActiveTask = id
@@ -70,11 +71,34 @@ func (d *data) SetTrackBreak(uid int64) (Track, bool) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	userTrack, exist := d.tracks[uid]
-	if exist {
+	if !exist {
+		return Track{}, false
+	}
+	{ //debug
+		tasksInfo := ""
+		for i, t := range userTrack.Tasks {
+			tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+				i, t.Start.Format(timeFormatS), t.End.Format(timeFormatS), Duration(t.Duration), t.Name)
+		}
+		log.Info().
+			Str("SetTrackBreak before", tasksInfo).
+			Send()
 		d.tracks[uid] = userTrack.SetBreak()
 	}
+	d.tracks[uid] = userTrack
 	userTrack.Title = userTrack.GetTitle()
-	log.Info().Any("SetTrackBreak", d.tracks[uid]).Send()
+	{ //debug
+		tasksInfo := ""
+		for i, t := range userTrack.Tasks {
+			tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+				i, t.Start.Format(timeFormatS), t.End.Format(timeFormatS), Duration(t.Duration), t.Name)
+		}
+		log.Info().
+			Str("SetTrackBreak After", tasksInfo).
+			Send()
+		log.Info().Any("SetTrackBreak", d.tracks[uid]).Send()
+
+	}
 	return userTrack, exist
 }
 
@@ -83,8 +107,27 @@ func (d *data) StopTrackBreak(uid int64) (Track, bool) {
 	defer d.mutex.Unlock()
 	userTrack, exist := d.tracks[uid]
 	if exist {
+		tasksInfo := ""
+		for i, t := range userTrack.Tasks {
+			tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+				i, t.Start.Format(timeFormatS), t.End.Format(timeFormatS), Duration(t.Duration), t.Name)
+		}
+		log.Info().
+			Str("StopTrackBreak before", tasksInfo).
+			Send()
 		d.tracks[uid] = userTrack.StopBreak()
 	}
+	d.tracks[uid] = userTrack
+	userTrack.Title = userTrack.GetTitle()
+	tasksInfo := ""
+	for i, t := range userTrack.Tasks {
+		tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+			i, t.Start.Format(timeFormatS), t.End.Format(timeFormatS), Duration(t.Duration), t.Name)
+	}
+	log.Info().
+		Str("StopTrackBreak After", tasksInfo).
+		Send()
+	log.Info().Any("SetTrackBreak", d.tracks[uid]).Send()
 	log.Info().Any("StopTrackBreak", d.tracks[uid]).Send()
 	return userTrack, exist
 }
@@ -124,18 +167,18 @@ func (d *data) activeTrackButtons(uid int64) *tgbotapi.InlineKeyboardMarkup {
 	tasks, keys := userTrack.getTasks(true)
 	var taskRows []tgModel.KeyBoardRowTG
 	taskRows = append(taskRows,
-		d.ButtonRow(takeBreakEvent, StoppedTaskEvent, settingsEvent),
+		d.ButtonRow(startTaskEvent, takeBreakEvent, StoppedTaskEvent, settingsEvent),
 		d.ButtonRow(setTaskNameEvent))
 	for _, taskIndex := range keys {
 		taskRows = append(
 			taskRows,
 			tgModel.KBButs(
 				tgModel.KeyBoardButtonTG{
-					Text: fmt.Sprintf("▶️ " + tasks[taskIndex].Name),
+					Text: fmt.Sprintf(taskIcon + " " + tasks[taskIndex].Name),
 					Data: fmt.Sprintf("%s:%v", SetTaskAction, taskIndex),
 				}))
 	}
-	taskRows = append(taskRows, d.ButtonRow(startTaskEvent))
+	//taskRows = append(taskRows, d.ButtonRow(startTaskEvent))
 
 	return tgModel.GetTGButtons(tgModel.KBRows(taskRows...))
 }
@@ -167,8 +210,14 @@ func (t *Track) SetBreak() Track {
 	}
 	breakTime := time.Now()
 	t.Break = breakTime
-	t.Pause = true
+	//t.Pause = true
 	t.Status = StatusPause
+	activeTask, exist := t.Tasks[t.ActiveTask]
+	if exist {
+		activeTask.End = time.Now()
+		activeTask.Duration = activeTask.Duration + activeTask.End.Sub(activeTask.Start)
+		t.Tasks[t.ActiveTask] = activeTask
+	}
 	log.Info().Any("task SetBreak", t).Send()
 	return *t
 }
@@ -179,9 +228,14 @@ func (t *Track) StopBreak() Track {
 	}
 	breakStopTime := time.Now()
 	t.add(DefaultBreakName, t.Break, breakStopTime)
-	t.Pause = false
+	//t.Pause = false
 	t.Title = t.GetTitle()
 	t.Status = StatusProgress
+	activeTask, exist := t.Tasks[t.ActiveTask]
+	if exist {
+		activeTask.Start = time.Now()
+		t.Tasks[t.ActiveTask] = activeTask
+	}
 	log.Info().Any("task StopBreak", t).Send()
 	return *t
 }
@@ -191,18 +245,16 @@ func (t *Track) StopTrack() Track {
 	if t == nil {
 		return Track{}
 	}
-	if t.Pause {
+	if t.IsPaused() {
 		withoutBreak := t.StopBreak()
 		t = &withoutBreak
-		t.Status = StatusStopped
-
 		log.Info().Any("task StopTask withoutBreak", t).Send()
 	}
 
 	stopTime := time.Now()
 	t.End = stopTime
 	t.Title = t.GetTitle()
-	t.Close = true
+	t.Status = StatusStopped
 	log.Info().Any("task StopTask", t).Send()
 	return *t
 }
@@ -212,42 +264,61 @@ func (t *Track) GetTitle() string {
 	breaks := ""
 	fullDuration := time.Now().Sub(t.Start)
 	for _, item := range t.Breaks {
-		breaks += fmt.Sprintf("\n %s: [%s]",
+		breaks += fmt.Sprintf("\n %s %s: %s-%s [%s]",
+			breakIcon,
 			item.Name,
+			item.Start.Format(timeFormat),
+			item.End.Format(timeFormat),
 			Duration(item.Duration))
 		fullDuration -= item.Duration
 	}
+
+	//sorted tasks
+	icon := activeTaskIcon
+	duration := ""
 	tasks, keys := t.getTasks(false)
 	for _, tIndex := range keys {
+		task := tasks[tIndex]
+		icon = taskIcon
 		if t.ActiveTask == tIndex {
-			tasksInfo += fmt.Sprintf(
-				"\n%s %s : %s",
-				activeTaskIcon,
-				tasks[tIndex].Name,
-				Duration(tasks[tIndex].Duration+time.Now().Sub(tasks[tIndex].Start)))
+			icon = activeTaskIcon
+			if t.IsPaused() {
+				icon = taskPauseIcon
+				duration = Duration(task.Duration)
+			} else {
+				duration = Duration(task.Duration + time.Now().Sub(task.Start))
+			}
+			if t.IsStopped() {
+				icon = taskIcon
+				duration = Duration(task.Duration)
+			}
 		} else {
-			tasksInfo += fmt.Sprintf(
-				"\n%s %s : %s",
-				taskIcon,
-				tasks[tIndex].Name,
-				Duration(tasks[tIndex].Duration))
+			duration = Duration(task.Duration)
 		}
+		debug := fmt.Sprintf(" (%s %s %s) ",
+			task.Start.Format(timeFormatS),
+			task.Start.Format(timeFormatS),
+			Duration(task.Duration))
+
+		tasksInfo += fmt.Sprintf("\n%s %s : %s", icon, task.Name+debug, duration)
 	}
-	if t.Pause {
+	if t.IsPaused() {
 		breaks += fmt.Sprintf(
-			"\n%s %s : %s - ",
-			breakIcon,
+			"\n%s %s : %s - [%s]",
+			activeBreakIcon,
 			DefaultBreakName,
-			t.Break.Format(timeFormat))
+			t.Break.Format(timeFormat),
+			Duration(time.Now().Sub(t.Break)))
 		fullDuration -= time.Now().Sub(t.Break)
 	}
 	return fmt.Sprintf(
-		taskTitleTmp,
+		"[%s GMT %s] %s - %s \n⏱ %s\n%s:%s\n\n%s",
 		t.Start.Format("2006-01-02"),
 		t.Start.Format("-0700"),
 		t.Start.Format(timeFormat),
 		t.End.Format(timeFormat),
 		Duration(fullDuration),
+		TasksText,
 		tasksInfo,
 		breaks)
 }
@@ -299,8 +370,42 @@ func (d *data) setActiveTask(uid int64, id int) bool {
 	if !exist {
 		return false
 	}
+	activeTask, exist := userTrack.Tasks[userTrack.ActiveTask]
+	if exist {
+		activeTask.End = time.Now()
+		activeTask.Duration = activeTask.Duration + activeTask.End.Sub(activeTask.Start)
+		userTrack.Tasks[userTrack.ActiveTask] = activeTask
+	}
+	nextTask, exist := userTrack.Tasks[id]
+	if !exist {
+		return false
+	} else {
+		nextTask.Start = time.Now()
+		userTrack.Tasks[id] = nextTask
+	}
 	userTrack.ActiveTask = id
 	userTrack.Title = userTrack.GetTitle()
 	d.tracks[uid] = userTrack
 	return true
+}
+
+func (d *data) keyboard(t Track) *tgbotapi.InlineKeyboardMarkup {
+	var keyboard *tgbotapi.InlineKeyboardMarkup
+	switch t.Status {
+	case StatusProgress:
+		keyboard = d.activeTrackButtons(t.UserId)
+	case StatusPause:
+		keyboard = d.breakTrackButtons(t.UserId)
+	default:
+		keyboard = d.activeTrackButtons(t.UserId)
+	}
+	return keyboard
+}
+
+func (t *Track) IsPaused() bool {
+	return t.Status == StatusPause
+}
+
+func (t *Track) IsStopped() bool {
+	return t.Status == StatusStopped
 }

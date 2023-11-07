@@ -7,14 +7,16 @@ import (
 )
 
 const (
-	taskTitleTmp = "[%s GMT %s] %s - %s \n⏱ %s\nЗадачи:%s\n\n%s"
-	//taskTitleTmp = "[%s] Трэкинг GMT %s.  \n\nНачало: %s Конец: %s \nОбщее время: %s\n\n%s"
 	TrackNotFoundErrMsg = "Track not found, sorry, create new by /timeTrack"
 	activeTaskIcon      = "⏳"
 	taskIcon            = "🔸"
+	taskPauseIcon       = "⏸"
 	breakIcon           = "🔸"
+	activeBreakIcon     = "⏳"
 
-	timeFormat = "15:04" // "15:04:05"
+	timeFormat  = "15:04"    // "15:04:05"
+	timeFormatS = "15:04:05" // "15:04:05"
+	TasksText   = "Задачи"   //"Break"
 
 	DefaultBreakName = "Перерыв" //"Break"
 	DefaultTaskName  = "Работа"  //"Break"
@@ -59,8 +61,6 @@ type Track struct {
 	Start      time.Time
 	End        time.Time
 	Break      time.Time
-	Pause      bool
-	Close      bool
 	Title      string
 	UserId     int64
 	MsgId      int

@@ -25,7 +25,7 @@ type data struct {
 	messageSender tgModel.MessageSender
 }
 
-const trackingDuration = time.Second * 131
+const trackingDuration = time.Second * 31
 
 func New(DB *sql.DB) tgModel.Service {
 	result := data{
@@ -50,23 +50,19 @@ func New(DB *sql.DB) tgModel.Service {
 	result.addButton("⚙️", settingsEvent, result.settingsButtonEventHandler)
 	result.addButton("⏸", takeBreakEvent, result.takeBreakButtonEventHandler)
 	result.addButton("▶️", stopBreakEvent, result.stopBreakButtonEventHandler)
-	result.addButton("🏁", StoppedTaskEvent, result.StoppedTaskButtonEventHandler)
+	result.addButton("🏁", StoppedTaskEvent, result.StoppedTrackButtonEventHandler)
 
 	result.addButton("📝 Задать имя активной задачи", setTaskNameEvent, result.setTaskNameButtonEventHandler)
-	result.addButton("➕ Добавить задачу", startTaskEvent, result.addTaskButtonEventHandler)
+	result.addButton("➕", startTaskEvent, result.addTaskButtonEventHandler)
 	result.addButton("👤 Профиль", showProfileEvent, result.NotImplementHandler)
 	result.addButton("📝 Задать имя перерыву", setBreakNameEvent, result.NotImplementHandler)
 
-	//TODO rename task name, edit time, duration, start, end
-	//TODO buttons and task order
+	//TODO edit time, duration, start, end
 
-	//TODO: add workers for active trackers for update time info (check type buttons before edit message)
-	//TODO set tasks text labels and duration (like as breaks) - some tasks by active tracker
 	//TODO some trackers per day by user - feature: set random or user traker name
-	//TODO button for add
 	//TODO: add user break type buttons (coffe break for example) - tracker options
-	//TODO: switching between active tasks
 	//TODO: add set user GMT - settings user
+	//TODO: show logs - settings tracker
 	//TODO save info to db
 	//TODO change/correct current time of tracker task or break
 
@@ -132,7 +128,7 @@ func (d *data) tracking(ctx context.Context) {
 		case <-time.NewTimer(trackingDuration).C:
 			d.mutex.Lock()
 			for _, track := range d.tracks {
-				if track.GetTitle() == track.Title {
+				if track.IsStopped() {
 					continue
 				}
 				d.updateTrackMessage(track)
@@ -143,20 +139,13 @@ func (d *data) tracking(ctx context.Context) {
 }
 
 func (d *data) updateTrackMessage(track Track) {
-	if track.Close && !(track.Status.Is(StatusProgress) || track.Status.Is(StatusPause)) {
-	}
-	var keyboard *tgbotapi.InlineKeyboardMarkup
-	switch track.Status {
-	case StatusProgress:
-		keyboard = d.activeTrackButtons(track.UserId)
-	case StatusPause:
-		keyboard = d.breakTrackButtons(track.UserId)
-	default:
-	}
 	newTitle := track.GetTitle()
+	if newTitle == track.Title {
+		return
+	}
 	track.Title = newTitle
 	if d.messageSender != nil {
-		d.messageSender.PushHandleResult() <- tgModel.SimpleEditWithButtons(track.UserId, track.MsgId, track.Title, keyboard)
+		d.messageSender.PushHandleResult() <- tgModel.SimpleEditWithButtons(track.UserId, track.MsgId, track.Title, d.keyboard(track))
 	}
 }
 
@@ -184,7 +173,7 @@ func (d *data) takeBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Com
 	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.breakTrackButtons(msg.Chat.ID))
 }
 
-func (d *data) stopBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
+func (d *data) stopBreakButtonEventHandler(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	log.Info().Msg("stopBreakButtonEventHandler")
 	task, exist := d.StopTrackBreak(msg.Chat.ID)
 	if !exist {
@@ -193,13 +182,13 @@ func (d *data) stopBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Com
 	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTrackButtons(msg.Chat.ID))
 }
 
-func (d *data) StoppedTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	log.Info().Msg("StoppedTaskButtonEventHandler")
-	task, exist := d.StopTrack(msg.Chat.ID)
+func (d *data) StoppedTrackButtonEventHandler(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+	log.Info().Msg("StoppedTrackButtonEventHandler")
+	track, exist := d.StopTrack(msg.Chat.ID)
 	if !exist {
 		return tgModel.SimpleReply(msg.Chat.ID, TrackNotFoundErrMsg, msg.MessageID)
 	}
-	return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, task.Title)
+	return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, track.Title)
 }
 
 func (d *data) setTaskNameButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {

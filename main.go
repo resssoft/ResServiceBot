@@ -114,6 +114,8 @@ func main() {
 
 	//add configure or bot register for
 
+	//TODO: create list of interfaces, call "new" by loop with time info // check if service exist in the bots
+
 	services := []tgModel.Service{
 		funs.New(DB),
 		b64.New(),
