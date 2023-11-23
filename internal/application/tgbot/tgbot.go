@@ -181,6 +181,13 @@ func (d *Data) Run() error {
 		go d.commandsHandler()
 	}
 	d.Ran = true
+	//TODO: use limits
+	//TODO: check menu list is changed ot not
+	_, err = d.Bot.Request(tgbotapi.NewDeleteMyCommands())
+	if err != nil {
+		return fmt.Errorf("del bot commands: %w", err)
+	}
+
 	return nil
 }
 
@@ -328,7 +335,7 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 
 		if update.CallbackQuery != nil {
 			//update.CallbackQuery.ID
-			//http.Get("https://api.telegram.org/bot5761609803:AAFZT_tCSxnVmRmZ1qQXmUtFR4NiQTFecPE/answerCallbackQuery?callback_query_id=" + update.CallbackQuery.ID + "&text=done&show_alert=false")
+			//http.Get("https://api.telegram.org/bot" + d.Token + "/answerCallbackQuery?callback_query_id=" + update.CallbackQuery.ID + "&text=done&show_alert=false")
 			//d.Bot.StopPoll()
 
 			//tgbotapi.NewCallback(update.CallbackQuery.ID, "Готово!")
@@ -600,6 +607,20 @@ func (d *Data) AddCommands(newItems tgModel.Commands, serviceName string) {
 	d.mutexCommands.Lock()
 	d.Commands = d.Commands.Merge(newItems)
 	d.mutexCommands.Unlock()
+
+	for _, item := range newItems {
+		if item.Menu {
+			_, err := d.Bot.Request(
+				tgbotapi.NewSetMyCommands(
+					tgbotapi.BotCommand{
+						Command:     item.Command,
+						Description: item.Description,
+					}))
+			if err != nil {
+				log.Println("NewSetMyCommands err", err)
+			}
+		}
+	}
 }
 
 func (d *Data) RunEvents(event string, msg *tgbotapi.Message, command *tgModel.Command) {
