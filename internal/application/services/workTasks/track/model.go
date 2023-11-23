@@ -1,4 +1,4 @@
-package workTasks
+package track
 
 import (
 	tgModel "fun-coice/internal/domain/commands/tg"
@@ -9,29 +9,29 @@ import (
 const (
 	TrackNotFoundErrMsg = "Track not found, sorry, create new by /timeTrack"
 	activeTaskIcon      = "⏳"
-	taskIcon            = "🔸"
+	TaskIcon            = "🔸"
 	taskPauseIcon       = "⏸"
 	breakIcon           = "🔸"
 	activeBreakIcon     = "⏳"
 
 	timeFormat  = "15:04"    // "15:04:05"
-	timeFormatS = "15:04:05" // "15:04:05"
+	TimeFormatS = "15:04:05" // "15:04:05"
 	TasksText   = "Задачи"   //"Break"
 
 	DefaultBreakName = "Перерыв" //"Break"
 	DefaultTaskName  = "Работа"  //"Break"
 
-	timeTrackTitle = "Выберите действие"
+	TimeTrackTitle = "Выберите действие"
 
-	startTrackEvent   = "startTrack"
-	settingsEvent     = "settings"
-	takeBreakEvent    = "pause_track"
-	stopBreakEvent    = "stop_break"
+	StartTrackEvent   = "startTrack"
+	SettingsEvent     = "settings"
+	TakeBreakEvent    = "pause_track"
+	StopBreakEvent    = "stop_break"
 	StoppedTaskEvent  = "stop_task"
-	setTaskNameEvent  = "setTaskName"
-	startTaskEvent    = "startTask"
-	showProfileEvent  = "showProfile"
-	setBreakNameEvent = "setBreakName"
+	SetTaskNameEvent  = "setTaskName"
+	StartTaskEvent    = "startTask"
+	ShowProfileEvent  = "showProfile"
+	SetBreakNameEvent = "setBreakName"
 
 	SetTaskEvent  = "timeTraker_set_task"
 	SetTaskAction = "event:timeTraker_set_task"
@@ -43,13 +43,13 @@ const (
 //📝✏️🔎🗑🛠💾⏱⏰⏳🚩🏁➕➖➗✖️✔️🟠🟡🟢🔵🟣⚫️⚪️🔸🚧
 
 type User struct {
-	tgUser  tgbotapi.User
+	TgUser  tgbotapi.User
 	IsNew   bool
 	IDStr   string
 	LangISO string
 }
 
-type timeItem struct {
+type TimeItem struct {
 	Id       int
 	Name     string
 	Start    time.Time
@@ -64,11 +64,43 @@ type Track struct {
 	Title      string
 	UserId     int64
 	MsgId      int
-	Breaks     []timeItem
-	Tasks      map[int]timeItem
+	Breaks     []TimeItem
+	Tasks      map[int]TimeItem
 	Status     Status
 	ActiveTask int
+	BotName    string
+	Code       string
 	//GMT    string use for time show
+}
+
+type TrackFilter struct {
+	UserId  *int64
+	MsgId   *int
+	Status  Status
+	BotName *string
+	Code    *string
+	//GMT    string use for time show
+}
+
+type TrackFields bool
+
+func (tf *TrackFields) BotName() string {
+	return "bot_name"
+}
+func (tf *TrackFields) MsgId() string {
+	return "msg_id"
+}
+func (tf *TrackFields) TrackId() string {
+	return "track_id"
+}
+func (tf *TrackFields) TrackJson() string {
+	return "track_json"
+}
+func (tf *TrackFields) UserId() string {
+	return "user_id"
+}
+func (tf *TrackFields) Status() string {
+	return "status"
 }
 
 type Status int

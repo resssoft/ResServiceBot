@@ -3,109 +3,56 @@ package workTasks
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"fun-coice/internal/application/services/workTasks/repository"
+	mongo_repo "fun-coice/internal/application/services/workTasks/repository/mongo"
+	sqlRepo "fun-coice/internal/application/services/workTasks/repository/sql"
+	"fun-coice/internal/application/services/workTasks/track"
+	"fun-coice/internal/database"
 	tgModel "fun-coice/internal/domain/commands/tg"
 	"github.com/doug-martin/goqu/v9"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/sasha-s/go-deadlock"
-	"strconv"
-	"strings"
 	"time"
 )
 
 type data struct {
 	list    tgModel.Commands
-	users   map[int64]User //temporary
-	storage *sql.DB
+	users   map[int64]track.User //temporary
 	builder goqu.DialectWrapper
-	tracks  Tracks
+	tracks  track.Tracks
 	//mutex         *sync.Mutex
 	mutex         deadlock.Mutex
-	buttons       map[string]Button
+	buttons       map[string]track.Button
 	messageSender tgModel.MessageSender
+	repo          repository.Repository
 }
 
 const trackingDuration = time.Second * 31
 
-func New(DB *sql.DB) tgModel.Service {
+func New(dbSQL *sql.DB, mongoClient database.MongoClientApplication) tgModel.Service {
+	var repo repository.Repository
+	switch {
+	case mongoClient != nil:
+		repo, _ = mongo_repo.NewMongoRepo(mongoClient) //TODO: check errors for all services
+	case dbSQL != nil:
+		repo, _ = sqlRepo.NewSQLRepo(dbSQL) //TODO: check errors for all services
+	default:
+		//RAM repo
+	}
 	result := data{
-		storage: DB,
-		users:   make(map[int64]User), // temporary
+		users:   make(map[int64]track.User), // temporary
 		builder: goqu.Dialect("sqlite3"),
 		//mutex:   &sync.Mutex{},
-		tracks:  make(Tracks),
-		buttons: make(map[string]Button),
+		tracks:  make(track.Tracks),
+		buttons: make(map[string]track.Button),
+		repo:    repo,
 	}
-
-	commandsList := tgModel.NewCommands()
-	commandsList.AddSimple("timeTrack", "Show time track controls", result.timeTrack)
-	commandsList.AddSimple("timeTrack_add_task", "Add task to active track, need task name parameter", result.addTaskButtonEventHandler)
-	commandsList.AddSimple("timeTrack_set_task_name", "Add task to active track, need task name parameter", result.setTaskNameButtonEventHandler)
-
-	commandsList.AddEvent(SetTaskEvent, result.SetActiveTask)
-
-	result.list = commandsList
-
-	result.addButton("🚗 Начать трэкинг", startTrackEvent, result.startTrackButtonEventHandler)
-	result.addButton("⚙️", settingsEvent, result.settingsButtonEventHandler)
-	result.addButton("⏸", takeBreakEvent, result.takeBreakButtonEventHandler)
-	result.addButton("▶️", stopBreakEvent, result.stopBreakButtonEventHandler)
-	result.addButton("🏁", StoppedTaskEvent, result.StoppedTrackButtonEventHandler)
-
-	result.addButton("📝 Задать имя активной задачи", setTaskNameEvent, result.setTaskNameButtonEventHandler)
-	result.addButton("➕", startTaskEvent, result.addTaskButtonEventHandler)
-	result.addButton("👤 Профиль", showProfileEvent, result.NotImplementHandler)
-	result.addButton("📝 Задать имя перерыву", setBreakNameEvent, result.NotImplementHandler)
-
-	//TODO edit time, duration, start, end
-
-	//TODO some trackers per day by user - feature: set random or user traker name
-	//TODO: add user break type buttons (coffe break for example) - tracker options
-	//TODO: add set user GMT - settings user
-	//TODO: show logs - settings tracker
-	//TODO save info to db
-	//TODO change/correct current time of tracker task or break
-
-	//TODO: read from db to RAM active tasks(rename task to traker)
+	result.initCommands()
 	go result.tracking(context.Background())
 
 	return &result
-}
-
-func (d *data) addButton(text, event string, handler tgModel.HandlerFunc) Button {
-	publicEvent := d.Name() + "_" + event
-	btn := Button{
-		Text:   text,
-		Action: "event:" + publicEvent,
-		Event:  publicEvent,
-	}
-	btn.Data = tgModel.KeyBoardButtonTG{Text: btn.Text, Data: btn.Action}
-	d.buttons[event] = btn
-	itemEvent := tgModel.NewEvent(publicEvent, handler)
-	log.Info().Any("btn", btn).Send()
-	log.Info().Any("itemEvent", itemEvent).Send()
-	d.list.Add(publicEvent, *itemEvent)
-	//log.Info().Any("d.list", d.list).Send()
-	return btn
-}
-
-func (d *data) Button(event string) Button {
-	//TODO: move to tgModel
-	btn, ok := d.buttons[event]
-	if ok {
-		//btn.Data.Text = "" //TODO: translates
-		return btn
-	}
-	log.Warn().Msg("Empy button used")
-	return Button{}
-}
-
-func (d *data) ButtonRow(events ...string) tgModel.KeyBoardRowTG {
-	var rows []tgModel.KeyBoardButtonTG
-	for _, event := range events {
-		rows = append(rows, d.Button(event).Data)
-	}
-	return tgModel.KeyBoardRowTG{Buttons: rows}
 }
 
 func (d *data) Commands() tgModel.Commands {
@@ -138,9 +85,12 @@ func (d *data) tracking(ctx context.Context) {
 	}
 }
 
-func (d *data) updateTrackMessage(track Track) {
+func (d *data) updateTrackMessage(track track.Track) {
 	newTitle := track.GetTitle()
 	if newTitle == track.Title {
+		return
+	}
+	if track.MsgId == 0 {
 		return
 	}
 	track.Title = newTitle
@@ -149,91 +99,204 @@ func (d *data) updateTrackMessage(track Track) {
 	}
 }
 
-func (d *data) timeTrack(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.SimpleWithButtons(msg.Chat.ID, timeTrackTitle, d.trackButtons(msg.Chat.ID))
+func (d *data) AddTrack(uid int64, msgId int) track.Track {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack := track.Track{
+		Start:   time.Now(),
+		UserId:  uid,
+		MsgId:   msgId,
+		Status:  track.StatusProgress,
+		Tasks:   make(map[int]track.TimeItem),
+		BotName: d.messageSender.BotName(),
+		Code:    fmt.Sprintf("%v-%v-%s", uid, time.Now().Unix(), d.messageSender.BotName()),
+	}
+	userTrack.AddTask(track.DefaultTaskName)
+	log.Info().Any("AddTrack", userTrack).Send()
+	d.tracks[uid] = userTrack
+	return userTrack
 }
 
-func (d *data) startTrackButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	log.Info().Msg("startTaskButtonEventHandler")
-	task := d.AddTrack(msg.Chat.ID, msg.MessageID)
-	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTrackButtons(msg.Chat.ID))
-}
-
-func (d *data) settingsButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	log.Info().Msg("settingsButtonEventHandler")
-	return tgModel.SimpleReply(msg.Chat.ID, "Not implement", msg.MessageID)
-}
-
-func (d *data) takeBreakButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	log.Info().Msg("takeBreakButtonEventHandler")
-	task, exist := d.SetTrackBreak(msg.Chat.ID)
+func (d *data) AddTask(uid int64, name string) (track.Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
 	if !exist {
-		return tgModel.SimpleReply(msg.Chat.ID, TrackNotFoundErrMsg, msg.MessageID)
+		return userTrack, false
 	}
-	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.breakTrackButtons(msg.Chat.ID))
+	userTrack.AddTask(name)
+	d.tracks[uid] = userTrack
+	return userTrack, true
 }
 
-func (d *data) stopBreakButtonEventHandler(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	log.Info().Msg("stopBreakButtonEventHandler")
-	task, exist := d.StopTrackBreak(msg.Chat.ID)
+func (d *data) SetTrackBreak(uid int64) (track.Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
 	if !exist {
-		return tgModel.SimpleReply(msg.Chat.ID, TrackNotFoundErrMsg, msg.MessageID)
+		return track.Track{}, false
 	}
-	return tgModel.SimpleEditWithButtons(msg.Chat.ID, msg.MessageID, task.Title, d.activeTrackButtons(msg.Chat.ID))
+	{ //debug
+		tasksInfo := ""
+		for i, t := range userTrack.Tasks {
+			tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+				i, t.Start.Format(track.TimeFormatS), t.End.Format(track.TimeFormatS), track.Duration(t.Duration), t.Name)
+		}
+		log.Info().
+			Str("SetTrackBreak before", tasksInfo).
+			Send()
+		d.tracks[uid] = userTrack.SetBreak()
+	}
+	d.tracks[uid] = userTrack
+	userTrack.Title = userTrack.GetTitle()
+	{ //debug
+		tasksInfo := ""
+		for i, t := range userTrack.Tasks {
+			tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+				i, t.Start.Format(track.TimeFormatS), t.End.Format(track.TimeFormatS), track.Duration(t.Duration), t.Name)
+		}
+		log.Info().
+			Str("SetTrackBreak After", tasksInfo).
+			Send()
+		log.Info().Any("SetTrackBreak", d.tracks[uid]).Send()
+
+	}
+	return userTrack, exist
 }
 
-func (d *data) StoppedTrackButtonEventHandler(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	log.Info().Msg("StoppedTrackButtonEventHandler")
-	track, exist := d.StopTrack(msg.Chat.ID)
+func (d *data) StopTrackBreak(uid int64) (track.Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
+	if exist {
+		tasksInfo := ""
+		for i, t := range userTrack.Tasks {
+			tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+				i, t.Start.Format(track.TimeFormatS), t.End.Format(track.TimeFormatS), track.Duration(t.Duration), t.Name)
+		}
+		log.Info().
+			Str("StopTrackBreak before", tasksInfo).
+			Send()
+		d.tracks[uid] = userTrack.StopBreak()
+	}
+	d.tracks[uid] = userTrack
+	userTrack.Title = userTrack.GetTitle()
+	tasksInfo := ""
+	for i, t := range userTrack.Tasks {
+		tasksInfo += fmt.Sprintf("\n[%v]%s-%s/%s %s",
+			i, t.Start.Format(track.TimeFormatS), t.End.Format(track.TimeFormatS), track.Duration(t.Duration), t.Name)
+	}
+	log.Info().
+		Str("StopTrackBreak After", tasksInfo).
+		Send()
+	log.Info().Any("SetTrackBreak", d.tracks[uid]).Send()
+	log.Info().Any("StopTrackBreak", d.tracks[uid]).Send()
+	return userTrack, exist
+}
+
+func (d *data) StopTrack(uid int64) (track.Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
+	if exist {
+		d.tracks[uid] = userTrack.StopTrack()
+	}
+	log.Info().Any("StopTrack", d.tracks[uid]).Send()
+	return userTrack, exist
+}
+
+func (d *data) activeTrackButtons(uid int64) *tgbotapi.InlineKeyboardMarkup {
+	userTrack, exist := d.tracks[uid]
 	if !exist {
-		return tgModel.SimpleReply(msg.Chat.ID, TrackNotFoundErrMsg, msg.MessageID)
+		return tgModel.GetTGButtons(tgModel.KeyBoardTG{})
 	}
-	return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, track.Title)
+	tasks, keys := userTrack.GetTasks(true)
+	var taskRows []tgModel.KeyBoardRowTG
+	taskRows = append(taskRows,
+		d.ButtonRow(track.StartTaskEvent, track.TakeBreakEvent, track.StoppedTaskEvent, track.SettingsEvent),
+		d.ButtonRow(track.SetTaskNameEvent))
+	for _, taskIndex := range keys {
+		taskRows = append(
+			taskRows,
+			tgModel.KBButs(
+				tgModel.KeyBoardButtonTG{
+					Text: fmt.Sprintf(track.TaskIcon + " " + tasks[taskIndex].Name),
+					Data: fmt.Sprintf("%s:%v", track.SetTaskAction, taskIndex),
+				}))
+	}
+	//taskRows = append(taskRows, d.ButtonRow(startTaskEvent))
+
+	return tgModel.GetTGButtons(tgModel.KBRows(taskRows...))
 }
 
-func (d *data) setTaskNameButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	if c.Arguments.Raw == "" {
-		return tgModel.DeferredWithText(msg.Chat.ID, "Enter new task name", "timeTrack_set_task_name", "", nil)
-	}
-	foundedTrack, exist := d.updateActiveTaskName(msg.Chat.ID, c.Arguments.Raw)
+func (d *data) breakTrackButtons(_ int64) *tgbotapi.InlineKeyboardMarkup {
+	return tgModel.GetTGButtons(tgModel.KBRows(
+		d.ButtonRow(track.StopBreakEvent, track.StoppedTaskEvent, track.SettingsEvent),
+		d.ButtonRow(track.SetBreakNameEvent)))
+}
+
+func (d *data) trackButtons(_ int64) *tgbotapi.InlineKeyboardMarkup {
+	return tgModel.GetTGButtons(tgModel.KBRows(d.ButtonRow(track.StartTrackEvent, track.ShowProfileEvent)))
+}
+
+func (d *data) updateActiveTaskName(uid int64, newName string) (track.Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
 	if !exist {
-		return tgModel.Simple(msg.Chat.ID, TrackNotFoundErrMsg)
+		return userTrack, false
 	}
-	d.updateTrackMessage(foundedTrack)
-	return tgModel.Simple(msg.Chat.ID, "Ok")
-	//return tgModel.EmptyCommand()
-}
-
-func (d *data) addTaskButtonEventHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	if c.Arguments.Raw == "" {
-		return tgModel.DeferredWithText(msg.Chat.ID, "Enter task name", "timeTrack_add_task", "", nil)
-	}
-	foundedTrack, exist := d.AddTask(msg.Chat.ID, c.Arguments.Raw)
+	activeTask, exist := userTrack.Tasks[userTrack.ActiveTask]
 	if !exist {
-		return tgModel.Simple(msg.Chat.ID, TrackNotFoundErrMsg)
+		return userTrack, false
 	}
-	d.updateTrackMessage(foundedTrack)
-	return tgModel.Simple(msg.Chat.ID, "Ok")
-	//TODO: EmptyCommand
-	//return tgModel.EmptyCommand()
+	activeTask.Name = newName
+	userTrack.UpdateTask(activeTask)
+	return userTrack, true
 }
 
-func (d *data) SetActiveTask(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	anonId := 0
-	separated := strings.Split(c.Data, ":")
-	if len(separated) == 3 {
-		anonId, _ = strconv.Atoi(separated[2])
-	}
-	d.setActiveTask(msg.Chat.ID, anonId)
-	userTrack, exist := d.GetTrack(msg.Chat.ID)
+func (d *data) setActiveTask(uid int64, id int) bool {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
 	if !exist {
-		return tgModel.Simple(msg.Chat.ID, TrackNotFoundErrMsg)
+		return false
 	}
-	d.updateTrackMessage(userTrack)
-	return tgModel.EmptyCommand()
+	activeTask, exist := userTrack.Tasks[userTrack.ActiveTask]
+	if exist {
+		activeTask.End = time.Now()
+		activeTask.Duration = activeTask.Duration + activeTask.End.Sub(activeTask.Start)
+		userTrack.Tasks[userTrack.ActiveTask] = activeTask
+	}
+	nextTask, exist := userTrack.Tasks[id]
+	if !exist {
+		return false
+	} else {
+		nextTask.Start = time.Now()
+		userTrack.Tasks[id] = nextTask
+	}
+	userTrack.ActiveTask = id
+	userTrack.Title = userTrack.GetTitle()
+	d.tracks[uid] = userTrack
+	return true
 }
 
-func (d *data) NotImplementHandler(msg *tgbotapi.Message, c *tgModel.Command) *tgModel.HandlerResult {
-	log.Info().Msg("setTaskNameButtonEventHandler")
-	return tgModel.SimpleReply(msg.Chat.ID, "Not implement", msg.MessageID)
+func (d *data) keyboard(t track.Track) *tgbotapi.InlineKeyboardMarkup {
+	var keyboard *tgbotapi.InlineKeyboardMarkup
+	switch t.Status {
+	case track.StatusProgress:
+		keyboard = d.activeTrackButtons(t.UserId)
+	case track.StatusPause:
+		keyboard = d.breakTrackButtons(t.UserId)
+	default:
+		keyboard = d.activeTrackButtons(t.UserId)
+	}
+	return keyboard
+}
+
+func (d *data) GetTrack(uid int64) (track.Track, bool) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	userTrack, exist := d.tracks[uid]
+	return userTrack, exist
 }
