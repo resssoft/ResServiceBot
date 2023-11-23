@@ -136,7 +136,7 @@ func main() {
 		//weather.New(DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
 		transliter.New(),
 		p2p.New(db),
-		workTasks.New(db), // TODO: plan
+		workTasks.New(db, nil), // TODO: plan
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {

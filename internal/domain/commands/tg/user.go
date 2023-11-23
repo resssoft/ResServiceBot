@@ -3,14 +3,16 @@ package tgModel
 import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type User struct {
-	UserID  int64
-	ChatId  int64
-	Login   string
-	Name    string
-	IsAdmin bool
+	MongoID primitive.ObjectID `bson:"_id"`
+	UserID  int64              `bson:"user_id"`
+	ChatId  int64              `bson:"chat_id"`
+	Login   string             `bson:"login"`
+	Name    string             `bson:"name"`
+	IsAdmin bool               `bson:"is_admin"`
 }
 
 type TGUser struct {
