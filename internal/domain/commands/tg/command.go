@@ -7,27 +7,28 @@ import (
 )
 
 type Command struct {
-	Command     string //TODO: check for needles field
-	Synonyms    []string
-	Triggers    []string
-	Templates   []string
-	Description string
-	CommandType string //deprecated
-	IsEvent     bool
-	ListExclude bool
-	Permissions CommandPermissions
-	Handler     HandlerFunc
-	// Arguments: parsed before use, actual in the raw field
-	Arguments     CommandArguments
-	Service       string // set in the bot only
-	FileTypes     FileTypes
+	Command       string //TODO: check for needles field
+	Description   string //showed in the commands list
+	CommandType   string //deprecated
+	Data          string //provided by user request
 	BotName       string //command author
-	Deferred      bool   // send by Deferred method
+	Service       string // set in the bot only
+	Synonyms      []string
+	Triggers      []string
+	Templates     []string
+	Arguments     CommandArguments
+	Permissions   CommandPermissions
+	Handler       HandlerFunc
+	FileTypes     FileTypes
 	FilesCallback FileHandlerFunc
 	ParamCallback ParamHandlerFunc
-	Data          string
+	Menu          bool // set to bot tg menu
+	IsEvent       bool
+	ListExclude   bool
+	Deferred      bool // send by Deferred method
 	//State       string //offline or online, service can be down
 	//WithFiles   bool // Files need prepare
+	// Arguments: parsed before use, actual in the raw field
 }
 
 func NewCommand() *Command {
