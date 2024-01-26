@@ -77,7 +77,7 @@ func New() tgModel.Service {
 	commandsList["example_notify"] = tgModel.Command{
 		Command:     "/example_notify",
 		Description: "user notify",
-		CommandType: "event",
+		IsEvent:     true,
 		ListExclude: true, // do not show in the commands list
 		Permissions: tgModel.FreePerms,
 		Handler:     result.exampleNotify,

@@ -11,8 +11,10 @@ import (
 
 type data struct {
 	list        tgModel.Commands
-	userStrings map[int64]string
+	userStrings map[int64]string //TODO: replace to struct with method d.userStrings.From(from)
 }
+
+//TODO: move to model file
 
 var LatToAm map[string]string
 
@@ -70,7 +72,6 @@ func New() tgModel.Service {
 	commandsList["translit"] = tgModel.Command{
 		Command:     "/translit",
 		Description: "Encode string to base64",
-		CommandType: "text",
 		Permissions: tgModel.FreePerms,
 		Handler:     result.transit,
 	}
@@ -78,14 +79,13 @@ func New() tgModel.Service {
 		Command:     "/alphabet",
 		Synonyms:    []string{"af"},
 		Description: "Encode string to base64",
-		CommandType: "text",
 		Permissions: tgModel.FreePerms,
 		Handler:     result.alphabet,
 	}
 	commandsList[alphabetTrigger] = tgModel.Command{
 		Command:     "/alphabetKey",
 		Description: "alphabet notify by key",
-		CommandType: "event",
+		IsEvent:     true,
 		ListExclude: true, // do not show in the commands list
 		Permissions: tgModel.FreePerms,
 		Handler:     result.alphabetEvent,
@@ -112,16 +112,16 @@ func New() tgModel.Service {
 		if index <= itemsByRow && itemCount != len(amLetters) {
 			row = append(row, tgbotapi.NewInlineKeyboardButtonData(
 				fmt.Sprintf("%s (%s)", val, AmToLat[val]),
-				alphabetTrigger+":"+val))
+				"event:"+alphabetTrigger+":"+val))
 			continue
 		}
 		index = 0
 		rows = append(rows, row)
 		row = nil
 	}
-	row = append(row, tgbotapi.NewInlineKeyboardButtonData(" ", alphabetTrigger+":"+" "))
-	row = append(row, tgbotapi.NewInlineKeyboardButtonData("←", alphabetTrigger+":"+"backspace"))
-	row = append(row, tgbotapi.NewInlineKeyboardButtonData("↯", alphabetTrigger+":"+"translate"))
+	row = append(row, tgbotapi.NewInlineKeyboardButtonData(" ", "event:"+alphabetTrigger+":"+" "))
+	row = append(row, tgbotapi.NewInlineKeyboardButtonData("←", "event:"+alphabetTrigger+":"+"backspace"))
+	row = append(row, tgbotapi.NewInlineKeyboardButtonData("↯", "event:"+alphabetTrigger+":"+"translate"))
 	rows = append(rows, row)
 	alphabetKeyboard = tgbotapi.InlineKeyboardMarkup{
 		InlineKeyboard: rows,

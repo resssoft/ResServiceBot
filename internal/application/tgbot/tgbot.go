@@ -104,8 +104,9 @@ func (d *Data) Run() error {
 	startMsg := "-"
 	defer func() {
 		startMsg = fmt.Sprintf(
-			"Bot %s Started with version %s \n webMode [%v]\nDefault Command: %s\nUri: %s",
+			"Bot @%s [%v] Started with version %s \n webMode [%v]\nDefault Command: %s\nUri: %s",
 			d.Bot.Self.UserName,
+			d.Bot.Self.ID,
 			appStat.Version,
 			d.WebMode,
 			d.DefaultCommand,
@@ -193,6 +194,7 @@ func (d *Data) Run() error {
 
 func (d *Data) commandsHandler() {
 	for result := range d.commandResults {
+		fmt.Println("Inner commandResults", result) //debug
 		d.SendCommandResult(result, nil)
 	}
 }
@@ -235,7 +237,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 }
 
 func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Message) bool {
-	fmt.Println("SendCommandResult")
+	fmt.Println("!!! SendCommandResult")
 	if result.Prepared {
 		//fmt.Println("COMMAND PREPAERD") //DEVMODE
 		log.Println("result.Messages", len(result.Messages))
@@ -345,13 +347,21 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 			eventName := update.CallbackQuery.Data
 			//eventData := update.CallbackQuery.Data
 			separatedData := strings.Split(eventName, ":")
+			argsData := update.CallbackQuery.Message.CommandArguments()
 			if len(separatedData) > 1 {
-				eventName = separatedData[1]
+				eventName = separatedData[1] // TODO: replace key to 0 after remove part "event:"
 				//eventData = separatedData[1] // ????????????????????????
 			}
 			if commandDeferred, ok := d.GetCommand(eventName); ok {
+				if len(separatedData) > 1 {
+					for spKey, argVal := range separatedData {
+						if spKey != 0 && spKey != 1 { // TODO: replace key to 0 after remove part "event:"
+							argsData += argVal
+						}
+					}
+				}
+				commandDeferred.SetArgs(argsData)
 
-				commandDeferred.SetArgs(update.CallbackQuery.Message.CommandArguments())
 				commandDeferred.Data = update.CallbackQuery.Data
 				if d.RunCommand(
 					commandDeferred,

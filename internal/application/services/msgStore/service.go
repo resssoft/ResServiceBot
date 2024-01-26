@@ -20,8 +20,8 @@ func New(msgRepo tgModel.MsgRepository) tgModel.Service {
 	}
 	commandsList := tgModel.NewCommands()
 	commandsList["event:"+tgModel.TextMsgBotEvent] = tgModel.Command{
-		CommandType: "event",
-		Handler:     result.msgEvent,
+		IsEvent: true,
+		Handler: result.msgEvent,
 	}
 	commandsList["msgCount"] = tgModel.Command{
 		Command:     "/msgCount",
