@@ -22,6 +22,10 @@ func EmptyCommand() *HandlerResult {
 	}
 }
 
+func Delete(chatId int64, msgId int) *HandlerResult {
+	return PreparedCommand(tgbotapi.NewDeleteMessage(chatId, msgId))
+}
+
 func PreparedCommand(chatEvents ...tgbotapi.Chattable) *HandlerResult {
 	return &HandlerResult{
 		Prepared: true,
@@ -128,6 +132,11 @@ func (hr *HandlerResult) WithText(chatId int64, text string) *HandlerResult {
 
 func (hr *HandlerResult) AddSimple(chatId int64, text string) *HandlerResult {
 	hr.Messages = append(hr.Messages, tgbotapi.NewMessage(chatId, text))
+	return hr
+}
+
+func (hr *HandlerResult) WithDelete(chatId int64, msgId int) *HandlerResult {
+	hr.Messages = append(hr.Messages, tgbotapi.NewDeleteMessage(chatId, msgId))
 	return hr
 }
 
