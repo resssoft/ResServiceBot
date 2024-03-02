@@ -2,16 +2,18 @@ package tgbot
 
 import (
 	"fmt"
-	"fun-coice/config"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	"fun-coice/pkg/appStat"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	zlog "github.com/rs/zerolog/log"
 	"log"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	zlog "github.com/rs/zerolog/log"
+
+	"fun-coice/config"
+	tgModel "fun-coice/internal/domain/commands/tg"
+	"fun-coice/pkg/appStat"
 )
 
 var (
@@ -121,6 +123,11 @@ func (d *Data) Run() error {
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 10
+	u.AllowedUpdates = []string{"message", "edited_message", "channel_post",
+		"edited_channel_post", "message_reaction", "message_reaction_count",
+		"inline_query", "chosen_inline_result", "callback_query", "shipping_query",
+		"pre_checkout_query", "poll", "poll_answer", "my_chat_member", "chat_member",
+		"chat_join_request", "chat_boost", "removed_chat_boost"}
 
 	for i := 0; i < d.WorkersCount; i++ {
 		go d.MessagesHandler()
@@ -334,6 +341,18 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 			}
 		}
 		//zlog.Info().Any("msg", update.Message).Any("InlineQuery", update.InlineQuery).Send() ///////
+
+		if update.MessageReaction != nil { //December 29, 2023 Bot API 7.0
+			customMsg := emptyMessage()
+			customMsg.Chat = &update.MessageReaction.Chat
+			customMsg.From = update.MessageReaction.User
+			emojiList := ""
+			for _, emoji := range update.MessageReaction.NewReaction {
+				emojiList += emoji.Emoji
+			}
+			customMsg.Text = emojiList
+			go d.RunEvents(tgModel.MessageReactionEvent, customMsg, new(tgModel.Command))
+		}
 
 		if update.CallbackQuery != nil {
 			//update.CallbackQuery.ID
@@ -666,4 +685,11 @@ func (d *Data) PushHandleResult() chan<- *tgModel.HandlerResult {
 
 func (d *Data) BotName() string {
 	return d.Name
+}
+
+func emptyMessage() *tgbotapi.Message {
+	return &tgbotapi.Message{
+		From: &tgbotapi.User{},
+		Chat: &tgbotapi.Chat{},
+	}
 }
