@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
 	zlog "github.com/rs/zerolog/log"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type data struct {

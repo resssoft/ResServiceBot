@@ -1,4 +1,4 @@
-package qrcodes
+package parser
 
 import (
 	"github.com/skip2/go-qrcode"

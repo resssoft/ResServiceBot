@@ -3,8 +3,9 @@ package p2p
 import (
 	"errors"
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"strconv"
+
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 func (d *data) userInfo(u *tgbotapi.User) (User, error) {

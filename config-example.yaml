@@ -25,6 +25,8 @@ telegram:
         - translit
         - admin
     multy:
+      allow:
+        reactions: true
       active: true
       web: true
       token: 9999999999:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA

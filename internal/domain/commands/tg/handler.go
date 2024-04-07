@@ -1,6 +1,8 @@
 package tgModel
 
-import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+import "fun-coice/pkg/telegram-bot-api"
+
+//"fun-coice/pkg/telegram-bot-api"
 
 type HandlerResult struct {
 	Prepared bool              // command is prepared for sending

@@ -5,6 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"fun-coice/config"
 	"fun-coice/internal/application/services/adminNotifer"
 	"fun-coice/internal/application/services/admins"
@@ -12,6 +19,7 @@ import (
 	"fun-coice/internal/application/services/calculator"
 	"fun-coice/internal/application/services/chatAdmin"
 	"fun-coice/internal/application/services/datatimes"
+	"fun-coice/internal/application/services/emojiTaskTracker"
 	"fun-coice/internal/application/services/examples"
 	"fun-coice/internal/application/services/funs"
 	"fun-coice/internal/application/services/images"
@@ -26,26 +34,28 @@ import (
 	"fun-coice/internal/application/services/users"
 	"fun-coice/internal/application/services/workTasks"
 	"fun-coice/internal/application/tgbot"
+	"fun-coice/internal/database"
 	tgModel "fun-coice/internal/domain/commands/tg"
+	"fun-coice/internal/mediator"
 	tgmessage "fun-coice/internal/repositories/telegram/message"
 	"fun-coice/pkg/appStat"
 	"fun-coice/pkg/scribble"
 	"fun-coice/pkg/version"
-	"github.com/rs/zerolog"
-	zlog "github.com/rs/zerolog/log"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var DB *scribble.Driver
+var (
+	DB     *scribble.Driver
+	dbFile = "./tg-sqlite3.db"
+	onExit chan int
+)
 
-var dbFile = "./tg-sqlite3.db"
+type SystemListener struct{}
 
 func main() {
+	onExit = make(chan int)
+
 	showVer := flag.Bool("v", false, "show version")
 	checkConfig := flag.Bool("c", false, "check config")
 	flag.Parse()
@@ -55,7 +65,7 @@ func main() {
 	}
 
 	var err error
-	zlog.Level(zerolog.DebugLevel)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	fmt.Print("Load configuration... ")
 	config.Configure()
 	if *checkConfig {
@@ -64,37 +74,51 @@ func main() {
 		return
 	}
 
+	//logs, crons
+	dispatcher := mediator.NewDispatcher()
+	if err := dispatcher.Register(
+		SystemListener{},
+		mediator.AppExit,
+		mediator.SetLogDebugMode,
+		mediator.SetLogInfoMode); err != nil {
+		log.Info().Err(err).Send()
+	}
+	mongoDbApp, err := database.ProvideMongo(config.DbMongoUrl(), config.DbMongoDbName(), dispatcher)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
 	//TODO: add falgs for version and config test
 	///fmt.Println(fmt.Sprintf("apilayer[%s]", config.Str("plugins.apilayer.token")))
 
 	if _, err = os.Stat(dbFile); err != nil {
-		log.Println("Creating sqlite-database.db...")
+		log.Info().Msg("Creating sqlite-database.db...")
 		file, err := os.Create(dbFile)
 		if err != nil {
-			log.Fatal(fmt.Errorf("cant create db sql3 file %w", err))
+			log.Fatal().Err(err).Msg("cant create db sql3 file")
 		}
 		file.Close()
 		dbFilePath, _ := filepath.Abs(dbFile)
-		log.Println("sqlite-database.db created", dbFilePath)
+		log.Printf("\nsqlite-database.db created %s", dbFilePath)
 	}
 	dbFilePath, _ := filepath.Abs(dbFile)
-	log.Println("sqlite-database.db ", dbFilePath)
+	log.Printf("\nsqlite-database.db %s", dbFilePath)
 
 	db, err := sql.Open("sqlite3", dbFile) // or file::memory:?cache=shared //:memory:
 	if err != nil {
-		log.Fatal(fmt.Errorf("cant open db sql3 file %w", err))
+		log.Fatal().Err(err).Msg("cant open db sql3 file")
 	}
 	defer db.Close()
 
 	msgRepo, err := tgmessage.New(db)
 	if err != nil {
-		log.Fatal(fmt.Errorf("cant create msg repo %w", err))
+		log.Fatal().Err(err).Msg("cant create msg repo")
 	}
 
 	log.Printf("Work with DB...")
 	appPath, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Send()
 	}
 	//TODO: TRANSLATES
 	//TODO: DebugMode
@@ -136,7 +160,8 @@ func main() {
 		//weather.New(DB, weatherTokens),  // TODO: plugins tokens to settings (send admin notify for set token from TG
 		transliter.New(),
 		p2p.New(db),
-		workTasks.New(db, nil), // TODO: plan
+		workTasks.New(db, mongoDbApp), // TODO: plan
+		emojiTaskTracker.New(),
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {
@@ -145,7 +170,7 @@ func main() {
 			fmt.Print("\nPrepare bot " + botName + " with services: ")
 			tgBot, err := tgbot.New(botName, tgBotConfig)
 			if err != nil {
-				log.Println("Error: bot cant be started: ", botName, err)
+				log.Printf("Error: bot cant be started: ", botName, err)
 			}
 			for _, botService := range tgBotConfig.Services {
 				for _, serviceItem := range services {
@@ -162,10 +187,10 @@ func main() {
 			log.Print(" Staring...\n")
 			err = tgBot.Run()
 			if err != nil {
-				log.Println(err.Error())
+				log.Info().Err(err).Send()
 			}
 		} else {
-			log.Println("Inactive bot: " + botName)
+			log.Info().Msgf("Inactive bot: %s", botName)
 		}
 	}
 
@@ -173,5 +198,16 @@ func main() {
 	err = http.ListenAndServe(config.WebServerAddr(), nil)
 	if err != nil {
 		fmt.Println("Error", err)
+	}
+}
+
+func (u SystemListener) Listen(eventName mediator.EventName, _ interface{}) {
+	switch eventName {
+	case mediator.AppExit:
+		onExit <- 0
+	case mediator.SetLogDebugMode:
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case mediator.SetLogInfoMode:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 }

@@ -3,11 +3,13 @@ package tgbot
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+
+	zlog "github.com/rs/zerolog/log"
+
 	tgModel "fun-coice/internal/domain/commands/tg"
 	"fun-coice/pkg/appStat"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	zlog "github.com/rs/zerolog/log"
-	"strconv"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 func myInfo(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {

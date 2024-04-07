@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"

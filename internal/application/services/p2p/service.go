@@ -3,12 +3,14 @@ package p2p
 import (
 	"database/sql"
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
+	"strings"
+
 	"github.com/doug-martin/goqu/v9"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
 	zlog "github.com/rs/zerolog/log"
-	"strings"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 const (

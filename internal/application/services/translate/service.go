@@ -2,9 +2,11 @@ package translate
 
 import (
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
+
 	gt "github.com/bas24/googletranslatefree"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type data struct {

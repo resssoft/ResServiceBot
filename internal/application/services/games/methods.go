@@ -4,15 +4,16 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	"fun-coice/pkg/scribble"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	"fun-coice/pkg/scribble"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 //TODO: CLEAR OLD FUNCTIONS OR MOVE TO OTHERS SERVICES

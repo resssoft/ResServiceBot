@@ -1,13 +1,14 @@
 package main2
 
 import (
+	"github.com/robfig/cron"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"fun-coice/internal/database"
 	"fun-coice/internal/fileLogger"
 	"fun-coice/internal/mediator"
 	"fun-coice/internal/repository"
-	"github.com/robfig/cron"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	//"gitlab.com/AppsgeyserGroup/servers/SalesBot/internal/amoCRM"
 	//"gitlab.com/AppsgeyserGroup/servers/SalesBot/internal/database"
 	//"gitlab.com/AppsgeyserGroup/servers/SalesBot/internal/fileLogger"
@@ -50,7 +51,7 @@ func main() {
 		"amoLatency.txt": mediator.FileLogAmoLatency,
 	}
 
-	loggerClient := fileLogger.Provide(dispatcher)
+	loggerClient := fileLogger.Provide(dispatcher, "")
 	for filename, logName := range logFiles {
 		err = loggerClient.AddSource(filename, logName)
 		if err != nil {

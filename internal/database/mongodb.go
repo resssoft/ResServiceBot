@@ -50,7 +50,7 @@ func ProvideMongo(url, dbName string, dispatcher *mediator.Dispatcher) (MongoCli
 }
 
 func (r *mongoClientOriginal) GetCollection(collection string) *mongo.Collection {
-	return mongoClient.Database(r.url).Collection(collection)
+	return mongoClient.Database(r.dbName).Collection(collection)
 }
 
 func (r *mongoClientOriginal) GetContext() context.Context {

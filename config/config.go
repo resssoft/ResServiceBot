@@ -96,3 +96,11 @@ func WebServerAddr() string {
 func WebServerDomain() string {
 	return viper.GetString("server.domain")
 }
+
+func DbMongoUrl() string {
+	return viper.GetString("db.mongoDb.url")
+}
+
+func DbMongoDbName() string {
+	return viper.GetString("db.mongoDb.dbname")
+}

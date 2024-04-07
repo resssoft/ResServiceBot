@@ -2,7 +2,7 @@ package games
 
 import (
 	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 func (d *data) games(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

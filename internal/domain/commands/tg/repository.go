@@ -2,7 +2,8 @@ package tgModel
 
 import (
 	"context"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type MsgFilter struct {

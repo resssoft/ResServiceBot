@@ -30,6 +30,12 @@ func (t *Track) AddTask(name string) TimeItem {
 	return newTaskItem
 }
 
+func (t *Track) AddTasks(name []string) {
+	for _, taskName := range name {
+		t.AddTask(taskName)
+	}
+}
+
 func (t *Track) GetTasks(inactive bool) (map[int]TimeItem, []int) {
 	tasks := make(map[int]TimeItem)
 	for index, task := range t.Tasks {

@@ -1,9 +1,10 @@
 package text
 
 import (
-	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"strings"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type data struct {

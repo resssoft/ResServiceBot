@@ -2,14 +2,16 @@ package datatimes
 
 import (
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/hako/durafmt"
-	"github.com/pawelszydlo/humanize"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hako/durafmt"
+	"github.com/pawelszydlo/humanize"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type data struct {

@@ -3,17 +3,18 @@ package admins
 import (
 	"encoding/json"
 	"fmt"
-	"fun-coice/config"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	"fun-coice/pkg/appStat"
-	"fun-coice/pkg/scribble"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"fun-coice/config"
+	tgModel "fun-coice/internal/domain/commands/tg"
+	"fun-coice/pkg/appStat"
+	"fun-coice/pkg/scribble"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 // TODO: rename admins to administration

@@ -2,12 +2,14 @@ package calculator
 
 import (
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/mnogu/go-calculator"
 	"log"
 	"math"
 	"strings"
+
+	"github.com/mnogu/go-calculator"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type data struct {

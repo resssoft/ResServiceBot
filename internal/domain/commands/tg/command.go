@@ -2,8 +2,9 @@ package tgModel
 
 import (
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"regexp"
+
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type Command struct {

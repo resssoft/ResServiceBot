@@ -5,49 +5,54 @@ import (
 	"database/sql"
 	"fmt"
 	"fun-coice/internal/application/services/workTasks/repository"
-	mongo_repo "fun-coice/internal/application/services/workTasks/repository/mongo"
+	"fun-coice/internal/application/services/workTasks/repository/mongo/track"
+	"fun-coice/internal/application/services/workTasks/repository/mongo/user"
 	sqlRepo "fun-coice/internal/application/services/workTasks/repository/sql"
 	"fun-coice/internal/application/services/workTasks/track"
 	"fun-coice/internal/database"
 	tgModel "fun-coice/internal/domain/commands/tg"
 	"github.com/doug-martin/goqu/v9"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/sasha-s/go-deadlock"
 	"time"
 )
 
 type data struct {
-	list    tgModel.Commands
-	users   map[int64]track.User //temporary
-	builder goqu.DialectWrapper
-	tracks  track.Tracks
-	//mutex         *sync.Mutex
+	list          tgModel.Commands
+	users         map[int64]track.User
+	mutexUser     deadlock.Mutex
+	builder       goqu.DialectWrapper
+	tracks        track.Tracks
 	mutex         deadlock.Mutex
 	buttons       map[string]track.Button
 	messageSender tgModel.MessageSender
-	repo          repository.Repository
+	trackRepo     repository.TrackRepository
+	userRepo      repository.UserRepository
+	//mutex         *sync.Mutex
 }
 
 const trackingDuration = time.Second * 31
 
 func New(dbSQL *sql.DB, mongoClient database.MongoClientApplication) tgModel.Service {
-	var repo repository.Repository
+	var trackRepo repository.TrackRepository
+	var userRepo repository.UserRepository
 	switch {
 	case mongoClient != nil:
-		repo, _ = mongo_repo.NewMongoRepo(mongoClient) //TODO: check errors for all services
+		trackRepo, _ = trackMongoRepository.NewTrackRepo(mongoClient)
+		userRepo, _ = userMongoRepository.NewUserRepo(mongoClient)
 	case dbSQL != nil:
-		repo, _ = sqlRepo.NewSQLRepo(dbSQL) //TODO: check errors for all services
+		trackRepo, _ = sqlRepo.NewSQLRepo(dbSQL) //TODO: check errors for all services
 	default:
-		//RAM repo
+		//RAM trackRepo
 	}
 	result := data{
 		users:   make(map[int64]track.User), // temporary
 		builder: goqu.Dialect("sqlite3"),
 		//mutex:   &sync.Mutex{},
-		tracks:  make(track.Tracks),
-		buttons: make(map[string]track.Button),
-		repo:    repo,
+		tracks:    make(track.Tracks),
+		buttons:   make(map[string]track.Button),
+		trackRepo: trackRepo,
+		userRepo:  userRepo,
 	}
 	result.initCommands()
 	go result.tracking(context.Background())
@@ -86,15 +91,19 @@ func (d *data) tracking(ctx context.Context) {
 }
 
 func (d *data) updateTrackMessage(track track.Track) {
+	fmt.Println("===updateTrackMessage start")
 	newTitle := track.GetTitle()
 	if newTitle == track.Title {
+		fmt.Println("===updateTrackMessage title no dif")
 		return
 	}
 	if track.MsgId == 0 {
+		fmt.Println("===updateTrackMessage MsgId = 0")
 		return
 	}
 	track.Title = newTitle
 	if d.messageSender != nil {
+		fmt.Println("===updateTrackMessage push")
 		d.messageSender.PushHandleResult() <- tgModel.SimpleEditWithButtons(track.UserId, track.MsgId, track.Title, d.keyboard(track))
 	}
 }
@@ -111,8 +120,13 @@ func (d *data) AddTrack(uid int64, msgId int) track.Track {
 		BotName: d.messageSender.BotName(),
 		Code:    fmt.Sprintf("%v-%v-%s", uid, time.Now().Unix(), d.messageSender.BotName()),
 	}
-	userTrack.AddTask(track.DefaultTaskName)
+	userTrack.AddTasks(d.user(uid).Settings.DefaultTaskNames)
 	log.Info().Any("AddTrack", userTrack).Send()
+	log.Info().Msg("==================================!!=== AddTrack")
+	userTrack, err := d.trackRepo.Create(context.Background(), userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
+	}
 	d.tracks[uid] = userTrack
 	return userTrack
 }
@@ -126,6 +140,13 @@ func (d *data) AddTask(uid int64, name string) (track.Track, bool) {
 	}
 	userTrack.AddTask(name)
 	d.tracks[uid] = userTrack
+
+	d.updateTrackMessage(userTrack)
+	log.Info().Msg("===================================== AddTask")
+	err := d.trackRepo.Update(context.Background(), &userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
+	}
 	return userTrack, true
 }
 
@@ -161,6 +182,11 @@ func (d *data) SetTrackBreak(uid int64) (track.Track, bool) {
 		log.Info().Any("SetTrackBreak", d.tracks[uid]).Send()
 
 	}
+	log.Info().Msg("===================================== SetTrackBreak")
+	err := d.trackRepo.Update(context.Background(), &userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
+	}
 	return userTrack, exist
 }
 
@@ -191,6 +217,11 @@ func (d *data) StopTrackBreak(uid int64) (track.Track, bool) {
 		Send()
 	log.Info().Any("SetTrackBreak", d.tracks[uid]).Send()
 	log.Info().Any("StopTrackBreak", d.tracks[uid]).Send()
+	log.Info().Msg("===================================== StopTrackBreak")
+	err := d.trackRepo.Update(context.Background(), &userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
+	}
 	return userTrack, exist
 }
 
@@ -202,41 +233,12 @@ func (d *data) StopTrack(uid int64) (track.Track, bool) {
 		d.tracks[uid] = userTrack.StopTrack()
 	}
 	log.Info().Any("StopTrack", d.tracks[uid]).Send()
+	log.Info().Msg("===================================== StopTrack")
+	err := d.trackRepo.Update(context.Background(), &userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
+	}
 	return userTrack, exist
-}
-
-func (d *data) activeTrackButtons(uid int64) *tgbotapi.InlineKeyboardMarkup {
-	userTrack, exist := d.tracks[uid]
-	if !exist {
-		return tgModel.GetTGButtons(tgModel.KeyBoardTG{})
-	}
-	tasks, keys := userTrack.GetTasks(true)
-	var taskRows []tgModel.KeyBoardRowTG
-	taskRows = append(taskRows,
-		d.ButtonRow(track.StartTaskEvent, track.TakeBreakEvent, track.StoppedTaskEvent, track.SettingsEvent),
-		d.ButtonRow(track.SetTaskNameEvent))
-	for _, taskIndex := range keys {
-		taskRows = append(
-			taskRows,
-			tgModel.KBButs(
-				tgModel.KeyBoardButtonTG{
-					Text: fmt.Sprintf(track.TaskIcon + " " + tasks[taskIndex].Name),
-					Data: fmt.Sprintf("%s:%v", track.SetTaskAction, taskIndex),
-				}))
-	}
-	//taskRows = append(taskRows, d.ButtonRow(startTaskEvent))
-
-	return tgModel.GetTGButtons(tgModel.KBRows(taskRows...))
-}
-
-func (d *data) breakTrackButtons(_ int64) *tgbotapi.InlineKeyboardMarkup {
-	return tgModel.GetTGButtons(tgModel.KBRows(
-		d.ButtonRow(track.StopBreakEvent, track.StoppedTaskEvent, track.SettingsEvent),
-		d.ButtonRow(track.SetBreakNameEvent)))
-}
-
-func (d *data) trackButtons(_ int64) *tgbotapi.InlineKeyboardMarkup {
-	return tgModel.GetTGButtons(tgModel.KBRows(d.ButtonRow(track.StartTrackEvent, track.ShowProfileEvent)))
 }
 
 func (d *data) updateActiveTaskName(uid int64, newName string) (track.Track, bool) {
@@ -252,6 +254,11 @@ func (d *data) updateActiveTaskName(uid int64, newName string) (track.Track, boo
 	}
 	activeTask.Name = newName
 	userTrack.UpdateTask(activeTask)
+	log.Info().Msg("===================================== updateActiveTaskName")
+	err := d.trackRepo.Update(context.Background(), &userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
+	}
 	return userTrack, true
 }
 
@@ -278,20 +285,12 @@ func (d *data) setActiveTask(uid int64, id int) bool {
 	userTrack.ActiveTask = id
 	userTrack.Title = userTrack.GetTitle()
 	d.tracks[uid] = userTrack
-	return true
-}
-
-func (d *data) keyboard(t track.Track) *tgbotapi.InlineKeyboardMarkup {
-	var keyboard *tgbotapi.InlineKeyboardMarkup
-	switch t.Status {
-	case track.StatusProgress:
-		keyboard = d.activeTrackButtons(t.UserId)
-	case track.StatusPause:
-		keyboard = d.breakTrackButtons(t.UserId)
-	default:
-		keyboard = d.activeTrackButtons(t.UserId)
+	log.Info().Msg("===================================== setActiveTask")
+	err := d.trackRepo.Update(context.Background(), &userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
 	}
-	return keyboard
+	return true
 }
 
 func (d *data) GetTrack(uid int64) (track.Track, bool) {
@@ -299,4 +298,12 @@ func (d *data) GetTrack(uid int64) (track.Track, bool) {
 	defer d.mutex.Unlock()
 	userTrack, exist := d.tracks[uid]
 	return userTrack, exist
+}
+
+func (d *data) UpdateTrack(uid int64, userTrack track.Track) {
+	err := d.trackRepo.Update(context.Background(), &userTrack) // handle error
+	if err != nil {
+		log.Info().Err(err).Any("Update ERR", userTrack).Send()
+	}
+	d.tracks[uid] = userTrack
 }

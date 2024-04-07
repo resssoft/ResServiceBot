@@ -31,7 +31,7 @@ type Status int
 
 const (
 	StatusCreated = iota
-	StatusProgress
+	StatusStarted
 	StatusPause
 	StatusStopped
 	StatusProfile
@@ -49,14 +49,14 @@ type TimeItem struct {
 func (s Status) String() string {
 	switch s {
 	case StatusCreated:
-		return "Created"
-	case StatusProgress:
-		return "Started"
+		return "🆕" //"Created"
+	case StatusStarted:
+		return "⏱" //"Started"
 	case StatusPause:
-		return "Paused"
+		return "⏸" //"Paused"
 	case StatusStopped:
-		return "Stopped"
+		return "🏁" //"Stopped"
 	default:
-		return "none"
+		return "❓" //"none"
 	}
 }

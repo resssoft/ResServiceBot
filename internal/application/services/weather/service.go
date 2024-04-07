@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	"fun-coice/pkg/scribble"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	"fun-coice/pkg/scribble"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 
 	zlog "github.com/rs/zerolog/log"
 )

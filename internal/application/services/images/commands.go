@@ -2,10 +2,11 @@ package images
 
 import (
 	"fmt"
-	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"strconv"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 //TODO: add images buffer, imageMergeVertical, imageMergeHorizontal,

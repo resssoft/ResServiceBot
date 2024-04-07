@@ -1,9 +1,12 @@
 package track
 
 import (
-	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 const (
@@ -35,6 +38,8 @@ const (
 
 	SetTaskEvent  = "timeTraker_set_task"
 	SetTaskAction = "event:timeTraker_set_task"
+
+	UserSettingsSetDefaultTasks = "settingsSetDefaultTasks"
 )
 
 //💳📝📝💬💬✏️💬
@@ -43,10 +48,23 @@ const (
 //📝✏️🔎🗑🛠💾⏱⏰⏳🚩🏁➕➖➗✖️✔️🟠🟡🟢🔵🟣⚫️⚪️🔸🚧
 
 type User struct {
-	TgUser  tgbotapi.User
-	IsNew   bool
-	IDStr   string
-	LangISO string
+	MongoID  primitive.ObjectID `bson:"_id"`
+	TgUser   tgbotapi.User
+	Settings UserSettings
+}
+
+type UserSettings struct {
+	ID               int64
+	DefaultTaskNames []string
+	LangISO          string
+}
+
+func (u *User) defaultSettings() {
+	u.Settings = UserSettings{
+		ID:               u.TgUser.ID,
+		DefaultTaskNames: []string{DefaultTaskName}, //set by lang
+		LangISO:          u.TgUser.LanguageCode,
+	}
 }
 
 type TimeItem struct {
@@ -58,19 +76,20 @@ type TimeItem struct {
 }
 
 type Track struct {
-	Start      time.Time
-	End        time.Time
-	Break      time.Time
-	Title      string
-	UserId     int64
-	MsgId      int
-	Breaks     []TimeItem
-	Tasks      map[int]TimeItem
-	Status     Status
-	ActiveTask int
-	BotName    string
-	Code       string
-	//GMT    string use for time show
+	MongoID    primitive.ObjectID `bson:"_id"`
+	Start      time.Time          `bson:"start"`
+	End        time.Time          `bson:"end"`
+	Break      time.Time          `bson:"break"`
+	Title      string             `bson:"title"`
+	UserId     int64              `bson:"user_id"`
+	MsgId      int                `bson:"message_id"`
+	Breaks     []TimeItem         `bson:"breaks"`
+	Tasks      map[int]TimeItem   `bson:"tasks"`
+	Status     Status             `bson:"status"`
+	ActiveTask int                `bson:"active_task"`
+	BotName    string             `bson:"not_name"`
+	Code       string             `bson:"code"`
+	//GMT string use for time show
 }
 
 type TrackFilter struct {
@@ -125,4 +144,15 @@ type Button struct {
 	Action string
 	Event  string
 	Data   tgModel.KeyBoardButtonTG
+}
+
+type Users map[int64]User
+
+type UserFilter struct {
+	UserId  *int64
+	MsgId   *int
+	Status  Status
+	BotName *string
+	Code    *string
+	//GMT    string use for time show
 }

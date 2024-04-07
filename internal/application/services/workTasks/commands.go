@@ -10,6 +10,7 @@ func (d *data) initCommands() {
 	commandsList.AddSimple("timeTrack", "Show time track controls", d.timeTrack)
 	commandsList.AddSimple("timeTrack_add_task", "Add task to active track, need task name parameter", d.addTaskButtonEventHandler)
 	commandsList.AddSimple("timeTrack_set_task_name", "Add task to active track, need task name parameter", d.setTaskNameButtonEventHandler)
+	commandsList.AddSimple("timeTrack_set_defaultTasks", "Set default tasks for start track", d.UserSettingsTasks) //set unpublish
 
 	commandsList.AddEvent(track.SetTaskEvent, d.SetActiveTask)
 
@@ -23,8 +24,10 @@ func (d *data) initCommands() {
 
 	d.addButton("📝 Задать имя активной задачи", track.SetTaskNameEvent, d.setTaskNameButtonEventHandler)
 	d.addButton("➕", track.StartTaskEvent, d.addTaskButtonEventHandler)
-	d.addButton("👤 Профиль", track.ShowProfileEvent, d.NotImplementHandler)
+	d.addButton("👤 Профиль", track.ShowProfileEvent, d.profileButtonEventHandler)
 	d.addButton("📝 Задать имя перерыву", track.SetBreakNameEvent, d.NotImplementHandler)
+
+	d.addButton("📝 Таски при старте трэка", track.UserSettingsSetDefaultTasks, d.UserSettingsTasks)
 
 	//TODO edit time, duration, start, end
 

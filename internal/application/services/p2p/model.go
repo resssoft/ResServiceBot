@@ -1,8 +1,9 @@
 package p2p
 
 import (
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"time"
+
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type User struct {

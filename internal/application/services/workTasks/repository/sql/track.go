@@ -12,14 +12,14 @@ import (
 
 const tableName = "timeTrack_tracks"
 
-var _ repository.Repository = (*RepositorySQL)(nil)
+var _ repository.TrackRepository = (*RepositorySQL)(nil)
 
 type RepositorySQL struct {
 	storage *sql.DB
 	builder goqu.DialectWrapper
 }
 
-func NewSQLRepo(DB *sql.DB) (repository.Repository, error) {
+func NewSQLRepo(DB *sql.DB) (repository.TrackRepository, error) {
 	repo := &RepositorySQL{
 		storage: DB,
 		builder: goqu.Dialect("sqlite3"),
@@ -62,10 +62,10 @@ func (r *RepositorySQL) Migrate() error {
 	return nil
 }
 
-func (r *RepositorySQL) Create(ctx context.Context, track track.Track) error {
+func (r *RepositorySQL) Create(ctx context.Context, track track.Track) (track.Track, error) {
 	jsonData, err := json.Marshal(track)
 	if err != nil {
-		return err
+		return track, err
 	}
 	jsonDataStr := string(jsonData)
 	queryObject := r.builder.
@@ -88,11 +88,11 @@ func (r *RepositorySQL) Create(ctx context.Context, track track.Track) error {
 
 	query, args, err := queryObject.ToSQL()
 	if err != nil {
-		return err
+		return track, err
 	}
 	//logger.RepositoryLogger(ctx).Info("Commissions", zap.String("query", query))
 	_, err = r.storage.Exec(query, args...)
-	return err
+	return track, err
 }
 
 func (r *RepositorySQL) Update(ctx context.Context, item *track.Track) error {

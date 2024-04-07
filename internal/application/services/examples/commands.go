@@ -2,8 +2,9 @@ package examples
 
 import (
 	"fmt"
+
 	tgModel "fun-coice/internal/domain/commands/tg"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 func (d *data) help(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {

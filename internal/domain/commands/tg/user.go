@@ -2,8 +2,10 @@ package tgModel
 
 import (
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
 type User struct {

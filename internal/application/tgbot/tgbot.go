@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	zlog "github.com/rs/zerolog/log"
+
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
 
 	"fun-coice/config"
 	tgModel "fun-coice/internal/domain/commands/tg"
@@ -351,6 +352,14 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 				emojiList += emoji.Emoji
 			}
 			customMsg.Text = emojiList
+
+			emojiListOld := ""
+			for _, emoji := range update.MessageReaction.OldReaction {
+				emojiListOld += emoji.Emoji
+			}
+			customMsg.Caption = emojiListOld
+			customMsg.MessageID = update.MessageReaction.MessageID
+			customMsg.Date = update.MessageReaction.Date
 			go d.RunEvents(tgModel.MessageReactionEvent, customMsg, new(tgModel.Command))
 		}
 
