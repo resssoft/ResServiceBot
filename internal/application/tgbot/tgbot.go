@@ -249,14 +249,20 @@ func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Me
 	if result.Prepared {
 		//fmt.Println("COMMAND PREPAERD") //DEVMODE
 		log.Println("result.Messages", len(result.Messages))
-		for _, chantEvent := range result.Messages {
+		for _, chatEvent := range result.Messages {
 			//log.Println("chatEvent", chantEvent)
 
-			msgRes, err := d.Bot.Send(chantEvent) //TODO: check limits by this package method
+			msgRes, err := d.Bot.Send(chatEvent.Event) //TODO: check limits by this package method
 			if err != nil {
 				fmt.Println(err.Error())
 			} else {
 				fmt.Println("Send message", msgRes.MessageID)
+				if chatEvent.Callback != nil {
+					chatEvent.Callback <- tgModel.CallbackData{
+						Tag:   chatEvent.Tag,
+						Value: msgRes.MessageID,
+					}
+				}
 			}
 		}
 		//set differ with event

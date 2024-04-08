@@ -23,14 +23,36 @@ func (d *data) search(chatId int64, msgId int) *Task {
 	return nil
 }
 
-func (d *data) save(chatId int64, task Task) error {
+func (d *data) searchByCode(code string) (*Task, int64) {
+	d.mutexTask.Lock()
+	defer d.mutexTask.Unlock()
+	foundUid, ok := d.tasksIdx[code]
+	if !ok {
+		return nil, 0
+	}
+	foundUserData, ok := d.userData[foundUid]
+	if !ok {
+		return nil, foundUid
+	}
+	val, ok := foundUserData.tasks[code]
+	if ok {
+		return &val, foundUid
+	}
+	return nil, 0
+}
+
+func (d *data) save(chatId int64, task Task, code string) error {
 	d.mutexTask.Lock()
 	defer d.mutexTask.Unlock()
 	foundUserData, ok := d.userData[chatId]
 	if !ok {
 		return errors.New("user tasks not found")
 	}
+	if code != task.Code {
+		delete(foundUserData.tasks, code)
+	}
 	foundUserData.tasks[task.Code] = task
+	d.tasksIdx[task.Code] = chatId
 	return nil
 }
 
@@ -39,7 +61,7 @@ func (t *Task) Format() string {
 	if t.Status == StatusStarted || t.Status == StatusStopped {
 		taskTime = Duration(time.Now().Sub(t.Start))
 	}
-	return fmt.Sprintf("%s[%s]\n%s\n",
+	return fmt.Sprintf("%s[%s] %s\n",
 		t.Status,
 		taskTime,
 		t.Title,

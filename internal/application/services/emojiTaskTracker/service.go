@@ -1,6 +1,8 @@
 package emojiTaskTracker
 
 import (
+	"fmt"
+
 	"github.com/sasha-s/go-deadlock"
 
 	"fun-coice/internal/domain/commands/tg"
@@ -16,7 +18,9 @@ type data struct {
 	name      string
 	userData  map[int64]userData
 	tasks     map[int64]Task
+	tasksIdx  map[string]int64
 	mutexTask deadlock.Mutex
+	callback  chan tgModel.CallbackData
 }
 
 func New() tgModel.Service {
@@ -25,6 +29,8 @@ func New() tgModel.Service {
 		name:     name,
 		list:     tgModel.NewCommands(),
 		userData: make(map[int64]userData),
+		tasksIdx: make(map[string]int64),
+		callback: make(chan tgModel.CallbackData),
 	}
 	//commandsList := tgModel.NewCommands()
 	result.list.AddSimple("NewTask", "Added task with emoji control", result.NewTask)
@@ -37,6 +43,7 @@ func New() tgModel.Service {
 		IsEvent: true,
 		Handler: result.reactionEvent,
 	}
+	go result.CallbackHandler()
 	//result.list = commandsList
 	return &result
 }
@@ -54,3 +61,17 @@ func (d *data) Events() []string {
 }
 
 func (d *data) Configure(_ tgModel.ServiceConfig) {}
+
+func (d *data) CallbackHandler() {
+	for callbackItem := range d.callback {
+		fmt.Println("CALLBACK", callbackItem.Tag, callbackItem.Value)
+		fmt.Println("CALLBACK", d.userData)
+		task, chatId := d.searchByCode(callbackItem.Tag)
+		if task != nil {
+			task.Code = fmt.Sprintf("%v_%v", chatId, callbackItem.Value)
+			task.MsgId = callbackItem.Value
+			d.save(chatId, *task, callbackItem.Tag)
+		}
+		fmt.Println("CALLBACK", d.userData)
+	}
+}

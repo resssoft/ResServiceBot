@@ -10,10 +10,16 @@ type HandlerResult struct {
 	Resend   *tgbotapi.Message // message for resend
 	Next     string            // next command
 	Redirect *Redirect         //
-	Messages []tgbotapi.Chattable
+	Messages []MessageEvent
 	Data     string
 	Buttons  *tgbotapi.InlineKeyboardMarkup
 	Events   []Event // run some events (or commands) after processing the current command
+}
+
+type MessageEvent struct {
+	Event    tgbotapi.Chattable
+	Tag      string
+	Callback chan CallbackData
 }
 
 type HandlerFunc func(*tgbotapi.Message, *Command) *HandlerResult
@@ -28,15 +34,36 @@ func Delete(chatId int64, msgId int) *HandlerResult {
 	return PreparedCommand(tgbotapi.NewDeleteMessage(chatId, msgId))
 }
 
+func SimpleMessageEvents(chatEvents ...tgbotapi.Chattable) []MessageEvent {
+	var list []MessageEvent
+	for _, event := range chatEvents {
+		list = append(list, MessageEvent{Event: event})
+	}
+	return list
+}
+
 func PreparedCommand(chatEvents ...tgbotapi.Chattable) *HandlerResult {
 	return &HandlerResult{
 		Prepared: true,
-		Messages: chatEvents,
+		Messages: SimpleMessageEvents(chatEvents...),
 	}
 }
 
 func Simple(chatId int64, text string) *HandlerResult {
 	return PreparedCommand(tgbotapi.NewMessage(chatId, text))
+}
+
+func SimpleWIthCallback(chatId int64, text, tag string, callback chan CallbackData) *HandlerResult {
+	return &HandlerResult{
+		Prepared: true,
+		Messages: []MessageEvent{
+			{
+				Event:    tgbotapi.NewMessage(chatId, text),
+				Tag:      tag,
+				Callback: callback,
+			},
+		},
+	}
 }
 
 func SimpleEdit(chatId int64, msgId int, text string) *HandlerResult {
@@ -67,7 +94,7 @@ func SimpleEditWithButtons(chatId int64, msgId int, text string, bts *tgbotapi.I
 
 func UnPreparedCommand(chatEvent tgbotapi.Chattable) *HandlerResult {
 	return &HandlerResult{
-		Messages: []tgbotapi.Chattable{chatEvent},
+		Messages: SimpleMessageEvents(chatEvent),
 	}
 }
 
@@ -84,7 +111,7 @@ func DeferredWithText(chatId int64, text, command, data string, msg *tgbotapi.Me
 	return &HandlerResult{
 		Deferred: true,
 		Prepared: true,
-		Messages: []tgbotapi.Chattable{tgbotapi.NewMessage(chatId, text)},
+		Messages: SimpleMessageEvents(tgbotapi.NewMessage(chatId, text)),
 		Next:     command,
 		Data:     data,
 		Resend:   msg,
@@ -95,7 +122,7 @@ func WaitingPreparedCommand(chatEvent tgbotapi.Chattable) *HandlerResult {
 	return &HandlerResult{
 		Deferred: true,
 		Prepared: true,
-		Messages: []tgbotapi.Chattable{chatEvent},
+		Messages: SimpleMessageEvents(chatEvent),
 	}
 }
 
@@ -128,17 +155,17 @@ func (hr *HandlerResult) WithDeferred(command string, msg *tgbotapi.Message) *Ha
 }
 
 func (hr *HandlerResult) WithText(chatId int64, text string) *HandlerResult {
-	hr.Messages = []tgbotapi.Chattable{tgbotapi.NewMessage(chatId, text)}
+	hr.Messages = SimpleMessageEvents(tgbotapi.NewMessage(chatId, text))
 	return hr
 }
 
 func (hr *HandlerResult) AddSimple(chatId int64, text string) *HandlerResult {
-	hr.Messages = append(hr.Messages, tgbotapi.NewMessage(chatId, text))
+	hr.Messages = append(hr.Messages, SimpleMessageEvents(tgbotapi.NewMessage(chatId, text))...)
 	return hr
 }
 
 func (hr *HandlerResult) WithDelete(chatId int64, msgId int) *HandlerResult {
-	hr.Messages = append(hr.Messages, tgbotapi.NewDeleteMessage(chatId, msgId))
+	hr.Messages = append(hr.Messages, SimpleMessageEvents(tgbotapi.NewDeleteMessage(chatId, msgId))...)
 	return hr
 }
 

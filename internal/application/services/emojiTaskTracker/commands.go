@@ -54,7 +54,7 @@ func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *t
 		foundedTask := d.search(msg.Chat.ID, msg.MessageID)
 		if foundedTask != nil {
 			foundedTask.Status = StatusPause
-			d.save(msg.Chat.ID, *foundedTask)
+			d.save(msg.Chat.ID, *foundedTask, foundedTask.Code)
 			return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
 		}
 		fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
@@ -62,16 +62,18 @@ func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *t
 		foundedTask := d.search(msg.Chat.ID, msg.MessageID)
 		if foundedTask != nil {
 			foundedTask.Status = StatusStopped
-			d.save(msg.Chat.ID, *foundedTask)
+			d.save(msg.Chat.ID, *foundedTask, foundedTask.Code)
 			return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
 		}
 		fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
 	case d.isStarted(msg.Text, msg.Chat.ID):
 		foundedTask := d.search(msg.Chat.ID, msg.MessageID)
 		if foundedTask != nil {
-			foundedTask.Status = StatusStarted
-			foundedTask.Start = time.Now()
-			d.save(msg.Chat.ID, *foundedTask)
+			if foundedTask.Status != StatusStarted {
+				foundedTask.Status = StatusStarted
+				foundedTask.Start = time.Now()
+				d.save(msg.Chat.ID, *foundedTask, foundedTask.Code)
+			}
 			return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
 		}
 		fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
@@ -109,7 +111,8 @@ func (d *data) NewTask(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 		}
 	}
 	d.userData[msg.Chat.ID].tasks[code] = newTask
-	return tgModel.Simple(msg.Chat.ID, newTask.Format()).WithDelete(msg.Chat.ID, msg.MessageID)
+	d.tasksIdx[code] = msg.Chat.ID
+	return tgModel.SimpleWIthCallback(msg.Chat.ID, newTask.Format(), code, d.callback).WithDelete(msg.Chat.ID, msg.MessageID)
 }
 
 func (d *data) activeTasks(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

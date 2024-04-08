@@ -24,6 +24,11 @@ type BotParamResponse struct {
 
 type ParamHandlerFunc func(BotParamRequest) BotParamResponse
 
+type CallbackData struct {
+	Tag   string
+	Value int
+}
+
 func (bpr BotParamResponse) Str() string {
 	return bpr.StrVal
 }

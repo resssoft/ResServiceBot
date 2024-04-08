@@ -27,6 +27,7 @@ type Command struct {
 	IsEvent       bool
 	ListExclude   bool
 	Deferred      bool // send by Deferred method
+	callback      chan CallbackData
 	//State       string //offline or online, service can be down
 	//WithFiles   bool // Files need prepare
 	// Arguments: parsed before use, actual in the raw field
