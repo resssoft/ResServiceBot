@@ -85,7 +85,7 @@ func main() {
 	}
 	mongoDbApp, err := database.ProvideMongo(config.DbMongoUrl(), config.DbMongoDbName(), dispatcher)
 	if err != nil {
-		log.Fatal().Err(err).Send()
+		log.Error().Err(err).Send()
 	}
 
 	//TODO: add falgs for version and config test
