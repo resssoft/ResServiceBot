@@ -20,7 +20,7 @@ type data struct {
 	tasks     map[int64]Task
 	tasksIdx  map[string]int64
 	mutexTask deadlock.Mutex
-	callback  chan tgModel.CallbackData
+	callback  chan tgModel.CallbackData `json:"-"`
 }
 
 func New() tgModel.Service {
@@ -70,8 +70,15 @@ func (d *data) CallbackHandler() {
 		if task != nil {
 			task.Code = fmt.Sprintf("%v_%v", chatId, callbackItem.Value)
 			task.MsgId = callbackItem.Value
-			d.save(chatId, *task, callbackItem.Tag)
+			d.save(chatId, task, callbackItem.Tag)
 		}
 		fmt.Println("CALLBACK", d.userData)
 	}
 }
+
+//TODO: save to db tasks
+//TODO: timer for task time update to actial duration in tg msg
+//TODO: changed user emoji
+//TODO: add simple examples for first start
+//TODO: tasks history command
+//TODO: tasks controls - edit, delete

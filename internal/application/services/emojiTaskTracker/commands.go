@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	tgbotapi "fun-coice/pkg/telegram-bot-api"
@@ -52,34 +53,41 @@ func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *t
 	switch {
 	case d.isPaused(msg.Text, msg.Chat.ID):
 		foundedTask := d.search(msg.Chat.ID, msg.MessageID)
-		if foundedTask != nil {
-			foundedTask.Status = StatusPause
-			d.save(msg.Chat.ID, *foundedTask, foundedTask.Code)
-			return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
+		log.Info().Interface("task", foundedTask).Send()
+		if foundedTask == nil {
+			fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
+			return tgModel.EmptyCommand()
 		}
-		fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
+		d.save(msg.Chat.ID, foundedTask.SetPaused(), foundedTask.Code)
+		log.Info().Interface("task", foundedTask).Send()
+		log.Info().Msg(foundedTask.Format())
+		return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
 	case d.isFinished(msg.Text, msg.Chat.ID):
 		foundedTask := d.search(msg.Chat.ID, msg.MessageID)
-		if foundedTask != nil {
-			foundedTask.Status = StatusStopped
-			d.save(msg.Chat.ID, *foundedTask, foundedTask.Code)
-			return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
+		log.Info().Interface("task", foundedTask).Send()
+		if foundedTask == nil {
+			fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
+			return tgModel.EmptyCommand()
 		}
-		fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
+		d.save(msg.Chat.ID, foundedTask.SetStopped(), foundedTask.Code)
+		log.Info().Interface("task", foundedTask).Send()
+		log.Info().Msg(foundedTask.Format())
+		return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
 	case d.isStarted(msg.Text, msg.Chat.ID):
 		foundedTask := d.search(msg.Chat.ID, msg.MessageID)
-		if foundedTask != nil {
-			if foundedTask.Status != StatusStarted {
-				foundedTask.Status = StatusStarted
-				foundedTask.Start = time.Now()
-				d.save(msg.Chat.ID, *foundedTask, foundedTask.Code)
-			}
-			return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
+		log.Info().Interface("task", foundedTask).Send()
+		if foundedTask == nil {
+			fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
+			return tgModel.EmptyCommand()
 		}
-		fmt.Println("NOT FOUND", msg.Chat.ID, msg.MessageID)
+		d.save(msg.Chat.ID, foundedTask.SetStarted(), foundedTask.Code)
+		log.Info().Msg(foundedTask.Format())
+		return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
 	default:
+		fmt.Println("====================================== default")
 		foundedTask := d.search(msg.Chat.ID, msg.MessageID)
 		if foundedTask != nil {
+			log.Info().Interface("task", foundedTask).Send()
 			return tgModel.SimpleEdit(msg.Chat.ID, msg.MessageID, foundedTask.Format())
 		}
 		return tgModel.EmptyCommand()
@@ -92,6 +100,9 @@ func (d *data) NewTask(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	defer d.mutexTask.Unlock()
 	fmt.Println("====================================== NewTask")
 	code := fmt.Sprintf("%v_%v", msg.Chat.ID, msg.MessageID)
+	if msg.ForwardFromMessageID != 0 {
+
+	}
 	newTask := Task{
 		MongoID: primitive.NewObjectID(),
 		Start:   time.Time{},
@@ -107,11 +118,14 @@ func (d *data) NewTask(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 	}
 	if _, ok := d.userData[msg.Chat.ID]; !ok {
 		d.userData[msg.Chat.ID] = userData{
-			tasks: make(map[string]Task),
+			tasks: make(map[string]*Task),
 		}
 	}
-	d.userData[msg.Chat.ID].tasks[code] = newTask
+	d.userData[msg.Chat.ID].tasks[code] = &newTask
 	d.tasksIdx[code] = msg.Chat.ID
+	if msg.ForwardFromMessageID != 0 {
+
+	}
 	return tgModel.SimpleWIthCallback(msg.Chat.ID, newTask.Format(), code, d.callback).WithDelete(msg.Chat.ID, msg.MessageID)
 }
 

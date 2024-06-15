@@ -26,8 +26,8 @@ type Command struct {
 	Menu          bool // set to bot tg menu
 	IsEvent       bool
 	ListExclude   bool
-	Deferred      bool // send by Deferred method
-	callback      chan CallbackData
+	Deferred      bool              // send by Deferred method
+	callback      chan CallbackData `json:"-"`
 	//State       string //offline or online, service can be down
 	//WithFiles   bool // Files need prepare
 	// Arguments: parsed before use, actual in the raw field

@@ -19,7 +19,7 @@ type HandlerResult struct {
 type MessageEvent struct {
 	Event    tgbotapi.Chattable
 	Tag      string
-	Callback chan CallbackData
+	Callback chan CallbackData `json:"-"`
 }
 
 type HandlerFunc func(*tgbotapi.Message, *Command) *HandlerResult

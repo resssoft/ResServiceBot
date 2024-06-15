@@ -8,22 +8,25 @@ import (
 
 type userData struct {
 	MongoID primitive.ObjectID `bson:"_id"`
-	tasks   map[string]Task
+	tasks   map[string]*Task
 }
 
 type Task struct {
-	MongoID    primitive.ObjectID `bson:"_id"`
-	Start      time.Time          `bson:"start"`
-	End        time.Time          `bson:"end"`
-	Break      time.Time          `bson:"break"`
-	Title      string             `bson:"title"`
-	UserId     int64              `bson:"user_id"`
-	MsgId      int                `bson:"message_id"`
-	Breaks     []TimeItem         `bson:"breaks"`
-	Status     Status             `bson:"status"`
-	ActiveTask int                `bson:"active_task"`
-	BotName    string             `bson:"not_name"`
-	Code       string             `bson:"code"`
+	MongoID      primitive.ObjectID `bson:"_id"`
+	Start        time.Time          `bson:"start"`
+	End          time.Time          `bson:"end"`
+	Break        time.Time          `bson:"break"`
+	Title        string             `bson:"title"`
+	UserId       int64              `bson:"user_id"`
+	MsgId        int                `bson:"message_id"`
+	Breaks       []TimeItem         `bson:"breaks"`
+	Status       Status             `bson:"status"`
+	ActiveTask   int                `bson:"active_task"`
+	BotName      string             `bson:"not_name"`
+	Code         string             `bson:"code"`
+	ParentMsg    string             `bson:"parent_msg"`
+	SubTasks     []string           `bson:"subtasks"`
+	Accumulation time.Duration      `bson:"accumulation"`
 	//GMT string use for time show
 }
 

@@ -18,7 +18,7 @@ func (d *data) search(chatId int64, msgId int) *Task {
 	}
 	val, ok := foundUserData.tasks[fmt.Sprintf("%v_%v", chatId, msgId)]
 	if ok {
-		return &val
+		return val
 	}
 	return nil
 }
@@ -36,12 +36,15 @@ func (d *data) searchByCode(code string) (*Task, int64) {
 	}
 	val, ok := foundUserData.tasks[code]
 	if ok {
-		return &val, foundUid
+		return val, foundUid
 	}
 	return nil, 0
 }
 
-func (d *data) save(chatId int64, task Task, code string) error {
+func (d *data) save(chatId int64, task *Task, code string) error {
+	if task == nil {
+		return errors.New("user tasks is empty")
+	}
 	d.mutexTask.Lock()
 	defer d.mutexTask.Unlock()
 	foundUserData, ok := d.userData[chatId]
@@ -58,14 +61,41 @@ func (d *data) save(chatId int64, task Task, code string) error {
 
 func (t *Task) Format() string {
 	taskTime := "-:-:-"
-	if t.Status == StatusStarted || t.Status == StatusStopped {
-		taskTime = Duration(time.Now().Sub(t.Start))
+	if t.Status == StatusStarted {
+		taskTime = Duration(time.Now().Sub(t.Start) + t.Accumulation)
+		//exclude breaks
+	} else {
+		taskTime = Duration(t.Accumulation)
 	}
 	return fmt.Sprintf("%s[%s] %s\n",
 		t.Status,
 		taskTime,
 		t.Title,
 	)
+}
+
+func (t *Task) SetStarted() *Task {
+	if t.Status != StatusStarted {
+		t.Start = time.Now()
+	}
+	t.Status = StatusStarted
+	return t
+}
+
+func (t *Task) SetPaused() *Task {
+	if t.Status == StatusStarted {
+		t.Accumulation += time.Now().Sub(t.Start)
+	}
+	t.Status = StatusPause
+	return t
+}
+
+func (t *Task) SetStopped() *Task {
+	if t.Status == StatusStarted && t.Accumulation != StatusPause {
+		t.Accumulation += time.Now().Sub(t.Start)
+	}
+	t.Status = StatusStopped
+	return t
 }
 
 func Duration(dt time.Duration) string {
