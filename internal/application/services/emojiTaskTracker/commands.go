@@ -15,6 +15,7 @@ import (
 
 const description = `Bot for create and tracking tasks and controls by emoji
 emoji controls look by command /emoji
+Beta version!
 `
 
 //👌😱💯🔥👎❤️👍
