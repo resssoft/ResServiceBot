@@ -2,13 +2,14 @@ package appStat
 
 import (
 	"fmt"
-	"github.com/hako/durafmt"
 	"runtime"
 	"time"
+
+	"github.com/hako/durafmt"
 )
 
 const (
-	Version        = "1.0.0.420" //grepVersion
+	Version        = "1.0.0.430" //grepVersion
 	DateTimeFormat = "2006-01-02 15:04:05 -0700"
 )
 
