@@ -28,6 +28,7 @@ import (
 	"fun-coice/internal/application/services/msgStore"
 	"fun-coice/internal/application/services/p2p"
 	"fun-coice/internal/application/services/qrcodes"
+	"fun-coice/internal/application/services/testManager"
 	"fun-coice/internal/application/services/text"
 	"fun-coice/internal/application/services/translate"
 	"fun-coice/internal/application/services/transliter"
@@ -162,6 +163,7 @@ func main() {
 		p2p.New(db),
 		workTasks.New(db, mongoDbApp), // TODO: plan
 		emojiTaskTracker.New(),
+		testManager.New(),
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {

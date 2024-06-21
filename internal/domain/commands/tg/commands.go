@@ -34,6 +34,14 @@ func (cs Commands) Add(name string, item Command) Commands {
 	return cs
 }
 
+func (cs Commands) Append(item Command) Commands {
+	if cs == nil {
+		cs = make(Commands)
+	}
+	cs[item.Command] = item
+	return cs
+}
+
 func (cs Commands) AddWIth(
 	name, description, commandType string,
 	synonyms, triggers, templates []string,

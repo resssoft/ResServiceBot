@@ -19,15 +19,15 @@ type Command struct {
 	Templates     []string
 	Arguments     CommandArguments
 	Permissions   CommandPermissions
-	Handler       HandlerFunc
+	Handler       HandlerFunc `json:"-"`
 	FileTypes     FileTypes
-	FilesCallback FileHandlerFunc
-	ParamCallback ParamHandlerFunc
-	Menu          bool // set to bot tg menu
+	FilesCallback FileHandlerFunc  `json:"-"`
+	ParamCallback ParamHandlerFunc `json:"-"`
+	Menu          bool             //TODO: set to bot tg menu
 	IsEvent       bool
 	ListExclude   bool
 	Deferred      bool              // send by Deferred method
-	callback      chan CallbackData `json:"-"`
+	Callback      chan CallbackData `json:"-"`
 	//State       string //offline or online, service can be down
 	//WithFiles   bool // Files need prepare
 	// Arguments: parsed before use, actual in the raw field
@@ -54,7 +54,7 @@ func (t *Command) Simple(
 	handler HandlerFunc,
 	synonyms ...string) *Command {
 	return &Command{
-		Command:     "/" + name,
+		Command:     name,
 		Description: description,
 		Permissions: FreePerms,
 		Handler:     handler,
@@ -74,6 +74,16 @@ func q(handler HandlerFunc) {
 	//change add commands method
 	//commandsList.AddEvent(startTaskButtonEvent, result.startTaskButtonEventHandler)
 	NewEvent("name", handler).Push(nil)
+}
+
+func (t *Command) AsMenu() *Command {
+	t.Menu = true
+	return t
+}
+
+func (t *Command) WithTemplates(list []string) *Command {
+	t.Templates = list
+	return t
 }
 
 func (t *Command) Push(cs Commands) Commands {
