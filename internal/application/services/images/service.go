@@ -17,21 +17,18 @@ func New() tgModel.Service {
 	commandsList["imageHelp"] = tgModel.Command{
 		Command:     "imageHelp",
 		Description: "image commands info",
-		CommandType: "text",
 		Permissions: tgModel.FreePerms,
 		Handler:     result.help,
 	}
 	commandsList["resize"] = tgModel.Command{
 		Command:     "resize",
 		Description: "resize image",
-		CommandType: "text",
 		Permissions: tgModel.FreePerms,
 		Handler:     result.resize,
 	}
 	commandsList["resizeImage"] = tgModel.Command{
 		Command:     "resizeImage",
 		Description: "resize image",
-		CommandType: "text",
 		ListExclude: true,
 		IsEvent:     true,
 		Permissions: tgModel.FreePerms,
@@ -41,14 +38,12 @@ func New() tgModel.Service {
 	commandsList["rotate"] = tgModel.Command{
 		Command:     "rotate",
 		Description: "rotate image",
-		CommandType: "text",
 		Permissions: tgModel.FreePerms,
 		Handler:     result.rotate,
 	}
 	commandsList["rotateImage"] = tgModel.Command{
 		Command:     "rotateImage",
 		Description: "rotate image",
-		CommandType: "text",
 		ListExclude: true,
 		//IsEvent:     true,
 		Permissions: tgModel.FreePerms,

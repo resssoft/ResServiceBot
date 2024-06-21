@@ -63,14 +63,14 @@ func setRedirectByCommand(msg *tgbotapi.Message, command *tgModel.Command) *tgMo
 
 func (d *Data) commandsList(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	commandsList := "Commands:\n"
-	for _, item := range d.Commands {
+	for key, item := range d.Commands {
 		if item.ListExclude {
 			continue
 		}
 		if !item.Permission(msg, d.AdminId) {
 			continue
 		}
-		commandsList += "/" + item.Command + " - " + item.Description + "\n"
+		commandsList += "/" + key + " - " + item.Description + "\n"
 	}
 	return tgModel.Simple(msg.Chat.ID, commandsList)
 }

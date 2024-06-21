@@ -245,7 +245,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 }
 
 func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Message) bool {
-	fmt.Println("!!! SendCommandResult")
+	fmt.Println("!!! SendCommandResult", result)
 	if result.Prepared {
 		//fmt.Println("COMMAND PREPAERD") //DEVMODE
 		log.Println("result.Messages", len(result.Messages))
@@ -282,9 +282,7 @@ func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Me
 				}
 			}
 		}
-		if !result.Deferred {
-			return true
-		}
+		//if !result.Deferred {return true}
 	}
 	if result.Redirect != nil && msg != nil {
 		//TODO: check redirect step limit
@@ -311,7 +309,7 @@ func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Me
 		d.AppendDeferred(defBy, result.Next, result.Data, result.Resend)
 		return true
 	}
-	return false
+	return true
 }
 
 func (d *Data) MessagesHandler() {
@@ -653,6 +651,7 @@ func (d *Data) AddCommands(newItems tgModel.Commands, serviceName string) {
 	d.mutexCommands.Unlock()
 
 	for _, item := range newItems {
+		log.Println("===================menu-check", item.Command, item.Menu)
 		if item.Menu {
 			_, err := d.Bot.Request(
 				tgbotapi.NewSetMyCommands(
