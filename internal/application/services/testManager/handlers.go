@@ -107,6 +107,9 @@ func (d *data) answer(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.Handle
 	for i, q := range foundedTest.Children {
 		if q.Current {
 			msgResult = q.Incorrect
+			if q.ShowAnswer {
+				msgResult += fmt.Sprintf("(%v)", q.Answers)
+			}
 			q.Answer = msg.Text
 			q.Current = false
 			for _, answer := range q.Answers {
@@ -149,7 +152,51 @@ func (d *data) ending(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.Handle
 
 func (d *data) importTest(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
 	//TODO:implement
-	return tgModel.Simple(msg.Chat.ID, "Format: \n"+
+	return tgModel.DeferredWithText(msg.Chat.ID, "Format: \n"+
 		"First line: code (for code='my_code', will be created command /test_run_my_code ) \n"+
-		"Second line test name - it will be printed before start")
+		"Second line test name - it will be printed before start\n"+
+		"And than between lines separator: '#'. And after question blocks. Example:\n\n"+
+		"example_code\n"+
+		"Example test name\n"+
+		"#\n"+
+		"1+1=?\n"+
+		"2\n"+
+		"#\n"+
+		"2+2=?\n"+
+		"4\n"+
+		"5-1", "event:test_import", "", nil)
+}
+
+func (d *data) importTestEvent(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
+	blocks := strings.Split(msg.Text, "#\n")
+	if len(blocks) == 0 {
+		return tgModel.Simple(msg.Chat.ID, "incorrect format blocks with separator #").WithRedirect("test_question", msg)
+	}
+	title := strings.Split(blocks[0], "\n")
+	if len(title) < 0 {
+		return tgModel.Simple(msg.Chat.ID, "incorrect format, cant separate code and name").WithRedirect("test_question", msg)
+	}
+	newTest := &testParent{
+		Name:     title[1],
+		Code:     title[0],
+		Children: make([]*testChild, 0),
+	}
+	questions := blocks[1:]
+	for _, question := range questions {
+		testData := strings.Split(question, "\n")
+		if len(testData) < 2 {
+			continue
+		}
+		newTest.Children = append(newTest.Children, &testChild{
+			Question:   testData[0],
+			Answers:    testData[1:],
+			Variants:   testData[1:],
+			Incorrect:  "wrong!",
+			Correct:    "correct",
+			ShowAnswer: true,
+		})
+	}
+	d.setTest(newTest)
+	return tgModel.Simple(msg.Chat.ID,
+		fmt.Sprintf("Imported. Quesions[%v] /test_run_%s", len(newTest.Children), newTest.Code))
 }

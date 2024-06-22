@@ -38,14 +38,14 @@ func New() tgModel.Service {
 		Push(commandsList)
 
 	tgModel.FreeCommand().
-		Simple("test_import", "Import test from text or file", result.done).
+		Simple("test_import", "Import test from text or file", result.importTest).
 		Push(commandsList)
 
 	tgModel.NewEvent("test_set_name", result.setName).Push(commandsList)
 	tgModel.NewEvent("test_append", result.append).Push(commandsList)
 	tgModel.NewEvent("test_question", result.question).Push(commandsList)
 	tgModel.NewEvent("test_answer", result.answer).Push(commandsList)
-	tgModel.NewEvent("test_import", result.importTest).Push(commandsList)
+	tgModel.NewEvent("test_import", result.importTestEvent).Push(commandsList)
 
 	log.Info().Interface("commandsList_", commandsList).Send() //DEBUG
 	result.list = commandsList

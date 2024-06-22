@@ -7,12 +7,13 @@ type testParent struct {
 }
 
 type testChild struct {
-	Question  string
-	Type      string
-	Answers   []string
-	Variants  []string
-	Incorrect string
-	Correct   string
+	Question   string
+	Type       string
+	Answers    []string
+	Variants   []string
+	Incorrect  string
+	Correct    string
+	ShowAnswer bool
 
 	Answer  string
 	Current bool

@@ -35,11 +35,12 @@ func (d *data) appendTestRows(data string, newItem *testParent) error {
 		return errors.New("low row numbers")
 	}
 	newItem.Children = append(newItem.Children, &testChild{
-		Question:  testData[0],
-		Answers:   testData[1:],
-		Variants:  testData[1:],
-		Incorrect: "wrong!",
-		Correct:   "correct",
+		Question:   testData[0],
+		Answers:    testData[1:],
+		Variants:   testData[1:],
+		Incorrect:  "wrong!",
+		Correct:    "correct",
+		ShowAnswer: true,
 	})
 	return nil
 }
