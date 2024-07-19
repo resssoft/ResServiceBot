@@ -22,6 +22,11 @@ var ModerPerms = CommandPermissions{
 	UserPermissions: "moder",
 }
 
+var PrivatePerms = CommandPermissions{
+	ChatPermissions: "",
+	UserPermissions: "all",
+}
+
 func (tgp *CommandPermissions) Check(user *tgbotapi.User, adminId int64) bool {
 	if tgp.UserPermissions == "all" {
 		return true
@@ -31,3 +36,5 @@ func (tgp *CommandPermissions) Check(user *tgbotapi.User, adminId int64) bool {
 	}
 	return false
 }
+
+//TODO: perms by bot

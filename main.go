@@ -18,6 +18,7 @@ import (
 	"fun-coice/internal/application/services/b64"
 	"fun-coice/internal/application/services/calculator"
 	"fun-coice/internal/application/services/chatAdmin"
+	"fun-coice/internal/application/services/citiesTime"
 	"fun-coice/internal/application/services/datatimes"
 	"fun-coice/internal/application/services/emojiTaskTracker"
 	"fun-coice/internal/application/services/examples"
@@ -140,6 +141,8 @@ func main() {
 	//add configure or bot register for
 
 	//TODO: create list of interfaces, call "new" by loop with time info // check if service exist in the bots
+	//TODO: restart only one bot - read config again
+	//TODO: turn off or on services by bot
 
 	services := []tgModel.Service{
 		funs.New(DB),
@@ -164,6 +167,7 @@ func main() {
 		workTasks.New(db, mongoDbApp), // TODO: plan
 		emojiTaskTracker.New(),
 		testManager.New(),
+		citiesTime.New(),
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {

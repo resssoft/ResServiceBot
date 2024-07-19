@@ -131,6 +131,11 @@ func (t *Command) WithHandler(handler HandlerFunc) *Command {
 	return t
 }
 
+func (t *Command) WithTriggers(triggers ...string) *Command {
+	t.Triggers = triggers
+	return t
+}
+
 func (t *Command) Permission(messageItem *tgbotapi.Message, adminId int64) bool {
 	if messageItem != nil {
 		if messageItem == nil {
