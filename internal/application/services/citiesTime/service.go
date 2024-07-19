@@ -9,8 +9,9 @@ import (
 )
 
 type data struct {
-	list   tgModel.Commands
-	cities map[string]string
+	list          tgModel.Commands
+	messageSender tgModel.MessageSender
+	cities        map[string]string
 }
 
 func New() tgModel.Service {
@@ -47,8 +48,15 @@ func (d *data) Name() string {
 	return "citiesTime"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return nil
+}
+
+func (d *data) Configure(botData tgModel.ServiceConfig) error {
+	d.messageSender = botData.MessageSender
+	return nil
 }
 
 func (d *data) printTimeList(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

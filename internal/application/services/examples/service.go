@@ -1,8 +1,9 @@
 package examples
 
 import (
-	tgModel "fun-coice/internal/domain/commands/tg"
 	"sync"
+
+	tgModel "fun-coice/internal/domain/commands/tg"
 )
 
 type data struct {
@@ -95,8 +96,14 @@ func (d *data) Name() string {
 	return "examples"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return nil
+}
+
+func (d *data) Configure(_ tgModel.ServiceConfig) error {
+	return nil
 }
 
 func (d *data) Counter() int {

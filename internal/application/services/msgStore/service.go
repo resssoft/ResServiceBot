@@ -16,10 +16,8 @@ type data struct {
 	msgRepo tgModel.MsgRepository
 }
 
-func New(msgRepo tgModel.MsgRepository) tgModel.Service {
-	result := data{
-		msgRepo: msgRepo,
-	}
+func New() tgModel.Service {
+	result := data{}
 	commandsList := tgModel.NewCommands()
 	commandsList["event:"+tgModel.TextMsgBotEvent] = tgModel.Command{
 		IsEvent: true,
@@ -57,8 +55,18 @@ func (d *data) Name() string {
 	return "msgStore"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return tgModel.ServiceDependsIs(tgModel.MsgRepoDependency)
+}
+
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	if sc.MsgRepo == nil {
+		return fmt.Errorf("msgRepo db is nil")
+	}
+	d.msgRepo = sc.MsgRepo
+	return nil
 }
 
 func (d *data) msgEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

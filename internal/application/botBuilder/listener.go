@@ -1,4 +1,4 @@
-package fileLogger
+package botBuilder
 
 import (
 	"github.com/rs/zerolog/log"
@@ -7,14 +7,14 @@ import (
 )
 
 type Listener struct {
-	Client *Client
+	Client *BuilderService
 }
 
 func (u Listener) Listen(_ mediator.EventName, event interface{}) {
 	switch event := event.(type) {
-	case mediator.FileLoggerEvent:
-		u.Client.Log(event.Src, event.Data, event.WithoutTime, event.ToDebug)
+	case mediator.BotBuilderServiceChangeEvent:
+		u.Client.AddService()
 	default:
-		log.Printf("registered an invalid fileLogger event: %T\n", event)
+		log.Printf("registered an invalid botBuilder event: %T\n", event)
 	}
 }

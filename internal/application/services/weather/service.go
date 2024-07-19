@@ -28,11 +28,9 @@ type data struct {
 	tokens        map[string]string
 }
 
-func New(DB *scribble.Driver, tokens map[string]string) tgModel.Service {
+func New() tgModel.Service {
 	result := data{
-		DB:     DB,
-		ctx:    context.Background(),
-		tokens: tokens,
+		ctx: context.Background(),
 	}
 	commandsList := tgModel.NewCommands()
 	commandsList.AddSimple("weather_add_chat", "Add weather notifier to chat", result.addWeatherChat)
@@ -52,8 +50,23 @@ func (d *data) Name() string {
 	return "weather"
 }
 
-func (d *data) Configure(botData tgModel.ServiceConfig) {
-	d.messageSender = botData.MessageSender
+func (d *data) Destroy() {}
+
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return tgModel.ServiceDependsIs(tgModel.FileDbDependency, tgModel.PluginsDependency)
+}
+
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	if sc.FileDb == nil {
+		return fmt.Errorf("file db is nil")
+	}
+	if sc.Params == nil {
+		return fmt.Errorf("params is nil")
+	}
+	d.tokens = sc.Params
+	d.DB = sc.FileDb
+	d.messageSender = sc.MessageSender
+	return nil
 }
 
 func (d *data) addWeatherChat(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

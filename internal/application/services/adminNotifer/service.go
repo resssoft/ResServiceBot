@@ -12,10 +12,8 @@ type data struct {
 
 var _ = (tgModel.Service)(&data{})
 
-func New(adminId int64) tgModel.Service {
-	result := data{
-		adminId: adminId,
-	}
+func New() tgModel.Service {
+	result := data{}
 	commandsList := tgModel.NewCommands()
 	commandsList["event:"+tgModel.StartBotEvent] = tgModel.Command{
 		IsEvent: true,
@@ -44,8 +42,15 @@ func (d *data) Name() string {
 	return "adminNotifer"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return nil
+}
+
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	d.adminId = sc.OwnerId
+	return nil
 }
 
 func (d *data) startEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

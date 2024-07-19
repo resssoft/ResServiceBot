@@ -87,8 +87,14 @@ func (d *data) Name() string {
 	return "datatimes"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return nil
+}
+
+func (d *data) Configure(_ tgModel.ServiceConfig) error {
+	return nil
 }
 
 func (d *data) getDuration(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

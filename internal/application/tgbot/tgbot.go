@@ -99,6 +99,15 @@ func (d *Data) setDefaults() {
 	d.Commands.AddSimple("commands", "Show bot commands", d.commandsList, "список комманд", "команды")
 }
 
+func (d *Data) SendMsg(s string) error {
+	if d.Bot != nil {
+		msg := tgbotapi.NewMessage(d.AdminId, s)
+		_, err := d.Bot.Send(msg)
+		return err
+	}
+	return nil
+}
+
 func (d *Data) Run() error {
 	//d.Bot.Debug = true
 	//TODO: d.Bot.GetMyCommands() AND SET THEM
@@ -324,7 +333,7 @@ func (d *Data) MessagesHandler() {
 }
 
 func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) {
-	log.Println("start worker UpdatesHandler", workerID) // TODO: to debug
+	//log.Println("start worker UpdatesHandler", workerID) // TODO: to debug
 	isCommand := false
 	commandName := ""
 	for update := range updates {

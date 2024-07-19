@@ -17,10 +17,8 @@ type data struct {
 	DB   *scribble.Driver
 }
 
-func New(DB *scribble.Driver) tgModel.Service {
-	result := data{
-		DB: DB,
-	}
+func New() tgModel.Service {
+	result := data{}
 	commandsList := tgModel.NewCommands()
 	commandsList["addCheckItem"] = tgModel.Command{
 		Command:     "/addCheckItem",
@@ -79,8 +77,18 @@ func (d *data) Name() string {
 	return "lists"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return tgModel.ServiceDependsIs(tgModel.FileDbDependency)
+}
+
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	if sc.FileDb == nil {
+		return fmt.Errorf("file db is nil")
+	}
+	d.DB = sc.FileDb
+	return nil
 }
 
 func (d *data) addCheckItem(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

@@ -63,7 +63,15 @@ func (d *data) Events() []string {
 	return d.events
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {}
+func (d *data) Destroy() {}
+
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return nil
+}
+
+func (d *data) Configure(_ tgModel.ServiceConfig) error {
+	return nil
+}
 
 func (d *data) CallbackHandler() {
 	for callbackItem := range d.callback {

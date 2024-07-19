@@ -2,19 +2,19 @@ package workTasks
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"time"
+
+	"github.com/doug-martin/goqu/v9"
+	"github.com/rs/zerolog/log"
+	"github.com/sasha-s/go-deadlock"
+
 	"fun-coice/internal/application/services/workTasks/repository"
 	"fun-coice/internal/application/services/workTasks/repository/mongo/track"
 	"fun-coice/internal/application/services/workTasks/repository/mongo/user"
 	sqlRepo "fun-coice/internal/application/services/workTasks/repository/sql"
 	"fun-coice/internal/application/services/workTasks/track"
-	"fun-coice/internal/database"
 	tgModel "fun-coice/internal/domain/commands/tg"
-	"github.com/doug-martin/goqu/v9"
-	"github.com/rs/zerolog/log"
-	"github.com/sasha-s/go-deadlock"
-	"time"
 )
 
 type data struct {
@@ -33,30 +33,14 @@ type data struct {
 
 const trackingDuration = time.Second * 31
 
-func New(dbSQL *sql.DB, mongoClient database.MongoClientApplication) tgModel.Service {
-	var trackRepo repository.TrackRepository
-	var userRepo repository.UserRepository
-	switch {
-	case mongoClient != nil:
-		trackRepo, _ = trackMongoRepository.NewTrackRepo(mongoClient)
-		userRepo, _ = userMongoRepository.NewUserRepo(mongoClient)
-	case dbSQL != nil:
-		trackRepo, _ = sqlRepo.NewSQLRepo(dbSQL) //TODO: check errors for all services
-	default:
-		//RAM trackRepo
-	}
+func New() tgModel.Service {
 	result := data{
 		users:   make(map[int64]track.User), // temporary
 		builder: goqu.Dialect("sqlite3"),
 		//mutex:   &sync.Mutex{},
-		tracks:    make(track.Tracks),
-		buttons:   make(map[string]track.Button),
-		trackRepo: trackRepo,
-		userRepo:  userRepo,
+		tracks:  make(track.Tracks),
+		buttons: make(map[string]track.Button),
 	}
-	result.initCommands()
-	go result.tracking(context.Background())
-
 	return &result
 }
 
@@ -68,8 +52,33 @@ func (d *data) Name() string {
 	return "timeTraker" //workTrack
 }
 
-func (d *data) Configure(botData tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
+
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return tgModel.ServiceDependsIs(tgModel.SqliteDbDependency, tgModel.MongoDbDependency)
+}
+
+func (d *data) Configure(botData tgModel.ServiceConfig) error {
 	d.messageSender = botData.MessageSender
+	if botData.SqliteDb == nil && botData.MongoClient == nil {
+		return fmt.Errorf("sqlite db and mongo client is nil")
+	}
+	var trackRepo repository.TrackRepository
+	var userRepo repository.UserRepository
+	switch {
+	case botData.MongoClient != nil:
+		trackRepo, _ = trackMongoRepository.NewTrackRepo(botData.MongoClient)
+		userRepo, _ = userMongoRepository.NewUserRepo(botData.MongoClient)
+	case botData.SqliteDb != nil:
+		trackRepo, _ = sqlRepo.NewSQLRepo(botData.SqliteDb) //TODO: check errors for all services
+	default:
+		//RAM trackRepo
+	}
+	d.trackRepo = trackRepo
+	d.userRepo = userRepo
+	d.initCommands()
+	go d.tracking(context.Background())
+	return nil
 }
 
 func (d *data) tracking(ctx context.Context) {

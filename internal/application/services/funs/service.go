@@ -35,24 +35,37 @@ var funCommandType = "funcommand"
 
 // New TODO: move to aplication folder
 // New TODO: add list commands and remove (by admin)
-func New(DB *scribble.Driver) tgModel.Service {
+func New() tgModel.Service {
 	result := data{
-		DB: DB,
+		list: tgModel.NewCommands(),
 	}
-	commandsList := tgModel.NewCommands()
-	commandsList["addfan"] = tgModel.Command{
-		Command:     "/addfan",
-		Synonyms:    []string{"addfan", "добавитьфан"},
-		Description: "Добавить генератор фанов",
-		CommandType: "text",
-		Permissions: tgModel.FreePerms,
-		Handler:     result.add,
-	}
-
+	result.list.AddSimple("addfan", "Добавить генератор фанов", result.add, "addfan", "добавитьфан")
 	FunCommands = make(map[string]FunCommand)
 	syncMap = new(sync.Mutex)
+	return &result
+}
 
-	records, err := DB.ReadAll(funCommandDCollection)
+func (d *data) Commands() tgModel.Commands {
+	return d.list
+}
+
+func (d *data) Name() string {
+	return "funs"
+}
+
+func (d *data) Destroy() {}
+
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return tgModel.ServiceDependsIs(tgModel.FileDbDependency)
+}
+
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	if sc.FileDb == nil {
+		return fmt.Errorf("file db is nil")
+	}
+	d.DB = sc.FileDb
+
+	records, err := d.DB.ReadAll(funCommandDCollection)
 	if err != nil {
 		fmt.Println("Error DB.ReadAll", err)
 	}
@@ -71,26 +84,12 @@ func New(DB *scribble.Driver) tgModel.Service {
 			fmt.Println("Error Unmarshal", err)
 			continue
 		}
-		funCommand.TgCommand.Handler = result.run
+		funCommand.TgCommand.Handler = d.run
 		appendFunCommand(funCommand.Name, funCommand)
-		commandsList[funCommand.Name] = funCommand.TgCommand
+		d.list.Append(funCommand.TgCommand)
 		//fmt.Println("Add fun command", funCommand.Name)
 	}
-	//fmt.Println("FunCommands", FunCommands)
-	result.list = commandsList
-	return &result
-}
-
-func (d *data) Commands() tgModel.Commands {
-	return d.list
-}
-
-func (d *data) Name() string {
-	return "funs"
-}
-
-func (d *data) Configure(_ tgModel.ServiceConfig) {
-
+	return nil
 }
 
 func (d *data) add(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

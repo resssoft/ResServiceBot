@@ -15,6 +15,7 @@ const AppExit EventName = "app.exit"
 const LogToFile EventName = "fileLogger.log.data"
 const SetLogDebugMode EventName = "log.mode.debug"
 const SetLogInfoMode EventName = "log.mode.info"
+const ServiceChange EventName = "botBuilder.service.change"
 
 type FileLoggerEvent struct {
 	Src         string
@@ -35,3 +36,14 @@ const FileLogRequests = "requests"
 const FileLogMessenger = "messenger"
 const FileLogAmoCRM = "amoCRM"
 const FileLogAmoLatency = "amoLatency"
+
+var BotBuilderEvents = []EventName{
+	ServiceChange,
+}
+
+type BotBuilderServiceChangeEvent struct {
+	Src         string
+	Data        string
+	WithoutTime bool
+	ToDebug     bool
+}

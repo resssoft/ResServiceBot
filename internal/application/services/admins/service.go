@@ -26,12 +26,8 @@ type data struct {
 
 var _ = (tgModel.Service)(&data{})
 
-func New(DB *scribble.Driver) tgModel.Service {
-
-	//TODO: change parameters
-	result := data{
-		DB: DB,
-	}
+func New() tgModel.Service {
+	result := data{}
 	commandsList := tgModel.NewCommands()
 
 	commandsList["set"] = tgModel.Command{
@@ -97,9 +93,18 @@ func (d *data) Name() string {
 	return "admins"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
-	//set bot name, channels, etc
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return tgModel.ServiceDependsIs(tgModel.FileDbDependency)
+}
+
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	if sc.FileDb == nil {
+		return fmt.Errorf("file db is nil")
+	}
+	d.DB = sc.FileDb
+	return nil
 	//get commands list from bot by channel
 }
 

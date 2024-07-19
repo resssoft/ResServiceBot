@@ -3,13 +3,18 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
-	"strings"
 )
 
 func Str(name string) string {
 	return viper.GetString(name)
+}
+
+func Params(name string) map[string]string {
+	return viper.GetStringMapString(name)
 }
 
 func Int(name string) int {

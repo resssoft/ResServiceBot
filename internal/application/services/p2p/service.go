@@ -28,9 +28,8 @@ type data struct {
 	promoCodes promoCodes
 }
 
-func New(DB *sql.DB) tgModel.Service {
+func New() tgModel.Service {
 	result := data{
-		storage: DB,
 		users:   make(map[int64]User), // temporary
 		builder: goqu.Dialect("sqlite3"),
 		promoCodes: addPromoCodes(
@@ -58,8 +57,18 @@ func (d *data) Name() string {
 	return "p2p"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return tgModel.ServiceDependsIs(tgModel.SqliteDbDependency)
+}
+
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	if sc.SqliteDb == nil {
+		return fmt.Errorf("sqlite db is nil")
+	}
+	d.storage = sc.SqliteDb
+	return nil
 }
 
 func (d *data) start(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {

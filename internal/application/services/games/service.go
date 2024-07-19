@@ -27,8 +27,14 @@ func (d *data) Commands() tgModel.Commands {
 	return d.list
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {
+func (d *data) Destroy() {}
 
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return nil
+}
+
+func (d *data) Configure(_ tgModel.ServiceConfig) error {
+	return nil
 }
 
 func (d *data) Name() string {

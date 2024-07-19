@@ -12,7 +12,7 @@ var defaultCommands = tgModel.Commands{
 	"start": { //TODO: use add simple command
 		Command:     "/start",
 		Description: "start bot",
-		Permissions: tgModel.FreePerms,
+		Permissions: tgModel.PrivatePerms,
 		Handler:     startDefault,
 	},
 	"myInfo": {

@@ -60,4 +60,12 @@ func (d *data) Name() string {
 	return "testManager"
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) {}
+func (d *data) Destroy() {}
+
+func (d *data) Dependency() *tgModel.ServiceDepends {
+	return nil
+}
+
+func (d *data) Configure(_ tgModel.ServiceConfig) error {
+	return nil
+}
