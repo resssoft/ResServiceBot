@@ -11,19 +11,37 @@ import (
 type data struct {
 	list            tgModel.Commands
 	repeatReactions map[string]string
+	textReactions   map[string]string
 }
 
 func New() tgModel.Service {
 	serv := data{
 		list:            tgModel.NewCommands(),
 		repeatReactions: make(map[string]string),
+		textReactions:   make(map[string]string),
 	}
 	serv.repeatReactions["💩"] = "💩"
+	serv.textReactions["говно"] = "💩"
+	serv.textReactions["гавно"] = "💩"
+	serv.textReactions["shit"] = "💩"
+	serv.textReactions["shit"] = "💩"
+	serv.textReactions["моряша"] = "❤️"
+	serv.textReactions["кот"] = "❤️"
+	serv.textReactions["котик"] = "❤️"
 	tgModel.NewCommand().
 		Simple("repeatEmoji", "Add repeat emoji", serv.addRepeatReaction).
 		Push(serv.list)
 	tgModel.NewCommand().
 		Simple("delRepeatEmoji", "Del repeat emoji", serv.delRepeatReaction).
+		Push(serv.list)
+	tgModel.NewCommand().
+		Simple("addTextReaction", "Add text trigger", serv.addTextReaction).
+		Push(serv.list)
+	tgModel.NewCommand().
+		Simple("delTextReaction", "Del text trigger", serv.delTextReaction).
+		Push(serv.list)
+	tgModel.NewCommand().
+		Simple("textReactions", "Show emoji triggers", serv.TextReactions).
 		Push(serv.list)
 
 	serv.list.AddEvent(tgModel.MessageReactionEvent, serv.reactionEvent)
@@ -31,6 +49,13 @@ func New() tgModel.Service {
 		Command: "/event:" + tgModel.MessageReactionEvent,
 		IsEvent: true,
 		Handler: serv.reactionEvent,
+	}
+
+	serv.list.AddEvent(tgModel.TextMsgBotEvent, serv.textReactionEvent)
+	serv.list["event:"+tgModel.TextMsgBotEvent] = tgModel.Command{
+		Command: "/event:" + tgModel.TextMsgBotEvent,
+		IsEvent: true,
+		Handler: serv.textReactionEvent,
 	}
 
 	return &serv
@@ -61,8 +86,16 @@ func (d *data) encode(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.
 func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	//👌😱💯🔥👎❤️👍💩
 	for oldReaction, newReaction := range d.repeatReactions {
-		switch {
-		case d.IsNewReaction(msg, oldReaction):
+		if d.IsNewReaction(msg, oldReaction) {
+			return tgModel.Reaction(msg.Chat.ID, msg.MessageID, newReaction)
+		}
+	}
+	return tgModel.EmptyCommand()
+}
+
+func (d *data) textReactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	for trigger, newReaction := range d.textReactions {
+		if strings.Contains(strings.ToLower(msg.Text), trigger) {
 			return tgModel.Reaction(msg.Chat.ID, msg.MessageID, newReaction)
 		}
 	}
@@ -72,7 +105,7 @@ func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *t
 func (d *data) addRepeatReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	items := strings.Split(command.Arguments.Raw, ":")
 	if len(items) < 2 {
-		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! Format: Samara:Europe/Samara", msg.MessageID)
+		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! Format: 👌:👌", msg.MessageID)
 	}
 	d.repeatReactions[items[0]] = items[1]
 	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
@@ -85,6 +118,32 @@ func (d *data) delRepeatReaction(msg *tgbotapi.Message, command *tgModel.Command
 		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, "Not found!!", msg.MessageID)
+}
+
+func (d *data) addTextReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	items := strings.Split(command.Arguments.Raw, ":")
+	if len(items) < 2 {
+		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! Format: shit:💩", msg.MessageID)
+	}
+	d.textReactions[items[0]] = items[1]
+	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
+}
+
+func (d *data) delTextReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	_, ok := d.textReactions[command.Arguments.Raw]
+	if ok {
+		delete(d.textReactions, command.Arguments.Raw)
+		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
+	}
+	return tgModel.SimpleReply(msg.Chat.ID, "Not found!!", msg.MessageID)
+}
+
+func (d *data) TextReactions(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	result := ""
+	for trigger, newReaction := range d.textReactions {
+		result += fmt.Sprintf("[%s => %s]", trigger, newReaction)
+	}
+	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
 func (d *data) IsNewReaction(msg *tgbotapi.Message, reaction string) bool {
