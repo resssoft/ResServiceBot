@@ -37,9 +37,8 @@ func New() tgModel.Service {
 	//result.list.AddSimple("tasks", "Show active tasks", result.activeTasks)
 	//result.list.AddSimple("history", "Show tasks history", result.historyTasks)
 	result.list.AddSimple("emoji", "Show control emoji", result.emojiControls)
-	result.list.AddSimple("help", "Show bot info", result.help)
 	result.list.AddSimple("description", "Show bot info", result.help)
-	result.list.AddSimple("about", "Show bot info", result.help)
+	result.list.AddSimple("about", "Show bot info", result.help, "help")
 	result.list.AddEvent(tgModel.MessageReactionEvent, result.reactionEvent)
 	result.list["event:"+tgModel.MessageReactionEvent] = tgModel.Command{
 		Command: "/event:" + tgModel.MessageReactionEvent,

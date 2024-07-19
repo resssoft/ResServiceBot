@@ -256,7 +256,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Message) bool {
 	fmt.Println("!!! SendCommandResult", result)
 	if result.Reaction != nil {
-		fmt.Println("====> send reaction", result)
+		fmt.Println("====> send reaction ", result.Reaction.Emoji, result.Reaction.ChatID)
 		params := tgbotapi.Params{}
 		params.AddFirstValid("chat_id", result.Reaction.ChatID)
 		params.AddNonZero("message_id", result.Reaction.MessageID)
@@ -273,7 +273,7 @@ func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Me
 		}
 		_, err = d.Bot.MakeRequest("setMessageReaction", params)
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("setMessageReaction", err.Error())
 		}
 	}
 	if result.Prepared {
@@ -669,8 +669,17 @@ func (d *Data) GetFileCommands(fileType string) []tgModel.Command {
 
 func (d *Data) GetCommand(name string) (tgModel.Command, bool) {
 	d.mutexCommands.Lock()
+	defer d.mutexCommands.Unlock()
 	item, ok := d.Commands[name]
-	d.mutexCommands.Unlock()
+	if !ok {
+		for _, command := range d.Commands {
+			for _, synonym := range command.Synonyms {
+				if name == synonym {
+					return command, true
+				}
+			}
+		}
+	}
 	return item, ok
 }
 
@@ -681,7 +690,6 @@ func (d *Data) AddCommands(newItems tgModel.Commands, serviceName string) {
 	d.mutexCommands.Unlock()
 
 	for _, item := range newItems {
-		log.Println("===================menu-check", item.Command, item.Menu)
 		if item.Menu {
 			_, err := d.Bot.Request(
 				tgbotapi.NewSetMyCommands(
@@ -692,6 +700,7 @@ func (d *Data) AddCommands(newItems tgModel.Commands, serviceName string) {
 			if err != nil {
 				log.Println("NewSetMyCommands err", err)
 			}
+			log.Println("NewSetMyCommands OK")
 		}
 	}
 }

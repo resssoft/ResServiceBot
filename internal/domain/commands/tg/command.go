@@ -97,6 +97,19 @@ func (t *Command) Push(cs Commands) Commands {
 	return cs
 }
 
+func (t *Command) PushSafety(cs Commands) Commands {
+	if cs == nil {
+		cs = make(Commands)
+	}
+	if t == nil {
+		return cs
+	}
+	if _, ok := cs[t.Command]; !ok {
+		cs[t.Command] = *t
+	}
+	return cs
+}
+
 func (t *Command) WithPerm(perm CommandPermissions) *Command {
 	t.Permissions = perm
 	return t
