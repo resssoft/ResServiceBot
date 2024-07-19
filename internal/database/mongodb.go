@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"fun-coice/internal/mediator"
+	"sync"
+
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"sync"
+
+	"fun-coice/internal/mediator"
 )
 
 var (
@@ -34,11 +36,12 @@ type mongoClientOriginal struct {
 }
 
 func ProvideMongo(url, dbName string, dispatcher *mediator.Dispatcher) (MongoClientApplication, error) {
+	var err error
 	onceMongoAction.Do(func() {
-		configureMongo(url, dispatcher)
+		err = configureMongo(url, dispatcher)
 	})
 	if mongoClient == nil || mongoContext == nil {
-		return &mongoClientOriginal{}, errors.New("mongo client or context is empty")
+		return &mongoClientOriginal{}, errors.Join(errors.New("mongo client or context is empty"), err)
 	}
 	return &mongoClientOriginal{
 		client:     mongoClient,
@@ -89,7 +92,7 @@ func (r *mongoClientOriginal) CreateIndexWithTimeout(collection *mongo.Collectio
 	log.Info().Interface("indexName", indexName).Send()
 }
 
-func configureMongo(address string, dispatcher *mediator.Dispatcher) {
+func configureMongo(address string, dispatcher *mediator.Dispatcher) error {
 	var err error
 	mongoContext = context.Background()
 	clientOptions := options.Client().ApplyURI(address)
@@ -100,9 +103,10 @@ func configureMongo(address string, dispatcher *mediator.Dispatcher) {
 			Data: fmt.Sprintf("Cannot connect to mongo %s",
 				err.Error()),
 		})
-		log.Fatal().
+		log.Error().
 			Err(err).
 			Msg("cannot connect to mongo")
+		return err
 	}
 	err = mongoClient.Ping(mongoContext, nil)
 	if err != nil {
@@ -111,8 +115,10 @@ func configureMongo(address string, dispatcher *mediator.Dispatcher) {
 			Data: fmt.Sprintf("Cannot connect to mongo: %s",
 				err.Error()),
 		})
-		log.Fatal().
+		log.Error().
 			Err(err).
 			Msg("cannot connect to mongo")
+		return err
 	}
+	return nil
 }
