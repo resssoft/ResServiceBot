@@ -14,6 +14,7 @@ type HandlerResult struct {
 	Data     string
 	Buttons  *tgbotapi.InlineKeyboardMarkup
 	Events   []Event // run some events (or commands) after processing the current command
+	Reaction *TgReaction
 }
 
 type MessageEvent struct {
@@ -28,6 +29,17 @@ func EmptyCommand() *HandlerResult {
 	return &HandlerResult{
 		Messages: nil,
 	}
+}
+
+type ReactionItem struct {
+	Type  string `json:"type"`
+	Emoji string `json:"emoji"`
+}
+
+type TgReaction struct {
+	ChatID    int64
+	MessageID int
+	Emoji     string
 }
 
 func Delete(chatId int64, msgId int) *HandlerResult {
@@ -68,6 +80,17 @@ func SimpleWIthCallback(chatId int64, text, tag string, callback chan CallbackDa
 
 func SimpleEdit(chatId int64, msgId int, text string) *HandlerResult {
 	return PreparedCommand(tgbotapi.NewEditMessageText(chatId, msgId, text))
+}
+
+func Reaction(chatId int64, msgId int, text string) *HandlerResult {
+	return &HandlerResult{
+		Prepared: true,
+		Reaction: &TgReaction{
+			ChatID:    chatId,
+			MessageID: msgId,
+			Emoji:     text,
+		},
+	}
 }
 
 func SimpleReply(chatId int64, text string, replyTo int) *HandlerResult {

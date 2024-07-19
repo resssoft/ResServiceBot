@@ -255,6 +255,27 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 
 func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Message) bool {
 	fmt.Println("!!! SendCommandResult", result)
+	if result.Reaction != nil {
+		fmt.Println("====> send reaction", result)
+		params := tgbotapi.Params{}
+		params.AddFirstValid("chat_id", result.Reaction.ChatID)
+		params.AddNonZero("message_id", result.Reaction.MessageID)
+		params.AddBool("is_big", false)
+		data := []tgModel.ReactionItem{
+			tgModel.ReactionItem{
+				Type:  "emoji",
+				Emoji: result.Reaction.Emoji,
+			},
+		}
+		err := params.AddInterface("reaction", data)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		_, err = d.Bot.MakeRequest("setMessageReaction", params)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
 	if result.Prepared {
 		//fmt.Println("COMMAND PREPAERD") //DEVMODE
 		log.Println("result.Messages", len(result.Messages))

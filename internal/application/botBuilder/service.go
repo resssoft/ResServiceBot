@@ -16,6 +16,7 @@ import (
 	"fun-coice/internal/application/services/chatAdmin"
 	"fun-coice/internal/application/services/citiesTime"
 	"fun-coice/internal/application/services/datatimes"
+	"fun-coice/internal/application/services/emodjier"
 	"fun-coice/internal/application/services/emojiTaskTracker"
 	"fun-coice/internal/application/services/examples"
 	"fun-coice/internal/application/services/funs"
@@ -94,6 +95,7 @@ func (bs *BuilderService) Build() {
 		emojiTaskTracker.New(),
 		testManager.New(),
 		citiesTime.New(),
+		emojier.New(),
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {

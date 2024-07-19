@@ -96,14 +96,14 @@ func (d *data) addCity(msg *tgbotapi.Message, command *tgModel.Command) *tgModel
 		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect timezone:", msg.MessageID)
 	}
 	d.cities[items[0]] = items[1]
-	return tgModel.SimpleReply(msg.Chat.ID, "Added!!", msg.MessageID)
+	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
 }
 
 func (d *data) delCity(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	_, ok := d.cities[command.Arguments.Raw]
 	if ok {
 		delete(d.cities, command.Arguments.Raw)
-		return tgModel.SimpleReply(msg.Chat.ID, "Deleted by key:"+command.Arguments.Raw, msg.MessageID)
+		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, "Not found!!", msg.MessageID)
 }
