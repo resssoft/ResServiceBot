@@ -2,6 +2,7 @@ package emojier
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	tgModel "fun-coice/internal/domain/commands/tg"
@@ -9,25 +10,23 @@ import (
 )
 
 type data struct {
-	list            tgModel.Commands
+	list      tgModel.Commands
+	reactions map[string]botsData
+}
+
+type botsData struct {
 	repeatReactions map[string]string
 	textReactions   map[string]string
 }
 
+// 2024.07.19
+var supportedEmoji = "👍👎❤️🔥🥰👏😁🤔🤯😱🤬😢🎉🤩🤮💩🙏👌🕊🤡🥱🥴😍🐳❤‍🔥🌚🌭💯🤣⚡️🍌🏆💔🤨😐🍓🍾💋🖕😈😴😭🤓👻👨‍💻👀🎃🙈😇😨🤝✍️🤗\U0001FAE1🎅🎄☃️💅🤪🗿🆒💘🙉🦄😘💊🙊😎👾🤷‍♂🤷🤷‍♀😡"
+
 func New() tgModel.Service {
 	serv := data{
-		list:            tgModel.NewCommands(),
-		repeatReactions: make(map[string]string),
-		textReactions:   make(map[string]string),
+		list:      tgModel.NewCommands(),
+		reactions: make(map[string]botsData),
 	}
-	serv.repeatReactions["💩"] = "💩"
-	serv.textReactions["говно"] = "💩"
-	serv.textReactions["гавно"] = "💩"
-	serv.textReactions["shit"] = "💩"
-	serv.textReactions["shit"] = "💩"
-	serv.textReactions["моряша"] = "❤️"
-	serv.textReactions["кот"] = "❤️"
-	serv.textReactions["котик"] = "❤️"
 	tgModel.NewCommand().
 		Simple("repeatEmoji", "Add repeat emoji \nExample: \n/repeatEmoji 👌:👌", serv.addRepeatReaction).
 		Push(serv.list)
@@ -47,14 +46,17 @@ func New() tgModel.Service {
 		Simple("repeatReactions", "Show emoji repeats", serv.RepeatReactions).
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("emojiCommands", "Show emoji repeats", serv.RepeatReactions).
+		Simple("start", "Start bot", serv.description).
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("start", "Start bot", serv.description).
-		PushSafety(serv.list)
+		Simple("about", "About", serv.description, "help").
+		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("about", "Show emoji repeats", serv.description, "help").
-		PushSafety(serv.list)
+		Simple("testReaction", "Try to set emoji \nExample: \n/testReaction 👌", serv.testReaction).
+		Push(serv.list)
+	tgModel.NewCommand().
+		Simple("available", "Show available emoji", serv.available).
+		Push(serv.list)
 
 	serv.list.AddEvent(tgModel.MessageReactionEvent, serv.reactionEvent)
 	serv.list["event:"+tgModel.MessageReactionEvent] = tgModel.Command{
@@ -87,19 +89,38 @@ func (d *data) Dependency() *tgModel.ServiceDepends {
 	return nil
 }
 
-func (d *data) Configure(_ tgModel.ServiceConfig) error {
+func (d *data) Configure(sc tgModel.ServiceConfig) error {
+	d.reactions[sc.MessageSender.BotName()] = botsData{
+		repeatReactions: make(map[string]string),
+		textReactions:   make(map[string]string),
+	}
+	d.reactions[sc.MessageSender.BotName()].repeatReactions["💩"] = "💩"
+	d.reactions[sc.MessageSender.BotName()].textReactions["говно"] = "💩"
+	d.reactions[sc.MessageSender.BotName()].textReactions["гавно"] = "💩"
+	d.reactions[sc.MessageSender.BotName()].textReactions["shit"] = "💩"
+	d.reactions[sc.MessageSender.BotName()].textReactions["shit"] = "💩"
+	d.reactions[sc.MessageSender.BotName()].textReactions["моряша"] = "❤️"
+	d.reactions[sc.MessageSender.BotName()].textReactions["кот"] = "❤️"
+	d.reactions[sc.MessageSender.BotName()].textReactions["котик"] = "❤️"
 	return nil
 }
 
 func (d *data) description(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	log.Println("============ description", command.Command)
 	return tgModel.SimpleReply(msg.Chat.ID,
 		"Bot can repeat users emoji and set reactions by words triggers, commands list: /emojiCommands",
 		msg.MessageID)
 }
 
+func (d *data) available(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	return tgModel.SimpleReply(msg.Chat.ID,
+		"👍👎❤🔥🥰👏😁🤔🤯😱🤬😢🎉🤩🤮💩🙏👌🕊🤡🥱🥴😍🐳❤‍🔥🌚🌭💯🤣⚡🍌🏆💔🤨😐🍓🍾💋🖕😈😴😭🤓👻👨‍💻👀🎃🙈😇😨🤝✍🤗\U0001FAE1🎅🎄☃💅🤪🗿🆒💘🙉🦄😘💊🙊😎👾🤷‍♂🤷🤷‍♀😡",
+		msg.MessageID)
+}
+
 func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	//👌😱💯🔥👎❤️👍💩
-	for oldReaction, newReaction := range d.repeatReactions {
+	for oldReaction, newReaction := range d.reactions[command.BotName].repeatReactions {
 		if d.IsNewReaction(msg, oldReaction) {
 			return tgModel.Reaction(msg.Chat.ID, msg.MessageID, newReaction)
 		}
@@ -108,7 +129,7 @@ func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *t
 }
 
 func (d *data) textReactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	for trigger, newReaction := range d.textReactions {
+	for trigger, newReaction := range d.reactions[command.BotName].textReactions {
 		if strings.Contains(strings.ToLower(msg.Text), trigger) {
 			return tgModel.Reaction(msg.Chat.ID, msg.MessageID, newReaction)
 		}
@@ -127,15 +148,21 @@ func (d *data) addRepeatReaction(msg *tgbotapi.Message, command *tgModel.Command
 	if strings.TrimSpace(items[1]) == "" {
 		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! emoji2 empty or premium", msg.MessageID)
 	}
-	d.repeatReactions[items[0]] = strings.TrimSpace(items[1])
+	if !d.IsSupport(strings.TrimSpace(items[0])) {
+		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! emoji1 is not support, see support list: /available", msg.MessageID)
+	}
+	if !d.IsSupport(strings.TrimSpace(items[1])) {
+		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! emoji2 is not support, see support list: /available", msg.MessageID)
+	}
+	d.reactions[command.BotName].repeatReactions[items[0]] = strings.TrimSpace(items[1])
 	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, strings.TrimSpace(items[1]))
 }
 
 func (d *data) delRepeatReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	reaction := strings.TrimSpace(command.Arguments.Raw)
-	_, ok := d.repeatReactions[reaction]
+	_, ok := d.reactions[command.BotName].repeatReactions[reaction]
 	if ok {
-		delete(d.repeatReactions, reaction)
+		delete(d.reactions[command.BotName].repeatReactions, reaction)
 		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, "Not found!!", msg.MessageID)
@@ -149,15 +176,18 @@ func (d *data) addTextReaction(msg *tgbotapi.Message, command *tgModel.Command) 
 	if strings.TrimSpace(items[1]) == "" {
 		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! emoji empty or premium", msg.MessageID)
 	}
-	d.textReactions[items[0]] = strings.TrimSpace(items[1])
+	if !d.IsSupport(strings.TrimSpace(items[1])) {
+		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! emoji is not support, see support list: /available", msg.MessageID)
+	}
+	d.reactions[command.BotName].textReactions[items[0]] = strings.TrimSpace(items[1])
 	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, strings.TrimSpace(items[1]))
 }
 
 func (d *data) delTextReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	reaction := strings.TrimSpace(command.Arguments.Raw)
-	_, ok := d.textReactions[reaction]
+	_, ok := d.reactions[command.BotName].textReactions[reaction]
 	if ok {
-		delete(d.textReactions, reaction)
+		delete(d.reactions[command.BotName].textReactions, reaction)
 		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, "Not found!!", msg.MessageID)
@@ -165,7 +195,7 @@ func (d *data) delTextReaction(msg *tgbotapi.Message, command *tgModel.Command) 
 
 func (d *data) TextReactions(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	result := ""
-	for trigger, newReaction := range d.textReactions {
+	for trigger, newReaction := range d.reactions[command.BotName].textReactions {
 		result += fmt.Sprintf("[%s|=>|%s]", trigger, newReaction)
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
@@ -173,13 +203,23 @@ func (d *data) TextReactions(msg *tgbotapi.Message, command *tgModel.Command) *t
 
 func (d *data) RepeatReactions(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	result := ""
-	for trigger, newReaction := range d.repeatReactions {
+	for trigger, newReaction := range d.reactions[command.BotName].repeatReactions {
 		result += fmt.Sprintf("[%s|=>|%s]", trigger, newReaction)
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)
 }
 
+func (d *data) testReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	reaction := strings.TrimSpace(command.Arguments.Raw)
+	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, reaction)
+}
+
 func (d *data) IsNewReaction(msg *tgbotapi.Message, reaction string) bool {
 	fmt.Println(msg.Text, reaction)
 	return strings.Contains(msg.Text, reaction) && !strings.Contains(msg.Caption, reaction)
+}
+
+func (d *data) IsSupport(reaction string) bool {
+	fmt.Println(fmt.Sprintf("IsSupport[%s]", reaction))
+	return strings.Contains(supportedEmoji, reaction)
 }
