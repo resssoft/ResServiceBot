@@ -45,7 +45,7 @@ func FreeCommand() *Command {
 
 func AdminCommand() *Command {
 	return &Command{
-		Permissions: FreePerms,
+		Permissions: AdminPerms,
 	}
 }
 
