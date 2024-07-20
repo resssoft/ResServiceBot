@@ -70,8 +70,7 @@ func New(name string, botConfig config.TgBotConfig) (*Data, error) {
 		Any("Uri", botConfig.Uri).
 		Any("Token", botConfig.Token).
 		Send() // TODO temporary
-
-	return &Data{
+	botData := &Data{
 		config:         botConfig,
 		Token:          botConfig.Token,
 		WebUri:         botConfig.Uri,
@@ -90,12 +89,17 @@ func New(name string, botConfig config.TgBotConfig) (*Data, error) {
 		commandResults: make(chan *tgModel.HandlerResult, CommandsHandlerChanLimit),
 		mutexCommands:  &sync.Mutex{},
 		Ran:            false,
-	}, nil
+	}
+	botData.setDefaults()
+	return botData, nil
 }
 
 func (d *Data) setDefaults() {
 	d.Commands.AddSimple("about", "About bot", d.about, "help")
 	d.Commands.AddSimple("admin", "Bot admin info", d.admin, "админ", "кто админ")
+}
+
+func (d *Data) resetDefaults() {
 	d.Commands.AddSimple("commands", "Show bot commands", d.commandsList, "список комманд", "команды")
 }
 
@@ -111,7 +115,7 @@ func (d *Data) SendMsg(s string) error {
 func (d *Data) Run() error {
 	//d.Bot.Debug = true
 	//TODO: d.Bot.GetMyCommands() AND SET THEM
-	d.setDefaults()
+	d.resetDefaults()
 
 	startMsg := "-"
 	defer func() {
@@ -256,7 +260,7 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 func (d *Data) SendCommandResult(result *tgModel.HandlerResult, msg *tgbotapi.Message) bool {
 	fmt.Println("!!! SendCommandResult", result)
 	if result.Reaction != nil {
-		fmt.Println("====> send reaction ", result.Reaction.Emoji, result.Reaction.ChatID)
+		zlog.Debug().Msgf("====> send reaction [%s](%d) to %d", result.Reaction.Emoji, len(result.Reaction.Emoji), result.Reaction.ChatID)
 		params := tgbotapi.Params{}
 		params.AddFirstValid("chat_id", result.Reaction.ChatID)
 		params.AddNonZero("message_id", result.Reaction.MessageID)
@@ -360,7 +364,7 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 	for update := range updates {
 		d.mutexDeferred.Lock() ////////////////////////
 		d.mutexDeferred.Unlock()
-		zlog.Info().Any("d.Deferred", d.Deferred).Send() //////////////////
+		zlog.Debug().Any("d.Deferred", d.Deferred).Send() //////////////////
 
 		commandName = ""
 		log.Println("update chan EVENT", update.UpdateID, workerID) // TODO: to debug

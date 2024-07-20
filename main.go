@@ -36,7 +36,7 @@ func main() {
 	}
 
 	var err error
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	fmt.Print("Load configuration... ")
 	config.Configure()
 	if *checkConfig {

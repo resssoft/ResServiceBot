@@ -80,5 +80,5 @@ func (d *Data) about(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.Handler
 }
 
 func (d *Data) admin(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.HandlerResult {
-	return tgModel.Simple(msg.Chat.ID, fmt.Sprintf("Bot Admin is @%v", d.AdminId)) //TODO: admin login from bot config
+	return tgModel.Simple(msg.Chat.ID, fmt.Sprintf("Bot Admin is @%v", d.AdminLogin))
 }
