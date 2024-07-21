@@ -1,40 +1,24 @@
 package tgModel
 
-import tgbotapi "fun-coice/pkg/telegram-bot-api"
-
-type CommandPermissions struct {
-	UserPermissions string
-	ChatPermissions string
-}
-
 var FreePerms = CommandPermissions{
-	ChatPermissions: "all",
-	UserPermissions: "all",
+	Chat:    true,
+	Private: true,
 }
 
 var AdminPerms = CommandPermissions{
-	ChatPermissions: "admin",
-	UserPermissions: "admin",
-}
-
-var ModerPerms = CommandPermissions{
-	ChatPermissions: "moder",
-	UserPermissions: "moder",
+	AdminOnly: true,
 }
 
 var PrivatePerms = CommandPermissions{
-	ChatPermissions: "",
-	UserPermissions: "all",
+	Private: true,
 }
 
-func (tgp *CommandPermissions) Check(user *tgbotapi.User, adminId int64) bool {
-	if tgp.UserPermissions == "all" {
-		return true
-	}
-	if tgp.UserPermissions == "admin" && user.ID == adminId {
-		return true
-	}
-	return false
+type CommandPermissions struct {
+	Chat          bool
+	Private       bool
+	AdminOnly     bool
+	CustomChat    []int64
+	CustomPrivate []int64
 }
 
 //TODO: perms by bot

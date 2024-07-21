@@ -21,6 +21,8 @@ type data struct {
 	repo      model.Repository
 }
 
+//TODO: translate
+
 // 2024.07.19
 var supportedEmoji = "👍👎❤️🔥🥰👏😁🤔🤯😱🤬😢🎉🤩🤮💩🙏👌🕊🤡🥱🥴😍🐳❤‍🔥🌚🌭💯🤣⚡️🍌🏆💔🤨😐🍓🍾💋🖕😈😴😭🤓👻👨‍💻👀🎃🙈😇😨🤝✍️🤗\U0001FAE1🎅🎄☃️💅🤪🗿🆒💘🙉🦄😘💊🙊😎👾🤷‍♂🤷🤷‍♀😡"
 
@@ -48,7 +50,7 @@ func New() tgModel.Service {
 		Simple("repeatReactions", "Show emoji repeats", serv.RepeatReactions).
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("start", "Start bot", serv.description).
+		Simple("start", "Start bot", serv.description).WithPerm(tgModel.PrivatePerms).
 		Push(serv.list)
 	tgModel.NewCommand().
 		Simple("about", "About", serv.description, "help").
@@ -64,6 +66,12 @@ func New() tgModel.Service {
 		Push(serv.list)
 	tgModel.AdminCommand().
 		Simple("emojierClone", "Clone emoji from other bot", serv.clone).
+		Push(serv.list)
+	tgModel.NewCommand().
+		Simple("emojiCommands", "emoji commands", serv.commandsList).
+		Push(serv.list)
+	tgModel.NewCommand().
+		Simple("emojiSet", "Set emodji to repost message \nExample: \n/emojiSet 👌", serv.setReaction).
 		Push(serv.list)
 
 	serv.list.AddEvent(tgModel.MessageReactionEvent, serv.reactionEvent)
@@ -137,8 +145,17 @@ func (d *data) description(msg *tgbotapi.Message, command *tgModel.Command) *tgM
 		msg.MessageID)
 }
 
+func (d *data) commandsList(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	list := d.Commands().Available(msg, command.Bot.AdminId)
+	commandsList := "Commands:\n"
+	for key, item := range list {
+		commandsList += "/" + key + " - " + item.Description + "\n"
+	}
+	return tgModel.Simple(msg.Chat.ID, commandsList)
+}
+
 func (d *data) save(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
-	err := d.addOrUpdate(command.BotName, d.reactions[command.BotName])
+	err := d.addOrUpdate(command.Bot.Login, d.reactions[command.Bot.Login])
 	if err != nil {
 		return tgModel.SimpleReply(msg.Chat.ID, "Save err: "+err.Error(), msg.MessageID)
 	}
@@ -151,9 +168,9 @@ func (d *data) clone(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.H
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return tgModel.SimpleReply(msg.Chat.ID, "Not found by"+oldBotName+": "+err.Error(), msg.MessageID)
 	} else {
-		dataForClone.BotName = command.BotName
-		d.reactions[command.BotName] = dataForClone
-		err := d.addOrUpdate(command.BotName, d.reactions[command.BotName])
+		dataForClone.BotName = command.Bot.Login
+		d.reactions[command.Bot.Login] = dataForClone
+		err := d.addOrUpdate(command.Bot.Login, d.reactions[command.Bot.Login])
 		if err != nil {
 			return tgModel.SimpleReply(msg.Chat.ID, "Save err: "+err.Error(), msg.MessageID)
 		}
@@ -187,7 +204,7 @@ func (d *data) available(msg *tgbotapi.Message, command *tgModel.Command) *tgMod
 
 func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	//👌😱💯🔥👎❤️👍💩
-	for oldReaction, newReaction := range d.reactions[command.BotName].RepeatReactions {
+	for oldReaction, newReaction := range d.reactions[command.Bot.Login].RepeatReactions {
 		if d.IsNewReaction(msg, oldReaction) {
 			return tgModel.Reaction(msg.Chat.ID, msg.MessageID, newReaction)
 		}
@@ -197,14 +214,14 @@ func (d *data) reactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *t
 
 func (d *data) textReactionEvent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	if msg.Text != "" {
-		for trigger, newReaction := range d.reactions[command.BotName].TextReactions {
+		for trigger, newReaction := range d.reactions[command.Bot.Login].TextReactions {
 			if strings.Contains(strings.ToLower(msg.Text), trigger) {
 				return tgModel.Reaction(msg.Chat.ID, msg.MessageID, newReaction)
 			}
 		}
 	}
 	if msg.Caption != "" {
-		for trigger, newReaction := range d.reactions[command.BotName].TextReactions {
+		for trigger, newReaction := range d.reactions[command.Bot.Login].TextReactions {
 			if strings.Contains(strings.ToLower(msg.Caption), trigger) {
 				return tgModel.Reaction(msg.Chat.ID, msg.MessageID, newReaction)
 			}
@@ -230,19 +247,19 @@ func (d *data) addRepeatReaction(msg *tgbotapi.Message, command *tgModel.Command
 	if !d.IsSupport(strings.TrimSpace(items[1])) {
 		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! emoji2 is not support, see support list: /available", msg.MessageID)
 	}
-	d.reactions[command.BotName].RepeatReactions[items[0]] = strings.TrimSpace(items[1])
-	_ = d.addOrUpdate(command.BotName, d.reactions[command.BotName])
+	d.reactions[command.Bot.Login].RepeatReactions[items[0]] = strings.TrimSpace(items[1])
+	_ = d.addOrUpdate(command.Bot.Login, d.reactions[command.Bot.Login])
 	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, strings.TrimSpace(items[1]))
 }
 
 func (d *data) delRepeatReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	reaction := strings.TrimSpace(command.Arguments.Raw)
-	_, ok := d.reactions[command.BotName].RepeatReactions[reaction]
+	_, ok := d.reactions[command.Bot.Login].RepeatReactions[reaction]
 	if ok {
-		delete(d.reactions[command.BotName].RepeatReactions, reaction)
+		delete(d.reactions[command.Bot.Login].RepeatReactions, reaction)
 		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
 	}
-	_ = d.addOrUpdate(command.BotName, d.reactions[command.BotName])
+	_ = d.addOrUpdate(command.Bot.Login, d.reactions[command.Bot.Login])
 	return tgModel.SimpleReply(msg.Chat.ID, "Not found!!", msg.MessageID)
 }
 
@@ -257,25 +274,33 @@ func (d *data) addTextReaction(msg *tgbotapi.Message, command *tgModel.Command) 
 	if !d.IsSupport(strings.TrimSpace(items[1])) {
 		return tgModel.SimpleReply(msg.Chat.ID, "Incorrect! emoji is not support, see support list: /available", msg.MessageID)
 	}
-	d.reactions[command.BotName].TextReactions[items[0]] = strings.TrimSpace(items[1])
-	_ = d.addOrUpdate(command.BotName, d.reactions[command.BotName])
+	d.reactions[command.Bot.Login].TextReactions[items[0]] = strings.TrimSpace(items[1])
+	_ = d.addOrUpdate(command.Bot.Login, d.reactions[command.Bot.Login])
 	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, strings.TrimSpace(items[1]))
 }
 
 func (d *data) delTextReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	reaction := strings.TrimSpace(command.Arguments.Raw)
-	_, ok := d.reactions[command.BotName].TextReactions[reaction]
+	_, ok := d.reactions[command.Bot.Login].TextReactions[reaction]
 	if ok {
-		delete(d.reactions[command.BotName].TextReactions, reaction)
+		delete(d.reactions[command.Bot.Login].TextReactions, reaction)
 		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
 	}
-	_ = d.addOrUpdate(command.BotName, d.reactions[command.BotName])
+	_ = d.addOrUpdate(command.Bot.Login, d.reactions[command.Bot.Login])
 	return tgModel.SimpleReply(msg.Chat.ID, "Not found!!", msg.MessageID)
+}
+
+func (d *data) setReaction(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	reaction := strings.TrimSpace(command.Arguments.Raw)
+	if msg.ReplyToMessage == nil {
+		return tgModel.SimpleReply(msg.Chat.ID, "Use reply, please", msg.MessageID)
+	}
+	return tgModel.Reaction(msg.Chat.ID, msg.ReplyToMessage.MessageID, reaction)
 }
 
 func (d *data) TextReactions(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	result := ""
-	for trigger, newReaction := range d.reactions[command.BotName].TextReactions {
+	for trigger, newReaction := range d.reactions[command.Bot.Login].TextReactions {
 		result += fmt.Sprintf("[%s|=>|%s] ", trigger, newReaction)
 	}
 	return tgModel.SimpleReply(msg.Chat.ID, result, msg.MessageID)

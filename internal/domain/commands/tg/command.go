@@ -3,16 +3,25 @@ package tgModel
 import (
 	"fmt"
 	"regexp"
+	"slices"
 
 	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
+
+type CommandBot struct {
+	Name       string
+	Login      string
+	AdminId    int64
+	AdminLogin string
+}
 
 type Command struct {
 	Command       string //TODO: check for needles field
 	Description   string //showed in the commands list
 	CommandType   string //deprecated
 	Data          string //provided by user request
-	BotName       string //command author
+	BotName       string //deprecated
+	Bot           CommandBot
 	Service       string // set in the bot only
 	Synonyms      []string
 	Triggers      []string
@@ -149,20 +158,27 @@ func (t *Command) WithTriggers(triggers ...string) *Command {
 	return t
 }
 
-func (t *Command) Permission(messageItem *tgbotapi.Message, adminId int64) bool {
-	if messageItem != nil {
-		if messageItem == nil {
-			return false
+func (t *Command) Available(messageItem *tgbotapi.Message, adminId int64) bool {
+	if messageItem == nil {
+		return false
+	}
+	if t.Permissions.AdminOnly && messageItem.From.ID == adminId {
+		return true
+	}
+	switch messageItem.Chat.Type {
+	case "private":
+		if t.Permissions.Private {
+			return true
 		}
-		switch messageItem.Chat.Type {
-		case "private":
-			if t.Permissions.Check(messageItem.From, adminId) {
-				return true
-			}
-		case "chat":
-			if t.Permissions.Check(messageItem.From, adminId) {
-				return true
-			}
+		if slices.Contains(t.Permissions.CustomPrivate, messageItem.From.ID) {
+			return true
+		}
+	case "chat":
+		if t.Permissions.Chat {
+			return true
+		}
+		if slices.Contains(t.Permissions.CustomChat, messageItem.From.ID) {
+			return true
 		}
 	}
 	return false

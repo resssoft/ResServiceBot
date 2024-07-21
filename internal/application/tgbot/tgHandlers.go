@@ -67,7 +67,7 @@ func (d *Data) commandsList(msg *tgbotapi.Message, _ *tgModel.Command) *tgModel.
 		if item.ListExclude {
 			continue
 		}
-		if !item.Permission(msg, d.AdminId) {
+		if !item.Available(msg, d.AdminId) {
 			continue
 		}
 		commandsList += "/" + key + " - " + item.Description + "\n"

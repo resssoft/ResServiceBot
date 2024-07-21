@@ -222,11 +222,7 @@ func (d *data) сheckList(msg *tgbotapi.Message, command *tgModel.Command) *tgMo
 func (d *data) addSaveCommand(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
 	commandDB := tgModel.Command{
 		Command:     command.Arguments.Raw,
-		CommandType: "SaveCommand",
-		Permissions: tgModel.CommandPermissions{
-			UserPermissions: "",
-			ChatPermissions: "",
-		},
+		Permissions: tgModel.CommandPermissions{CustomPrivate: []int64{msg.From.ID}},
 	}
 
 	if err := d.DB.Write("command", command.Arguments.Raw, commandDB); err != nil {

@@ -1,5 +1,9 @@
 package tgModel
 
+import (
+	tgbotapi "fun-coice/pkg/telegram-bot-api"
+)
+
 type Commands map[string]Command
 
 func NewCommands() Commands {
@@ -94,4 +98,20 @@ func (cs Commands) Exclude() Commands {
 		cs[index] = item
 	}
 	return cs
+}
+
+func (cs Commands) Available(msg *tgbotapi.Message, adminId int64) Commands {
+	if msg == nil {
+		return nil
+	}
+	var result Commands
+	for index, item := range cs {
+		if item.ListExclude {
+			continue
+		}
+		if item.Available(msg, adminId) {
+			result[index] = item
+		}
+	}
+	return result
 }

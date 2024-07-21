@@ -250,7 +250,13 @@ func (d *Data) RunCommand(command tgModel.Command, msg *tgbotapi.Message) bool {
 	command.FilesCallback = d.getTgFile
 	command.ParamCallback = d.getParam
 
-	command.BotName = d.Name                                              // TODO: check if set is needle (bot local name or login)
+	command.BotName = d.Name // TODO: check if set is needle (bot local name or login)
+	command.Bot = tgModel.CommandBot{
+		Name:       d.Name,
+		Login:      d.Name,
+		AdminId:    d.AdminId,
+		AdminLogin: d.AdminLogin,
+	}
 	zlog.Info().Any("RunCommand command.Command", command.Command).Send() // WHy EMPTY?
 	result := command.Handler(msg, &command)
 	zlog.Info().Any("result handler", result).Send()
@@ -526,7 +532,7 @@ func (d *Data) UpdatesHandler(updates tgbotapi.UpdatesChannel, workerID string) 
 			d.RunCommand(command, msg)
 		} else {
 			for _, command := range d.Commands {
-				if !command.Permission(msg, d.AdminId) || command.Handler == nil {
+				if !command.Available(msg, d.AdminId) || command.Handler == nil {
 					continue
 				}
 				splitCommands, commandValue := splitCommand(msg.Text, " ")
