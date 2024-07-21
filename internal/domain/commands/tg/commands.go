@@ -104,7 +104,7 @@ func (cs Commands) Available(msg *tgbotapi.Message, adminId int64) Commands {
 	if msg == nil {
 		return nil
 	}
-	var result Commands
+	result := NewCommands()
 	for index, item := range cs {
 		if item.ListExclude {
 			continue
