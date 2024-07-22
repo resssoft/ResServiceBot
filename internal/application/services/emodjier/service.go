@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
+	"strconv"
 	"strings"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -15,10 +18,13 @@ import (
 	tgbotapi "fun-coice/pkg/telegram-bot-api"
 )
 
+const defaultRandomEmojiPercent = 2
+
 type data struct {
 	list      tgModel.Commands
 	reactions map[string]model.BotData
 	repo      model.Repository
+	randEmoji map[string]int
 }
 
 //TODO: translate
@@ -26,22 +32,30 @@ type data struct {
 // 2024.07.19
 var supportedEmoji = "👍👎❤️🔥🥰👏😁🤔🤯😱🤬😢🎉🤩🤮💩🙏👌🕊🤡🥱🥴😍🐳❤‍🔥🌚🌭💯🤣⚡️🍌🏆💔🤨😐🍓🍾💋🖕😈😴😭🤓👻👨‍💻👀🎃🙈😇😨🤝✍️🤗\U0001FAE1🎅🎄☃️💅🤪🗿🆒💘🙉🦄😘💊🙊😎👾🤷‍♂🤷🤷‍♀😡"
 
+var supportedEmojiList = []string{
+	"👍", "👎", "❤️", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢", "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊", "🤡", "🥱", "🥴",
+	"😍", "🐳", "❤", "‍🔥", "🌚", "🌭", "💯", "🤣", "⚡️", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭",
+	"🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😨", "🤝", "✍️", "🤗", "\U0001FAE1", "🎅", "🎄", "☃️", "💅", "🤪", "🗿", "🆒", "💘",
+	"🙉", "🦄", "😘", "💊", "🙊", "😎", "👾", "🤷", "‍♂🤷", "🤷‍♀😡",
+}
+
 func New() tgModel.Service {
 	serv := data{
 		list:      tgModel.NewCommands(),
 		reactions: make(map[string]model.BotData),
+		randEmoji: make(map[string]int),
 	}
 	tgModel.NewCommand().
-		Simple("repeatEmoji", "Add repeat emoji \nExample: \n/repeatEmoji 👌:👌", serv.addRepeatReaction).
+		Simple("repeatEmoji", "Add repeat emoji Example: /repeatEmoji 👌:👌", serv.addRepeatReaction).
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("delRepeatEmoji", "Del repeat emoji \nExample: \n/delRepeatEmoji 👌", serv.delRepeatReaction).
+		Simple("delRepeatEmoji", "Del repeat emoji Example: /delRepeatEmoji 👌", serv.delRepeatReaction).
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("addTextReaction", "Add text trigger \nExample: \n/addTextReaction love:❤️", serv.addTextReaction).
+		Simple("addTextReaction", "Add text trigger Example: /addTextReaction love:❤️", serv.addTextReaction).
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("delTextReaction", "Del text trigger \nExample: \n/delTextReaction love", serv.delTextReaction).
+		Simple("delTextReaction", "Del text trigger Example: /delTextReaction love", serv.delTextReaction).
 		Push(serv.list)
 	tgModel.NewCommand().
 		Simple("textReactions", "Show emoji triggers", serv.TextReactions).
@@ -56,7 +70,7 @@ func New() tgModel.Service {
 		Simple("about", "About", serv.description, "help").
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("testReaction", "Try to set emoji \nExample: \n/testReaction 👌", serv.testReaction).
+		Simple("testReaction", "Try to set emoji Example: /testReaction 👌", serv.testReaction).
 		Push(serv.list)
 	tgModel.NewCommand().
 		Simple("available", "Show available emoji", serv.available).
@@ -71,7 +85,10 @@ func New() tgModel.Service {
 		Simple("emojiCommands", "emoji commands", serv.commandsList).
 		Push(serv.list)
 	tgModel.NewCommand().
-		Simple("emojiSet", "Set emodji to repost message \nExample: \n/emojiSet 👌", serv.setReaction).
+		Simple("emojiSet", "Set emodji to repost message Example: /emojiSet 👌", serv.setReaction).
+		Push(serv.list)
+	tgModel.AdminCommand().
+		Simple("emojiPercentRandom", "Set random emoji persent", serv.setPercent).
 		Push(serv.list)
 
 	serv.list.AddEvent(tgModel.MessageReactionEvent, serv.reactionEvent)
@@ -119,6 +136,7 @@ func (d *data) Configure(sc tgModel.ServiceConfig) error {
 			d.reactions[sc.MessageSender.BotName()] = botdata
 		}
 	}
+	d.randEmoji[sc.MessageSender.BotName()] = defaultRandomEmojiPercent
 	if len(d.reactions[sc.MessageSender.BotName()].TextReactions) == 0 &&
 		len(d.reactions[sc.MessageSender.BotName()].TextReactions) == 0 {
 		d.reactions[sc.MessageSender.BotName()] = model.BotData{
@@ -227,6 +245,9 @@ func (d *data) textReactionEvent(msg *tgbotapi.Message, command *tgModel.Command
 			}
 		}
 	}
+	if d.Random(command.Bot.Login) && d.randEmoji[command.Bot.Login] > 0 {
+		return tgModel.Reaction(msg.Chat.ID, msg.MessageID, d.RandomEmpji())
+	}
 	return tgModel.EmptyCommand()
 }
 
@@ -331,4 +352,27 @@ func (d *data) IsNewReaction(msg *tgbotapi.Message, reaction string) bool {
 func (d *data) IsSupport(reaction string) bool {
 	fmt.Println(fmt.Sprintf("IsSupport[%s]", reaction))
 	return strings.Contains(supportedEmoji, reaction)
+}
+
+func (d *data) setPercent(msg *tgbotapi.Message, command *tgModel.Command) *tgModel.HandlerResult {
+	percent := strings.TrimSpace(command.Arguments.Raw)
+	percentInt, _ := strconv.Atoi(percent)
+	if percentInt > 100 || percentInt < 0 {
+		return tgModel.SimpleReply(msg.Chat.ID, "U invalid, set value of 0..100", msg.MessageID)
+	}
+	d.randEmoji[command.Bot.Login] = percentInt
+	return tgModel.Reaction(msg.Chat.ID, msg.MessageID, "👌")
+}
+
+func (d *data) Random(param string) bool {
+	s := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(s)
+	return r.Intn(100) <= d.randEmoji[param]
+}
+
+func (d *data) RandomEmpji() string {
+	s := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(s)
+	randNumber := r.Intn(len(supportedEmojiList) - 1)
+	return supportedEmojiList[randNumber] //fmt.Sprintf("__%d[%s]", randNumber, supportedEmojiList[randNumber])
 }
