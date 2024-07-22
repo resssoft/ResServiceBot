@@ -28,6 +28,8 @@ type data struct {
 }
 
 //TODO: translate
+//TODO: added priority and command to priority upper (limit set priority by user)
+//TODO: commands by human words like as "Bot, set [please] emoji to text my text - answer random
 
 // 2024.07.19
 var supportedEmoji = "👍👎❤️🔥🥰👏😁🤔🤯😱🤬😢🎉🤩🤮💩🙏👌🕊🤡🥱🥴😍🐳❤‍🔥🌚🌭💯🤣⚡️🍌🏆💔🤨😐🍓🍾💋🖕😈😴😭🤓👻👨‍💻👀🎃🙈😇😨🤝✍️🤗\U0001FAE1🎅🎄☃️💅🤪🗿🆒💘🙉🦄😘💊🙊😎👾🤷‍♂🤷🤷‍♀😡"
