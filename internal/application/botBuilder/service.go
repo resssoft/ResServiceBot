@@ -22,6 +22,7 @@ import (
 	"fun-coice/internal/application/services/funs"
 	"fun-coice/internal/application/services/images"
 	"fun-coice/internal/application/services/lists"
+	"fun-coice/internal/application/services/markovka"
 	"fun-coice/internal/application/services/msgStore"
 	"fun-coice/internal/application/services/p2p"
 	"fun-coice/internal/application/services/qrcodes"
@@ -66,6 +67,7 @@ func New(dispatcher *mediator.Dispatcher) *BuilderService {
 func (bs *BuilderService) Build() {
 	//TODO: restart only one bot - read config again
 	//TODO: turn off or on services by bot
+	//TODO: dynamic service added to bot by commands with dependency load
 	//weatherTokens := map[string]string{ //weatherTokens
 	//	"yandex":   config.Str("plugins.yandex_weather.token"),
 	//	"gismeteo": config.Str("plugins.gismeteo.token"),
@@ -96,6 +98,7 @@ func (bs *BuilderService) Build() {
 		testManager.New(),
 		citiesTime.New(),
 		emojier.New(),
+		markovka.New(),
 	}
 
 	for botName, tgBotConfig := range config.TgBots() {
