@@ -98,10 +98,10 @@ func (d *data) Configure(sc tgModel.ServiceConfig) error {
 		fmt.Println("markovka: no path set")
 		return nil
 	}
-	fmt.Println("markovka: load states")
+	fmt.Println("markovka: load states in the apth" + params.DataPath)
 	dirEntry, err := os.ReadDir(params.DataPath)
 	if err != nil {
-		fmt.Println("markovka: error reading directory")
+		fmt.Println("markovka: error reading directory", err.Error())
 		return nil
 	}
 	for _, entry := range dirEntry {
